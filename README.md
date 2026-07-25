@@ -51,7 +51,8 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 
 The server connection information is now a persisted disclosure panel. Collapse it from the streaming tab to reclaim
 vertical space for artists and albums. The active grouping remains visible in the compact panel label, and the
-streaming navigation title stays inline so “Album Artists” does not overlay the connection panel during pull-down.
+streaming navigation title uses the large Library/Settings treatment so the full “Streaming Library” label remains visible
+while the connection panel expands, collapses, and the catalog scrolls.
 
 ## Streaming performance
 
