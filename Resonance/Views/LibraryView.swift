@@ -281,7 +281,7 @@ struct VerticalArtistIndex: View {
                     .onChanged { value in
                         if !gestureStarted {
                             gestureStarted = true
-                            ResonanceDiagnostics.shared.record(
+                            ResonanceDiagnostics.shared.recordDeferred(
                                 "alphabet.gesture.begin",
                                 details: ["surface": diagnosticSurface]
                             )
@@ -293,7 +293,7 @@ struct VerticalArtistIndex: View {
                         )
                     }
                     .onEnded { _ in
-                        ResonanceDiagnostics.shared.record(
+                        ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.gesture.end",
                             details: [
                                 "surface": diagnosticSurface,
@@ -324,7 +324,7 @@ struct VerticalArtistIndex: View {
         selectedKey = key
         if gestureKey != key {
             gestureKey = key
-            ResonanceDiagnostics.shared.record(
+            ResonanceDiagnostics.shared.recordDeferred(
                 "alphabet.selection",
                 details: [
                     "surface": diagnosticSurface,

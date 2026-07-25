@@ -1106,13 +1106,34 @@ final class PlayerController: NSObject, ObservableObject {
       targetIndex = nextQueueIndex(after: currentQueueIndex)
     }
 
+    let hasPreloadedTarget = targetIndex.flatMap { index in
+      queue.indices.contains(index) ? queue[index].id == preloadedTrackID : nil
+    } ?? false
+    ResonanceDiagnostics.shared.record(
+      "playback.gapless.boundary.begin",
+      details: [
+        "queueIndex": String(currentQueueIndex),
+        "targetAvailable": String(targetIndex != nil),
+        "preloadedTarget": String(hasPreloadedTarget),
+        "repeatMode": repeatMode.rawValue
+      ]
+    )
+
     guard let targetIndex, queue.indices.contains(targetIndex) else {
       stop()
+      ResonanceDiagnostics.shared.record(
+        "playback.gapless.boundary.end",
+        details: ["result": "stopped-at-end"]
+      )
       return
     }
 
     let target = queue[targetIndex]
     guard preloadedTrackID == target.id else {
+      ResonanceDiagnostics.shared.record(
+        "playback.gapless.boundary.end",
+        details: ["result": "fallback-load"]
+      )
       _ = loadAndPlay(target, at: targetIndex)
       return
     }
@@ -1153,6 +1174,10 @@ final class PlayerController: NSObject, ObservableObject {
     onTrackStarted?(target)
     scheduleTrackAfterCurrentBoundary()
     updateNowPlaying()
+    ResonanceDiagnostics.shared.record(
+      "playback.gapless.boundary.end",
+      details: ["result": "advanced"]
+    )
   }
 
   private func scheduleTrackAfterCurrentBoundary() {
@@ -1182,16 +1207,28 @@ final class PlayerController: NSObject, ObservableObject {
         partialPreloadFrames[candidate.id] = remainingFrame
         preloadDetail = "Opening segment scheduled; remainder streams from disk"
         playbackEngineStatus = "Gapless ready — partial preload"
+        ResonanceDiagnostics.shared.record(
+          "playback.gapless.preload",
+          details: ["result": "partial"]
+        )
       } else {
         partialPreloadFrames[candidate.id] = nil
         preloadDetail = "Complete next track scheduled"
         playbackEngineStatus = "Gapless ready"
+        ResonanceDiagnostics.shared.record(
+          "playback.gapless.preload",
+          details: ["result": "complete"]
+        )
       }
     } catch {
       preloadedTrackID = nil
       preloadedTrackTitle = nil
       preloadDetail = "The next file could not be opened by the gapless engine"
       playbackEngineStatus = "Next track will load normally"
+      ResonanceDiagnostics.shared.record(
+        "playback.gapless.preload",
+        details: ["result": "failed"]
+      )
     }
   }
 

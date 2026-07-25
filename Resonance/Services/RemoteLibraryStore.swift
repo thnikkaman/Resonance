@@ -342,7 +342,7 @@ final class RemoteLibraryStore: ObservableObject {
             albumArtists: remoteArtists(
                 usingAlbumArtist: true,
                 from: filtered,
-                compilationAlbumKeys: []
+                compilationAlbumKeys: compilationAlbumKeys
             )
         )
         browseCache = cache
@@ -597,7 +597,7 @@ final class RemoteLibraryStore: ObservableObject {
     func activateCachedCatalogAndCheckForChanges(using settings: AppSettings, forceCheck: Bool = false) async {
         guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        ResonanceDiagnostics.shared.record(
+        ResonanceDiagnostics.shared.recordDeferred(
             "remote.catalogCheck.begin",
             details: [
                 "backend": settings.streamBackend.shortName,
@@ -615,7 +615,7 @@ final class RemoteLibraryStore: ObservableObject {
                 lastRefresh = cached.savedAt
                 connectionStatus = "Showing cached catalog — remote check available in Settings"
                 catalogSyncStatus = "Cached \(tracks.count) tracks"
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "remote.catalogCache.activated",
                     details: ["trackCount": String(tracks.count)]
                 )
@@ -625,7 +625,7 @@ final class RemoteLibraryStore: ObservableObject {
         }
 
         if !forceCheck, !tracks.isEmpty {
-            ResonanceDiagnostics.shared.record(
+            ResonanceDiagnostics.shared.recordDeferred(
                 "remote.catalogCheck.deferred",
                 details: ["reason": "cached-first", "trackCount": String(tracks.count)]
             )
@@ -634,7 +634,7 @@ final class RemoteLibraryStore: ObservableObject {
 
         let now = Date()
         if !forceCheck, let lastAutomaticCatalogCheck, now.timeIntervalSince(lastAutomaticCatalogCheck) < 300 {
-            ResonanceDiagnostics.shared.record("remote.catalogCheck.throttled")
+            ResonanceDiagnostics.shared.recordDeferred("remote.catalogCheck.throttled")
             return
         }
         lastAutomaticCatalogCheck = now
@@ -658,14 +658,14 @@ final class RemoteLibraryStore: ObservableObject {
                 let added = currentIDs.subtracting(previousIDs).count
                 let removed = previousIDs.subtracting(currentIDs).count
                 catalogSyncStatus = "Catalog updated: +\(added), −\(removed), \(tracks.count) total"
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "remote.catalogCheck.completed",
                     details: ["result": "updated", "trackCount": String(tracks.count)]
                 )
             } else {
                 connectionStatus = "Connected — cached catalog is up to date"
                 catalogSyncStatus = "No remote library changes found"
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "remote.catalogCheck.completed",
                     details: ["result": "unchanged", "trackCount": String(tracks.count)]
                 )
@@ -675,17 +675,17 @@ final class RemoteLibraryStore: ObservableObject {
                 ? "Background catalog check cancelled"
                 : "Offline — showing cached catalog"
             catalogSyncStatus = "Last check cancelled; cached catalog retained"
-            ResonanceDiagnostics.shared.record("remote.catalogCheck.cancelled")
+            ResonanceDiagnostics.shared.recordDeferred("remote.catalogCheck.cancelled")
         } catch let error as URLError where error.code == .cancelled {
             connectionStatus = tracks.isEmpty
                 ? "Background catalog check cancelled"
                 : "Offline — showing cached catalog"
             catalogSyncStatus = "Last check cancelled; cached catalog retained"
-            ResonanceDiagnostics.shared.record("remote.catalogCheck.cancelled", details: ["error": "URLError.cancelled"])
+            ResonanceDiagnostics.shared.recordDeferred("remote.catalogCheck.cancelled", details: ["error": "URLError.cancelled"])
         } catch {
             connectionStatus = tracks.isEmpty ? "Background catalog check failed: \(error.localizedDescription)" : "Offline — showing cached catalog"
             catalogSyncStatus = "Last check failed: \(error.localizedDescription)"
-            ResonanceDiagnostics.shared.record(
+            ResonanceDiagnostics.shared.recordDeferred(
                 "remote.catalogCheck.failed",
                 details: ["errorType": String(describing: type(of: error))]
             )

@@ -111,7 +111,7 @@ struct StreamingLibraryView: View {
             await remote.activateCachedCatalogAndCheckForChanges(using: settings)
         }
         .onAppear {
-            ResonanceDiagnostics.shared.record(
+            ResonanceDiagnostics.shared.recordDeferred(
                 "streaming.view.appeared",
                 details: [
                     "grouping": remote.grouping.rawValue,
@@ -202,7 +202,7 @@ private struct RemoteServerHeader: View {
         .accessibilityLabel("Streaming connection information")
         .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         .onChange(of: isExpanded) { _, expanded in
-            ResonanceDiagnostics.shared.record(
+            ResonanceDiagnostics.shared.recordDeferred(
                 "streaming.connectionInfo.changed",
                 details: ["expanded": String(expanded)]
             )
@@ -280,25 +280,25 @@ private struct RemoteLibraryOptionsSheet: View {
                 }
             }
             .onChange(of: remote.grouping) { _, grouping in
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "streaming.option.grouping.changed",
                     details: ["grouping": grouping.rawValue]
                 )
             }
             .onChange(of: remote.sortDirection) { _, direction in
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "streaming.option.sort.changed",
                     details: ["direction": direction.rawValue]
                 )
             }
             .onChange(of: settings.groupCompilationArtists) { _, enabled in
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "streaming.option.compilationGrouping.changed",
                     details: ["enabled": String(enabled)]
                 )
             }
             .onChange(of: settings.albumLayout) { _, layout in
-                ResonanceDiagnostics.shared.record(
+                ResonanceDiagnostics.shared.recordDeferred(
                     "streaming.option.layout.changed",
                     details: ["layout": layout.rawValue]
                 )
@@ -394,7 +394,7 @@ private struct RemoteArtistCollectionView: View {
                         keys: sections.map(\.key),
                         diagnosticSurface: "streaming-artists"
                     ) { key in
-                        ResonanceDiagnostics.shared.record(
+                        ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
                             details: [
                                 "surface": "streaming-artists",
@@ -537,7 +537,7 @@ private struct RemoteAlbumCollectionView: View {
                         keys: sections.map(\.key),
                         diagnosticSurface: "streaming-albums"
                     ) { key in
-                        ResonanceDiagnostics.shared.record(
+                        ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
                             details: [
                                 "surface": "streaming-albums",

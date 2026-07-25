@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **51**
+Build: **52**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -76,6 +76,8 @@ The Streaming Library options include **Group compilation-only artists**. When e
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
+Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so screen transitions, Streaming scrolling, and alphabet gestures do not synchronously block the main actor. It also passes the computed compilation-album set into Album Artists browsing and adds privacy-safe synchronous boundary/preload diagnostics for reproducing the reported local and streaming gapless failures. The remote backend remains the deliberately stable single-item `AVPlayer` path pending a separate gapless streaming design decision.
+
 ## Next major phase
 
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
@@ -83,6 +85,7 @@ Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the na
 - Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
 - Complete shared-layout acceptance: the mini-player must remain in the top safe-area inset without covering navigation or editable content, Now Playing’s Browse Library and Stop actions must remain fully visible, and the keyboard Done action must dismiss URL, number-pad, standard text, and custom hex fields on every screen.
 - Re-run the cached-catalog, manual-change-check, 5.1, local playback, remote playback, artwork, settings-category, and performance checks after these runtime fixes.
+- Profile the deferred-diagnostics build on the physical device while switching tabs, scrolling Streaming, and dragging the alphabet; inspect the resulting diagnostics log after reproducing local and streaming gapless transitions. Complete local gapless acceptance and decide whether remote gapless can be implemented without regressing the single-item playback crash shield.
 
 ## Device diagnostics
 

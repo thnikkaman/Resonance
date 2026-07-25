@@ -21,6 +21,7 @@ views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
 remote = (root / 'Resonance/Services/RemoteLibraryStore.swift').read_text()
 settings = (root / 'Resonance/Services/AppSettings.swift').read_text()
 settings_view = (root / 'Resonance/Views/SettingsView.swift').read_text()
+diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
 error_log = (root / 'Resonance/Services/AppErrorLog.swift').read_text()
 streaming = (root / 'Resonance/Views/StreamingLibraryView.swift').read_text()
 library_view = (root / 'Resonance/Views/LibraryView.swift').read_text()
@@ -30,7 +31,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 51;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 52;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -121,6 +122,11 @@ assert 'streaming.option.compilationGrouping.changed' in streaming
 assert 'compilationAlbumIdentity' in remote
 assert 'albumArtists(groupCompilationArtists:' in remote
 assert 'RemotePlaylistCollectionView' in streaming
+assert 'albumArtists: remoteArtists(' in remote
+assert 'albumArtists: remoteArtists(\n                usingAlbumArtist: true,' in remote
+assert 'recordDeferred' in diagnostics
+assert 'playback.gapless.boundary.begin' in player
+assert 'playback.gapless.preload' in player
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert '.padding(.bottom, 76)' in views

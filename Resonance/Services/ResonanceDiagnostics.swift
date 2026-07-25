@@ -26,32 +26,50 @@ final class ResonanceDiagnostics: @unchecked Sendable {
   }
 
   func record(_ event: String, details: [String: String] = [:]) {
+    let line = makeLine(event, details: details)
+
+    // Playback-stage records must be on disk before the next framework call;
+    // a synchronous serial write makes the last completed boundary useful even
+    // when the process terminates immediately afterward.
+    queue.sync {
+      append(line)
+    }
+  }
+
+  /// Records UI and catalog activity without making the main actor wait for a
+  /// filesystem write. These events are useful for performance diagnosis but
+  /// are not crash-boundary markers.
+  func recordDeferred(_ event: String, details: [String: String] = [:]) {
+    let line = makeLine(event, details: details)
+    queue.async { [weak self] in
+      self?.append(line)
+    }
+  }
+
+  private func makeLine(_ event: String, details: [String: String]) -> String {
     let cleanedEvent = sanitize(event)
     let cleanedDetails = details
       .sorted { $0.key < $1.key }
       .map { "\(sanitize($0.key))=\(sanitize($0.value))" }
       .joined(separator: " ")
     let timestamp = ISO8601DateFormatter().string(from: Date())
-    let line = cleanedDetails.isEmpty
+    return cleanedDetails.isEmpty
       ? "\(timestamp) \(cleanedEvent)\n"
       : "\(timestamp) \(cleanedEvent) \(cleanedDetails)\n"
+  }
 
-    // Playback-stage records must be on disk before the next framework call;
-    // a synchronous serial write makes the last completed boundary useful even
-    // when the process terminates immediately afterward.
-    queue.sync {
-      do {
-        if !FileManager.default.fileExists(atPath: fileURL.path) {
-          try Data().write(to: fileURL, options: .atomic)
-        }
-        let handle = try FileHandle(forWritingTo: fileURL)
-        try handle.seekToEnd()
-        try handle.write(contentsOf: Data(line.utf8))
-        try handle.close()
-        trimIfNeeded()
-      } catch {
-        // Diagnostics must never interfere with playback or app startup.
+  private func append(_ line: String) {
+    do {
+      if !FileManager.default.fileExists(atPath: fileURL.path) {
+        try Data().write(to: fileURL, options: .atomic)
       }
+      let handle = try FileHandle(forWritingTo: fileURL)
+      try handle.seekToEnd()
+      try handle.write(contentsOf: Data(line.utf8))
+      try handle.close()
+      trimIfNeeded()
+    } catch {
+      // Diagnostics must never interfere with playback or app startup.
     }
   }
 
