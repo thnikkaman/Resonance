@@ -1,0 +1,98 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E37200000000000000000001 /* AppErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37200000000000000000002 /* AppErrorLog.swift */; };
+		D34100000000000000000001 /* RemoteLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34100000000000000000002 /* RemoteLibraryStore.swift */; };
+		D34100000000000000000003 /* StreamingLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34100000000000000000004 /* StreamingLibraryView.swift */; };
+		C66A6E6203DFF9DE9CADAFDB /* ResonanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9D768859FEE075157283B8 /* ResonanceApp.swift */; };
+		E13B25083B269E0B17A74C59 /* Track.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897E8C95CE1F18D93B3AA44D /* Track.swift */; };
+		F551210F0FDB90EEEEC8FCE8 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA152536240EC50721DC38B /* AppSettings.swift */; };
+		9475A5799211AAB1235F34B5 /* LibraryDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD66134AFCA0776DC31F163 /* LibraryDatabase.swift */; };
+		711BB2183D119B3DA4E6F4AB /* MetadataReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C8DC40495DFADD6AA3AA81 /* MetadataReader.swift */; };
+		BD6A061649002ADCA9A2EE6F /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF42E6F848996BDC8302EB4 /* LibraryStore.swift */; };
+		2027B8D1985869501307FAC5 /* PlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFDFCDDBF52F105CE6A1732 /* PlayerController.swift */; };
+		31A9E74C19D84CBEA5F61001 /* GaplessAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A9E74C19D84CBEA5F61002 /* GaplessAudioEngine.swift */; };
+		645CEEBC71BABF388D38E5B5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9A5A82E233F64B6DE4E50C /* RootView.swift */; };
+		31697A16FB038DE4D27890C9 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481AE7357BBD1A22CADB904C /* LibraryView.swift */; };
+		F10B4F3091F0E8A8A10D03BD /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619008F911FEB2A46F4F77D5 /* AlbumDetailView.swift */; };
+		9F60D885F52912A4C3CD3E53 /* PlayerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A069D71CF1C19D17E206BD0E /* PlayerViews.swift */; };
+		7EA8050AE9E5BA0B877FF301 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81C6525BD42FF8925A4C53D /* ArtworkView.swift */; };
+		CC6300B4347FF8322C47575F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978160B2EA4BD4E4E8A7B93B /* SettingsView.swift */; };
+		575B533E50870490BCF1CADB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 715886BEA1C4326035BF2AB5 /* Assets.xcassets */; };
+		20D6E6BFFEF2553F6D9877DB /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 786D348E95448121DC5B7387 /* libsqlite3.tbd */; };
+		A23B25083B269E0B17A74C59 /* SmartLibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23E8C95CE1F18D93B3AA44D /* SmartLibraryViews.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		E37200000000000000000002 /* AppErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppErrorLog.swift; sourceTree = "<group>"; };
+		D34100000000000000000002 /* RemoteLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLibraryStore.swift; sourceTree = "<group>"; };
+		D34100000000000000000004 /* StreamingLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingLibraryView.swift; sourceTree = "<group>"; };
+		EA9D768859FEE075157283B8 /* ResonanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResonanceApp.swift; sourceTree = "<group>"; };
+		897E8C95CE1F18D93B3AA44D /* Track.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Track.swift; sourceTree = "<group>"; };
+		1FA152536240EC50721DC38B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		8BD66134AFCA0776DC31F163 /* LibraryDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDatabase.swift; sourceTree = "<group>"; };
+		D5C8DC40495DFADD6AA3AA81 /* MetadataReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataReader.swift; sourceTree = "<group>"; };
+		5CF42E6F848996BDC8302EB4 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		7CFDFCDDBF52F105CE6A1732 /* PlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerController.swift; sourceTree = "<group>"; };
+		31A9E74C19D84CBEA5F61002 /* GaplessAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaplessAudioEngine.swift; sourceTree = "<group>"; };
+		BF9A5A82E233F64B6DE4E50C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		481AE7357BBD1A22CADB904C /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		619008F911FEB2A46F4F77D5 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailView.swift; sourceTree = "<group>"; };
+		A069D71CF1C19D17E206BD0E /* PlayerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViews.swift; sourceTree = "<group>"; };
+		B81C6525BD42FF8925A4C53D /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
+		978160B2EA4BD4E4E8A7B93B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		715886BEA1C4326035BF2AB5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7B4730292C2435CE042E7270 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F5BF48AA40CAD7891EB709FC /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		786D348E95448121DC5B7387 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		A23E8C95CE1F18D93B3AA44D /* SmartLibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartLibraryViews.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4F6F5CC3FCCF73F75AE9CCF4 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (20D6E6BFFEF2553F6D9877DB /* libsqlite3.tbd in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8D3FC6DB5D0827F168A73277 = {isa = PBXGroup; children = (CCDE4F9B3797631162024FE8 /* Resonance */, 86024CAD1E83101D97359D73 /* Products */, 786D348E95448121DC5B7387 /* libsqlite3.tbd */,); sourceTree = "<group>"; };
+		86024CAD1E83101D97359D73 /* Products */ = {isa = PBXGroup; children = (F5BF48AA40CAD7891EB709FC /* Resonance.app */,); name = Products; sourceTree = "<group>"; };
+		CCDE4F9B3797631162024FE8 /* Resonance */ = {isa = PBXGroup; children = (EA9D768859FEE075157283B8, F279894B2C0244AB14D9678A, 3091E55AA65C983704253602, D792C0B955B165029150ADCE, 715886BEA1C4326035BF2AB5, 7B4730292C2435CE042E7270,); path = Resonance; sourceTree = "<group>"; };
+		F279894B2C0244AB14D9678A /* Models */ = {isa = PBXGroup; children = (897E8C95CE1F18D93B3AA44D,); path = Models; sourceTree = "<group>"; };
+		3091E55AA65C983704253602 /* Services */ = {isa = PBXGroup; children = (E37200000000000000000002, 1FA152536240EC50721DC38B, 8BD66134AFCA0776DC31F163, D5C8DC40495DFADD6AA3AA81, 5CF42E6F848996BDC8302EB4, 7CFDFCDDBF52F105CE6A1732, 31A9E74C19D84CBEA5F61002, D34100000000000000000002,); path = Services; sourceTree = "<group>"; };
+		D792C0B955B165029150ADCE /* Views */ = {isa = PBXGroup; children = (BF9A5A82E233F64B6DE4E50C, 481AE7357BBD1A22CADB904C, 619008F911FEB2A46F4F77D5, A069D71CF1C19D17E206BD0E, B81C6525BD42FF8925A4C53D, 978160B2EA4BD4E4E8A7B93B, A23E8C95CE1F18D93B3AA44D, D34100000000000000000004,); path = Views; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		42AEFBAE01D2DFD981F7DA7D /* Resonance */ = {isa = PBXNativeTarget; buildConfigurationList = AF36A1B8E7B7509D14B80ABE; buildPhases = (F2AB5FB218DA8B84623F4557, 4F6F5CC3FCCF73F75AE9CCF4, 55B558C7EF820E6E00E5993B,); buildRules = (); dependencies = (); name = Resonance; productName = Resonance; productReference = F5BF48AA40CAD7891EB709FC; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {42AEFBAE01D2DFD981F7DA7D = {CreatedOnToolsVersion = 16.0; }; }; }; buildConfigurationList = 69F27365EBE6C312B9EDD090; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = 8D3FC6DB5D0827F168A73277; productRefGroup = 86024CAD1E83101D97359D73; projectDirPath = ""; projectRoot = ""; targets = (42AEFBAE01D2DFD981F7DA7D,); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		55B558C7EF820E6E00E5993B = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (575B533E50870490BCF1CADB /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F2AB5FB218DA8B84623F4557 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E37200000000000000000001, C66A6E6203DFF9DE9CADAFDB /* ResonanceApp.swift in Sources */, E13B25083B269E0B17A74C59 /* Track.swift in Sources */, F551210F0FDB90EEEEC8FCE8 /* AppSettings.swift in Sources */, 9475A5799211AAB1235F34B5 /* LibraryDatabase.swift in Sources */, 711BB2183D119B3DA4E6F4AB /* MetadataReader.swift in Sources */, BD6A061649002ADCA9A2EE6F /* LibraryStore.swift in Sources */, 2027B8D1985869501307FAC5 /* PlayerController.swift in Sources */, 31A9E74C19D84CBEA5F61001 /* GaplessAudioEngine.swift in Sources */, 645CEEBC71BABF388D38E5B5 /* RootView.swift in Sources */, 31697A16FB038DE4D27890C9 /* LibraryView.swift in Sources */, F10B4F3091F0E8A8A10D03BD /* AlbumDetailView.swift in Sources */, 9F60D885F52912A4C3CD3E53 /* PlayerViews.swift in Sources */, 7EA8050AE9E5BA0B877FF301 /* ArtworkView.swift in Sources */, CC6300B4347FF8322C47575F /* SettingsView.swift in Sources */, A23B25083B269E0B17A74C59 /* SmartLibraryViews.swift in Sources */, D34100000000000000000001 /* RemoteLibraryStore.swift in Sources */, D34100000000000000000003 /* StreamingLibraryView.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		53225B37513D0A8E1C77903E /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; DEBUG_INFORMATION_FORMAT = dwarf; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)",); SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }; name = Debug; };
+		6D440798F5B99F1712709580 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SWIFT_COMPILATION_MODE = wholemodule; }; name = Release; };
+		A4D9F763E11E4B75046A220F /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 41; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resonance/Info.plist; MARKETING_VERSION = 0.3.7.4; PRODUCT_BUNDLE_IDENTIFIER = com.example.ResonancePrototype; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = 1;}; name = Debug; };
+		35203EB98FC791A5FD5AFDD6 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 41; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Resonance/Info.plist; MARKETING_VERSION = 0.3.7.4; PRODUCT_BUNDLE_IDENTIFIER = com.example.ResonancePrototype; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; TARGETED_DEVICE_FAMILY = 1;}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		69F27365EBE6C312B9EDD090 = {isa = XCConfigurationList; buildConfigurations = (53225B37513D0A8E1C77903E, 6D440798F5B99F1712709580,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AF36A1B8E7B7509D14B80ABE = {isa = XCConfigurationList; buildConfigurations = (A4D9F763E11E4B75046A220F, 35203EB98FC791A5FD5AFDD6,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}

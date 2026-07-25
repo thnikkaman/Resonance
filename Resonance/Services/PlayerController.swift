@@ -1,0 +1,1416 @@
+@preconcurrency import AVFoundation
+import MediaPlayer
+import UIKit
+
+enum RepeatMode: String, CaseIterable, Identifiable {
+  case off = "Off"
+  case all = "Repeat All"
+  case one = "Repeat One"
+
+  var id: String { rawValue }
+  var systemImage: String {
+    switch self {
+    case .off, .all: return "repeat"
+    case .one: return "repeat.1"
+    }
+  }
+}
+
+enum SleepTimerOption: String, CaseIterable, Identifiable {
+  case off = "Off"
+  case fifteenMinutes = "15 Minutes"
+  case thirtyMinutes = "30 Minutes"
+  case fortyFiveMinutes = "45 Minutes"
+  case sixtyMinutes = "60 Minutes"
+  case endOfTrack = "End of Track"
+
+  var id: String { rawValue }
+  var interval: TimeInterval? {
+    switch self {
+    case .off, .endOfTrack: return nil
+    case .fifteenMinutes: return 15 * 60
+    case .thirtyMinutes: return 30 * 60
+    case .fortyFiveMinutes: return 45 * 60
+    case .sixtyMinutes: return 60 * 60
+    }
+  }
+}
+
+struct PlaybackBookmark: Identifiable, Codable, Hashable, Sendable {
+  let id: UUID
+  let trackID: UUID
+  let time: TimeInterval
+  let createdAt: Date
+
+  init(id: UUID = UUID(), trackID: UUID, time: TimeInterval, createdAt: Date = Date()) {
+    self.id = id
+    self.trackID = trackID
+    self.time = time
+    self.createdAt = createdAt
+  }
+}
+
+@MainActor
+final class PlayerController: NSObject, ObservableObject {
+  @Published private(set) var currentTrack: Track?
+  @Published private(set) var isPlaying = false
+  @Published private(set) var elapsed = 0.0
+  @Published private(set) var duration = 0.0
+  @Published private(set) var meterLevel = 0.0
+  @Published private(set) var queue: [Track] = []
+  @Published private(set) var currentQueueIndex = 0
+  @Published var shuffleEnabled = false
+  @Published var repeatMode: RepeatMode = .off
+  @Published var volume = 1.0 {
+    didSet {
+      let clamped = Float(min(max(volume, 0), 1))
+      switch activeBackend {
+      case .gapless: gaplessEngine.volume = clamped
+      case .legacy: audioPlayer?.volume = clamped
+      case .remote: remotePlayer?.volume = clamped
+      case .none: break
+      }
+    }
+  }
+  @Published private(set) var sleepTimerOption: SleepTimerOption = .off
+  @Published private(set) var sleepTimerRemaining: TimeInterval = 0
+  @Published private(set) var bookmarks: [PlaybackBookmark] = []
+  @Published private(set) var playbackEngineStatus = "Ready"
+  @Published private(set) var preloadedTrackTitle: String?
+  @Published private(set) var preloadDetail = "No track preloaded"
+  @Published private(set) var audioFormatStatus = "Stereo output ready"
+  @Published private(set) var downmixRoutingStatus = "Automatic stereo routing"
+  @Published private(set) var networkBufferStatus = "No remote stream active"
+  @Published private(set) var playbackStartupDiagnostic =
+    UserDefaults.standard.string(forKey: "resonance.lastPlaybackStartupStage") ?? "No playback attempt recorded"
+  @Published private(set) var playbackRuntimeDiagnostic =
+    UserDefaults.standard.string(forKey: "resonance.lastPlaybackRuntimeStage") ?? "No playback runtime stage recorded"
+
+  var onTrackStarted: (@MainActor (Track) -> Void)?
+  var onRuntimeError: (@MainActor (_ source: String, _ message: String) -> Void)?
+
+  private enum ActiveBackend { case none, gapless, legacy, remote }
+
+  private var sourceQueue: [Track] = []
+  private var activeBackend: ActiveBackend = .none
+  private var audioPlayer: AVAudioPlayer?
+  private var remotePlayer: AVPlayer?
+  private lazy var remoteObserver = RemotePlayerObserver(owner: self)
+  private var playbackTimerTask: Task<Void, Never>?
+  private var sleepTimerTask: Task<Void, Never>?
+  private var lastNowPlayingProgressUpdate = 0.0
+  private var hasRecordedFirstPlaybackTick = false
+  private var playbackAnchorDate: Date?
+  private var playbackAnchorElapsed = 0.0
+  private var playbackGeneration = 0
+  private var preloadedTrackID: UUID?
+  private var engineDurations: [UUID: TimeInterval] = [:]
+  private var engineChannelCounts: [UUID: AVAudioChannelCount] = [:]
+  private var partialPreloadFrames: [UUID: AVAudioFramePosition] = [:]
+  private lazy var audioDelegate = AudioPlayerDelegateProxy(owner: self)
+  private lazy var gaplessEngine = makeGaplessEngine()
+  private var gaplessDisabledForSession = false
+
+  private func makeGaplessEngine() -> GaplessAudioEngine {
+    let engine = GaplessAudioEngine()
+    engine.setCompletionHandler { [weak self] trackID, generation in
+      Task { @MainActor [weak self] in
+        self?.handleGaplessTrackFinished(trackID: trackID, generation: generation)
+      }
+    }
+    engine.volume = Float(min(max(volume, 0), 1))
+    return engine
+  }
+
+  private func quarantineGaplessEngineAfterMatrixFailure() {
+    // Keep the failed engine instance alive but disconnected for the remainder
+    // of this process. This avoids resetting or deallocating a partially
+    // configured Matrix Mixer while playback falls back to AVAudioPlayer.
+    gaplessEngine.setCompletionHandler(nil)
+    gaplessEngine.abandonFailedPreparation()
+    gaplessDisabledForSession = true
+  }
+
+  override init() {
+    bookmarks = Self.loadBookmarks()
+    super.init()
+    configureSession()
+    configureRemoteCommands()
+  }
+
+  var upcomingTracks: [Track] {
+    guard !queue.isEmpty, currentQueueIndex + 1 < queue.count else { return [] }
+    return Array(queue[(currentQueueIndex + 1)...])
+  }
+
+  var currentTrackBookmarks: [PlaybackBookmark] {
+    guard let currentTrack else { return [] }
+    return
+      bookmarks
+      .filter { $0.trackID == currentTrack.id }
+      .sorted { $0.time < $1.time }
+  }
+
+  var sleepTimerLabel: String {
+    switch sleepTimerOption {
+    case .off: return "Off"
+    case .endOfTrack: return "End of Track"
+    default:
+      let remaining = max(0, Int(sleepTimerRemaining.rounded(.up)))
+      return String(format: "%d:%02d", remaining / 60, remaining % 60)
+    }
+  }
+
+  func artworkData(for track: Track) -> Data? {
+    if let artwork = track.artworkData { return artwork }
+    return artworkSource(for: track)?.artworkData
+  }
+
+  func artworkIsEmbedded(for track: Track) -> Bool {
+    if track.artworkData != nil { return track.artworkIsEmbedded }
+    return artworkSource(for: track)?.artworkIsEmbedded ?? true
+  }
+
+  func play(_ track: Track, in tracks: [Track]) {
+    guard tracks.contains(track) else { return }
+    sourceQueue = tracks
+
+    if shuffleEnabled {
+      let remaining = tracks.filter { $0.id != track.id }.shuffled()
+      queue = [track] + remaining
+      currentQueueIndex = 0
+    } else {
+      queue = tracks
+      currentQueueIndex = tracks.firstIndex(of: track) ?? 0
+    }
+
+    _ = loadAndPlay(track)
+  }
+
+  func shuffleAndPlay(_ tracks: [Track]) {
+    let candidates = uniqueTracks(tracks)
+    guard let first = candidates.randomElement() else { return }
+    shuffleEnabled = true
+    play(first, in: candidates)
+  }
+
+  func playQueueItem(_ track: Track) {
+    guard let targetIndex = queue.firstIndex(of: track) else { return }
+    _ = loadAndPlay(track, at: targetIndex)
+  }
+
+  /// Inserts tracks immediately after the currently playing item. Existing
+  /// occurrences are removed from the upcoming queue first so a quick action
+  /// never creates accidental duplicates.
+  func playNext(_ tracks: [Track]) {
+    let requested = uniqueTracks(tracks).filter { $0.id != currentTrack?.id }
+    guard !requested.isEmpty else { return }
+
+    guard currentTrack != nil, !queue.isEmpty else {
+      if let first = requested.first { play(first, in: requested) }
+      return
+    }
+
+    let requestedIDs = Set(requested.map(\.id))
+    let played = Array(queue.prefix(currentQueueIndex + 1))
+    let remaining = queue.dropFirst(currentQueueIndex + 1).filter { !requestedIDs.contains($0.id) }
+    queue = played + requested + remaining
+
+    sourceQueue.removeAll { requestedIDs.contains($0.id) }
+    if let currentTrack,
+      let sourceIndex = sourceQueue.firstIndex(where: { $0.id == currentTrack.id })
+    {
+      let insertionIndex = min(sourceIndex + 1, sourceQueue.count)
+      sourceQueue.insert(contentsOf: requested, at: insertionIndex)
+    } else {
+      let existingSourceIDs = Set(sourceQueue.map(\.id))
+      sourceQueue.append(contentsOf: requested.filter { !existingSourceIDs.contains($0.id) })
+    }
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  /// Appends tracks to the end of the playback queue while preserving their
+  /// requested order and omitting anything already queued.
+  func addToQueue(_ tracks: [Track]) {
+    let requested = uniqueTracks(tracks)
+    guard !requested.isEmpty else { return }
+
+    guard currentTrack != nil, !queue.isEmpty else {
+      if let first = requested.first { play(first, in: requested) }
+      return
+    }
+
+    let queuedIDs = Set(queue.map(\.id))
+    let additions = requested.filter { !queuedIDs.contains($0.id) }
+    guard !additions.isEmpty else { return }
+    queue.append(contentsOf: additions)
+
+    let sourceIDs = Set(sourceQueue.map(\.id))
+    sourceQueue.append(contentsOf: additions.filter { !sourceIDs.contains($0.id) })
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func play() {
+    guard currentTrack != nil, !isPlaying else { return }
+    switch activeBackend {
+    case .gapless:
+      do {
+        try gaplessEngine.play()
+      } catch {
+        playbackEngineStatus = "Audio engine could not resume"
+        return
+      }
+    case .legacy:
+      guard audioPlayer?.play() == true else { return }
+    case .remote:
+      guard let remotePlayer else { return }
+      remotePlayer.play()
+    case .none:
+      return
+    }
+    playbackAnchorDate = Date()
+    playbackAnchorElapsed = elapsed
+    isPlaying = true
+    startPlaybackTimer()
+    updateNowPlaying()
+  }
+
+  func pause() {
+    guard isPlaying else { return }
+    updateElapsedFromClock()
+    switch activeBackend {
+    case .gapless: gaplessEngine.pause()
+    case .legacy: audioPlayer?.pause()
+    case .remote: remotePlayer?.pause()
+    case .none: break
+    }
+    playbackAnchorDate = nil
+    playbackAnchorElapsed = elapsed
+    isPlaying = false
+    updateNowPlaying()
+  }
+
+  func toggle() {
+    isPlaying ? pause() : play()
+  }
+
+  func next() {
+    guard !queue.isEmpty else { return }
+    if let targetIndex = nextQueueIndex(after: currentQueueIndex) {
+      _ = loadAndPlay(queue[targetIndex], at: targetIndex)
+    } else {
+      stop()
+    }
+  }
+
+  func previous() {
+    if elapsed > 3 {
+      seek(to: 0)
+      return
+    }
+    previousTrack()
+  }
+
+  /// Moves directly to the preceding queue item. This is used by the Now
+  /// Playing swipe gesture, where a right swipe always means previous track.
+  func previousTrack() {
+    guard !queue.isEmpty else { return }
+    let targetIndex = currentQueueIndex - 1
+    if queue.indices.contains(targetIndex) {
+      _ = loadAndPlay(queue[targetIndex], at: targetIndex)
+    } else if repeatMode == .all, let last = queue.last {
+      _ = loadAndPlay(last, at: queue.count - 1)
+    } else {
+      seek(to: 0)
+    }
+  }
+
+  func skip(by interval: TimeInterval) {
+    guard currentTrack != nil else { return }
+    seek(to: elapsed + interval)
+  }
+
+  func toggleShuffle() {
+    shuffleEnabled.toggle()
+    guard let currentTrack else { return }
+
+    if shuffleEnabled {
+      let alreadyPlayed = Array(queue.prefix(currentQueueIndex + 1))
+      let upcoming = Array(queue.dropFirst(currentQueueIndex + 1)).shuffled()
+      queue = alreadyPlayed + upcoming
+    } else {
+      let retainedIDs = Set(queue.map(\.id))
+      let restoredQueue = sourceQueue.filter { retainedIDs.contains($0.id) }
+      if let restoredIndex = restoredQueue.firstIndex(of: currentTrack) {
+        queue = restoredQueue
+        currentQueueIndex = restoredIndex
+      }
+    }
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func cycleRepeatMode() {
+    switch repeatMode {
+    case .off: repeatMode = .all
+    case .all: repeatMode = .one
+    case .one: repeatMode = .off
+    }
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func removeUpcoming(atOffsets offsets: IndexSet) {
+    let start = currentQueueIndex + 1
+    let absoluteIndices = offsets.map { start + $0 }.sorted(by: >)
+    let removedIDs = Set(
+      absoluteIndices.compactMap { queue.indices.contains($0) ? queue[$0].id : nil })
+    for index in absoluteIndices where queue.indices.contains(index) {
+      queue.remove(at: index)
+    }
+    sourceQueue.removeAll { removedIDs.contains($0.id) }
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func moveUpcoming(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+    var upcoming = upcomingTracks
+    let validOffsets = offsets.filter { upcoming.indices.contains($0) }.sorted()
+    guard !validOffsets.isEmpty else { return }
+
+    let movingTracks = validOffsets.map { upcoming[$0] }
+    for index in validOffsets.reversed() {
+      upcoming.remove(at: index)
+    }
+
+    let removedBeforeDestination = validOffsets.filter { $0 < destination }.count
+    let adjustedDestination = min(max(0, destination - removedBeforeDestination), upcoming.count)
+    upcoming.insert(contentsOf: movingTracks, at: adjustedDestination)
+
+    queue = Array(queue.prefix(currentQueueIndex + 1)) + upcoming
+    sourceQueue = queue
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func clearUpcoming() {
+    guard !queue.isEmpty else { return }
+    queue = Array(queue.prefix(currentQueueIndex + 1))
+    let retainedIDs = Set(queue.map(\.id))
+    sourceQueue.removeAll { !retainedIDs.contains($0.id) }
+    updateNowPlaying()
+    refreshPreloadedTrackAfterQueueChange()
+  }
+
+  func addBookmarkAtCurrentPosition() {
+    guard let currentTrack, duration > 0 else { return }
+    let roundedTime = min(max(0, elapsed.rounded()), max(0, duration - 0.5))
+    let alreadyExists = bookmarks.contains {
+      $0.trackID == currentTrack.id && abs($0.time - roundedTime) < 2
+    }
+    guard !alreadyExists else { return }
+    bookmarks.append(PlaybackBookmark(trackID: currentTrack.id, time: roundedTime))
+    persistBookmarks()
+  }
+
+  func seek(to bookmark: PlaybackBookmark) {
+    guard bookmark.trackID == currentTrack?.id else { return }
+    seek(to: bookmark.time)
+  }
+
+  func removeBookmarks(atOffsets offsets: IndexSet) {
+    let visible = currentTrackBookmarks
+    let ids = Set(offsets.compactMap { visible.indices.contains($0) ? visible[$0].id : nil })
+    guard !ids.isEmpty else { return }
+    bookmarks.removeAll { ids.contains($0.id) }
+    persistBookmarks()
+  }
+
+  func removeBookmark(_ bookmark: PlaybackBookmark) {
+    bookmarks.removeAll { $0.id == bookmark.id }
+    persistBookmarks()
+  }
+
+  func setSleepTimer(_ option: SleepTimerOption) {
+    sleepTimerTask?.cancel()
+    sleepTimerTask = nil
+    sleepTimerOption = option
+    sleepTimerRemaining = option.interval ?? 0
+
+    guard let interval = option.interval else { return }
+    let deadline = Date().addingTimeInterval(interval)
+    sleepTimerTask = Task { @MainActor [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled, let self else { return }
+        self.sleepTimerRemaining = max(0, deadline.timeIntervalSinceNow)
+        if self.sleepTimerRemaining <= 0 {
+          self.sleepTimerTask = nil
+          self.sleepTimerOption = .off
+          self.stop()
+          return
+        }
+      }
+    }
+  }
+
+  func stop() {
+    playbackGeneration += 1
+    playbackTimerTask?.cancel()
+    playbackTimerTask = nil
+    sleepTimerTask?.cancel()
+    sleepTimerTask = nil
+    tearDownActiveBackend()
+    activeBackend = .none
+    isPlaying = false
+    elapsed = 0
+    duration = 0
+    meterLevel = 0
+    currentTrack = nil
+    queue = []
+    sourceQueue = []
+    currentQueueIndex = 0
+    sleepTimerOption = .off
+    sleepTimerRemaining = 0
+    lastNowPlayingProgressUpdate = 0
+    playbackAnchorDate = nil
+    playbackAnchorElapsed = 0
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    preloadDetail = "No track preloaded"
+    audioFormatStatus = "Stereo output ready"
+    downmixRoutingStatus = "Automatic stereo routing"
+    networkBufferStatus = "No remote stream active"
+    engineDurations.removeAll()
+    engineChannelCounts.removeAll()
+    partialPreloadFrames.removeAll()
+    playbackEngineStatus = "Ready"
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+  }
+
+  func seek(to value: Double) {
+    guard let currentTrack else { return }
+    let clamped = safeSeekPosition(value, duration: duration)
+
+    switch activeBackend {
+    case .gapless:
+      let wasPlaying = isPlaying
+      if loadAndPlay(currentTrack, at: currentQueueIndex, startTime: clamped, autoPlay: wasPlaying, notifyTrackStarted: false) {
+        elapsed = clamped
+        playbackAnchorElapsed = clamped
+        if !wasPlaying { pause() }
+      }
+    case .legacy:
+      guard let audioPlayer else { return }
+      audioPlayer.currentTime = safeSeekPosition(clamped, duration: audioPlayer.duration)
+      elapsed = audioPlayer.currentTime
+      playbackAnchorElapsed = elapsed
+      playbackAnchorDate = isPlaying ? Date() : nil
+      updateNowPlayingProgress()
+    case .remote:
+      guard let remotePlayer else { return }
+      let target = CMTime(seconds: clamped, preferredTimescale: 600)
+      remotePlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+      elapsed = clamped
+      playbackAnchorElapsed = clamped
+      playbackAnchorDate = isPlaying ? Date() : nil
+      updateNowPlayingProgress()
+    case .none:
+      break
+    }
+  }
+
+  /// Re-reads the persisted preload settings and rebuilds the future schedule
+  /// without changing the selected track or its visible play position.
+  func refreshNowPlayingMetadata() {
+    updateNowPlaying()
+  }
+
+  func refreshPlaybackConfiguration() {
+    guard let currentTrack else { return }
+    if activeBackend == .remote {
+      remotePlayer?.currentItem?.preferredForwardBufferDuration = remoteForwardBufferDuration(for: currentTrack)
+      updateRemoteBufferStatus()
+      return
+    }
+    guard activeBackend == .gapless else { return }
+    updateElapsedFromClock()
+    let wasPlaying = isPlaying
+    _ = loadAndPlay(
+      currentTrack,
+      at: currentQueueIndex,
+      startTime: elapsed,
+      autoPlay: wasPlaying,
+      notifyTrackStarted: false
+    )
+  }
+
+  private func markPlaybackStartupStage(_ stage: String) {
+    playbackStartupDiagnostic = stage
+    UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackStartupStage")
+  }
+
+  private func markPlaybackRuntimeStage(_ stage: String) {
+    playbackRuntimeDiagnostic = stage
+    UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackRuntimeStage")
+  }
+
+  private func reportRuntimeError(source: String = "Playback", _ message: String) {
+    let cleaned = message.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !cleaned.isEmpty else { return }
+    onRuntimeError?(source, cleaned)
+  }
+
+  /// Stops only the backend that is currently active. This avoids lazily
+  /// constructing and resetting the local AVAudioEngine for remote playback,
+  /// and avoids the redundant double-reset that previously occurred before
+  /// every local prepare operation.
+  private func tearDownActiveBackend() {
+    switch activeBackend {
+    case .gapless:
+      gaplessEngine.stop(resetEngine: true)
+    case .legacy:
+      audioPlayer?.delegate = nil
+      audioPlayer?.stop()
+      audioPlayer = nil
+    case .remote:
+      remoteObserver.stop()
+      remotePlayer?.pause()
+      remotePlayer?.replaceCurrentItem(with: nil)
+      remotePlayer = nil
+    case .none:
+      break
+    }  }
+
+  @discardableResult
+  private func loadAndPlay(
+    _ track: Track,
+    at targetIndex: Int? = nil,
+    startTime: TimeInterval = 0,
+    autoPlay: Bool = true,
+    notifyTrackStarted: Bool = true
+  ) -> Bool {
+    guard let url = track.fileURL else {
+      clearUnplayableTrack()
+      return false
+    }
+    if url.isFileURL && !FileManager.default.fileExists(atPath: url.path) {
+      clearUnplayableTrack()
+      return false
+    }
+    if !url.isFileURL && !(url.scheme == "http" || url.scheme == "https") {
+      clearUnplayableTrack()
+      return false
+    }
+
+    let resolvedIndex = targetIndex ?? queue.firstIndex(of: track) ?? currentQueueIndex
+    markPlaybackStartupStage(url.isFileURL ? "Local request accepted" : "Remote request accepted")
+    playbackGeneration += 1
+    let generation = playbackGeneration
+    playbackTimerTask?.cancel()
+    playbackTimerTask = nil
+    tearDownActiveBackend()
+    markPlaybackStartupStage("Previous playback backend stopped")
+    activeBackend = .none
+    isPlaying = false
+    elapsed = max(0, startTime)
+    playbackAnchorElapsed = elapsed
+    playbackAnchorDate = nil
+    meterLevel = 0
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    engineDurations.removeAll()
+    engineChannelCounts.removeAll()
+    partialPreloadFrames.removeAll()
+    preloadDetail = "No track preloaded"
+    audioFormatStatus = "Stereo output ready"
+    downmixRoutingStatus = "Automatic stereo routing"
+    networkBufferStatus = "No remote stream active"
+
+    if !url.isFileURL {
+      markPlaybackStartupStage("Creating stable remote player")
+      return loadWithRemotePlayer(
+        track,
+        url: url,
+        at: resolvedIndex,
+        startTime: startTime,
+        autoPlay: autoPlay,
+        notifyTrackStarted: notifyTrackStarted
+      )
+    }
+
+    if gaplessDisabledForSession {
+      markPlaybackStartupStage("Using compatibility player after a matrix failure")
+      playbackEngineStatus = "Compatibility fallback — gapless disabled until relaunch"
+      return loadWithLegacyPlayer(
+        track,
+        url: url,
+        at: resolvedIndex,
+        startTime: startTime,
+        autoPlay: autoPlay,
+        notifyTrackStarted: notifyTrackStarted,
+        successfulStartupStage: "Compatibility playback started successfully with gapless disabled"
+      )
+    }
+
+    let following = preloadCandidate(after: resolvedIndex)
+    do {
+      markPlaybackStartupStage("Preparing local audio engine")
+      let prepared = try gaplessEngine.prepare(
+        currentTrackID: track.id,
+        currentURL: url,
+        startTime: startTime,
+        followingTrackID: following?.id,
+        followingURL: following?.fileURL,
+        preloadBudgetBytes: localPreloadBudgetBytes,
+        generation: generation
+      )
+      gaplessEngine.volume = Float(min(max(volume, 0), 1))
+      activeBackend = .gapless
+      currentQueueIndex = resolvedIndex
+      currentTrack = track
+      duration = prepared.current.duration
+      engineDurations[track.id] = prepared.current.duration
+      engineChannelCounts[track.id] = prepared.current.channelCount
+      audioFormatStatus = Self.audioFormatDescription(
+        sourceChannels: prepared.current.channelCount,
+        outputChannels: gaplessEngine.outputChannelCount
+      )
+      downmixRoutingStatus = gaplessEngine.downmixRoutingDescription
+      if let following, let followingSchedule = prepared.following {
+        preloadedTrackID = following.id
+        preloadedTrackTitle = following.title
+        engineDurations[following.id] = followingSchedule.duration
+        engineChannelCounts[following.id] = followingSchedule.channelCount
+        if let remainingFrame = followingSchedule.remainingStartFrame {
+          partialPreloadFrames[following.id] = remainingFrame
+          preloadDetail = "Opening segment scheduled; remainder streams from disk"
+          playbackEngineStatus = "Gapless ready — partial preload"
+        } else {
+          preloadDetail = "Complete next track scheduled"
+          playbackEngineStatus = "Gapless ready"
+        }
+      } else if following != nil {
+        preloadDetail = "The next file could not be opened by the gapless engine"
+        playbackEngineStatus = "Next track will load normally"
+      } else {
+        preloadDetail = shouldPreloadNextTrack ? "End of queue" : "Preloading disabled"
+        playbackEngineStatus = shouldPreloadNextTrack ? "Playing — end of queue" : "Gapless preload off"
+      }
+      elapsed = min(max(0, startTime), max(0, duration - 0.05))
+      playbackAnchorElapsed = elapsed
+      playbackAnchorDate = autoPlay ? Date() : nil
+      isPlaying = autoPlay
+      if !autoPlay { gaplessEngine.pause() }
+      if notifyTrackStarted { onTrackStarted?(track) }
+      lastNowPlayingProgressUpdate = 0
+      hasRecordedFirstPlaybackTick = false
+      markPlaybackRuntimeStage("Publishing Lock Screen metadata")
+      updateNowPlaying()
+      markPlaybackRuntimeStage("Lock Screen metadata published; scheduling playback timer")
+      startPlaybackTimer()
+      markPlaybackRuntimeStage("Playback timer scheduled")
+      markPlaybackStartupStage("Local playback started successfully")
+      return true
+    } catch {
+      let isMatrixFailure: Bool
+      if let engineError = error as? GaplessAudioEngine.EngineError,
+         case .matrixConfigurationFailed = engineError {
+        isMatrixFailure = true
+      } else {
+        isMatrixFailure = false
+      }
+
+      // Never reuse or reset an AVAudioEngine whose graph failed midway
+      // through Matrix Mixer configuration. Quarantine it for this process and
+      // route local playback through the stable compatibility player.
+      if isMatrixFailure {
+        quarantineGaplessEngineAfterMatrixFailure()
+      } else {
+        gaplessEngine.stop(resetEngine: true)
+      }
+      let failureStage = isMatrixFailure
+        ? "Surround matrix failed; opening compatibility player"
+        : "Local engine failed; opening compatibility player"
+      markPlaybackStartupStage(failureStage)
+      reportRuntimeError("Local gapless engine failed: \(error.localizedDescription)")
+      playbackEngineStatus = isMatrixFailure
+        ? "Compatibility fallback — gapless disabled until relaunch"
+        : "Compatibility fallback"
+      return loadWithLegacyPlayer(
+        track,
+        url: url,
+        at: resolvedIndex,
+        startTime: startTime,
+        autoPlay: autoPlay,
+        notifyTrackStarted: notifyTrackStarted,
+        successfulStartupStage: isMatrixFailure
+          ? "Compatibility playback started successfully after matrix failure"
+          : "Compatibility playback started successfully"
+      )
+    }
+  }
+
+  private func loadWithLegacyPlayer(
+    _ track: Track,
+    url: URL,
+    at targetIndex: Int,
+    startTime: TimeInterval,
+    autoPlay: Bool,
+    notifyTrackStarted: Bool,
+    successfulStartupStage: String = "Compatibility playback started successfully"
+  ) -> Bool {
+    do {
+      let newPlayer = try AVAudioPlayer(contentsOf: url)
+      newPlayer.delegate = audioDelegate
+      newPlayer.isMeteringEnabled = true
+      newPlayer.volume = Float(min(max(volume, 0), 1))
+      newPlayer.prepareToPlay()
+      newPlayer.currentTime = safeSeekPosition(startTime, duration: newPlayer.duration)
+      if autoPlay, !newPlayer.play() {
+        markPlaybackStartupStage("Compatibility player refused to start")
+        reportRuntimeError("Compatibility playback could not start the selected local file.")
+        clearUnplayableTrack()
+        return false
+      }
+      audioPlayer = newPlayer
+      activeBackend = .legacy
+      preloadDetail = "Compatibility player does not use rolling preload"
+      audioFormatStatus = "System-managed audio output"
+      downmixRoutingStatus = "System-managed compatibility routing"
+      currentQueueIndex = targetIndex
+      currentTrack = track
+      duration = newPlayer.duration
+      elapsed = newPlayer.currentTime
+      playbackAnchorElapsed = elapsed
+      playbackAnchorDate = autoPlay ? Date() : nil
+      isPlaying = autoPlay
+      if notifyTrackStarted { onTrackStarted?(track) }
+      lastNowPlayingProgressUpdate = 0
+      hasRecordedFirstPlaybackTick = false
+      markPlaybackRuntimeStage("Publishing Lock Screen metadata")
+      updateNowPlaying()
+      markPlaybackRuntimeStage("Lock Screen metadata published; scheduling playback timer")
+      startPlaybackTimer()
+      markPlaybackRuntimeStage("Playback timer scheduled")
+      markPlaybackStartupStage(successfulStartupStage)
+      return true
+    } catch {
+      markPlaybackStartupStage("Compatibility playback failed")
+      reportRuntimeError("Compatibility playback failed: \(error.localizedDescription)")
+      clearUnplayableTrack()
+      return false
+    }
+  }
+
+  private func loadWithRemotePlayer(
+    _ track: Track,
+    url: URL,
+    at targetIndex: Int,
+    startTime: TimeInterval,
+    autoPlay: Bool,
+    notifyTrackStarted: Bool
+  ) -> Bool {
+    let item = makeRemoteItem(for: track, url: url)
+    let newPlayer = AVPlayer(playerItem: item)
+    newPlayer.automaticallyWaitsToMinimizeStalling = true
+    newPlayer.volume = Float(min(max(volume, 0), 1))
+    remotePlayer = newPlayer
+    remoteObserver.observe(item)
+    activeBackend = .remote
+    currentQueueIndex = targetIndex
+    currentTrack = track
+    duration = max(0, track.duration)
+    elapsed = safeSeekPosition(startTime, duration: max(duration, startTime + 1))
+    playbackAnchorElapsed = elapsed
+    playbackAnchorDate = autoPlay ? Date() : nil
+    isPlaying = autoPlay
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    preloadDetail = "Stable single-item remote playback"
+    audioFormatStatus = "Remote stream — system audio output"
+    downmixRoutingStatus = "Remote stream uses system channel routing"
+    networkBufferStatus = "Connecting to remote stream…"
+    playbackEngineStatus = "Remote streaming — connecting"
+
+    if elapsed > 0 {
+      newPlayer.seek(to: CMTime(seconds: elapsed, preferredTimescale: 600))
+    }
+    if autoPlay { newPlayer.play() }
+    if notifyTrackStarted { onTrackStarted?(track) }
+    lastNowPlayingProgressUpdate = 0
+    hasRecordedFirstPlaybackTick = false
+    markPlaybackRuntimeStage("Publishing Lock Screen metadata")
+    updateNowPlaying()
+    markPlaybackRuntimeStage("Lock Screen metadata published; scheduling playback timer")
+    startPlaybackTimer()
+    markPlaybackRuntimeStage("Playback timer scheduled")
+    markPlaybackStartupStage("Remote playback started successfully")
+    return true
+  }
+
+  private func makeRemoteItem(for track: Track, url: URL) -> AVPlayerItem {
+    let item = AVPlayerItem(url: url)
+    item.preferredForwardBufferDuration = remoteForwardBufferDuration(for: track)
+    item.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+    return item
+  }
+
+  fileprivate func handleRemotePlaybackFinished(_ item: AVPlayerItem) {
+    guard activeBackend == .remote, remotePlayer?.currentItem === item else { return }
+    if sleepTimerOption == .endOfTrack {
+      stop()
+    } else if repeatMode == .one, let currentTrack {
+      _ = loadAndPlay(currentTrack, at: currentQueueIndex)
+    } else {
+      next()
+    }
+  }
+
+  private func remoteForwardBufferDuration(for track: Track) -> TimeInterval {
+    let budgetBytes = max(10, networkBufferMegabytes) * 1_048_576
+    if track.sourceByteSize > 0, track.duration > 0 {
+      let bytesPerSecond = Double(track.sourceByteSize) / track.duration
+      if bytesPerSecond > 0 {
+        return min(max(8, Double(budgetBytes) / bytesPerSecond), max(8, track.duration))
+      }
+    }
+    return min(max(15, Double(networkBufferMegabytes) * 0.75), 300)
+  }
+
+  private var networkBufferMegabytes: Int {
+    let configured = UserDefaults.standard.double(forKey: "networkBufferMB")
+    return Int(configured > 0 ? configured : 128)
+  }
+
+  private func updateRemoteBufferStatus() {
+    guard activeBackend == .remote, let remotePlayer, let item = remotePlayer.currentItem else { return }
+    let itemDuration = item.duration.seconds
+    if itemDuration.isFinite, itemDuration > 0 { duration = itemDuration }
+
+    let loadedEnd: Double = item.loadedTimeRanges.compactMap { value in
+      let range = value.timeRangeValue
+      let end = CMTimeGetSeconds(CMTimeRangeGetEnd(range))
+      return end.isFinite ? end : nil
+    }.max() ?? elapsed
+    let ahead = max(0, loadedEnd - elapsed)
+
+    let approximateMegabytes: Double? = {
+      guard let track = currentTrack, track.sourceByteSize > 0, duration > 0 else { return nil }
+      return min(Double(track.sourceByteSize), (ahead / duration) * Double(track.sourceByteSize)) / 1_048_576
+    }()
+
+    switch item.status {
+    case .failed:
+      playbackEngineStatus = "Remote stream failed"
+      networkBufferStatus = item.error?.localizedDescription ?? "The remote player reported an error"
+      reportRuntimeError("Remote playback failed: \(networkBufferStatus)")
+      isPlaying = false
+    case .readyToPlay:
+      switch remotePlayer.timeControlStatus {
+      case .waitingToPlayAtSpecifiedRate:
+        playbackEngineStatus = "Remote streaming — buffering"
+      case .playing:
+        playbackEngineStatus = "Remote streaming"
+      case .paused:
+        playbackEngineStatus = isPlaying ? "Remote stream paused while buffering" : "Remote stream paused"
+      @unknown default:
+        playbackEngineStatus = "Remote streaming"
+      }
+      if let approximateMegabytes {
+        networkBufferStatus = String(format: "%.1f MB buffered • %.0f seconds ahead", approximateMegabytes, ahead)
+      } else {
+        networkBufferStatus = String(format: "%.0f seconds buffered ahead", ahead)
+      }
+    case .unknown:
+      playbackEngineStatus = "Remote streaming — connecting"
+      networkBufferStatus = "Waiting for the server response…"
+    @unknown default:
+      break
+    }
+  }
+
+  private static func loadBookmarks() -> [PlaybackBookmark] {
+    guard let data = UserDefaults.standard.data(forKey: "resonance.playbackBookmarks"),
+      let decoded = try? JSONDecoder().decode([PlaybackBookmark].self, from: data)
+    else {
+      return []
+    }
+    return decoded
+  }
+
+  private func persistBookmarks() {
+    if let data = try? JSONEncoder().encode(bookmarks) {
+      UserDefaults.standard.set(data, forKey: "resonance.playbackBookmarks")
+    }
+  }
+
+  private func uniqueTracks(_ tracks: [Track]) -> [Track] {
+    var seen = Set<UUID>()
+    return tracks.filter { seen.insert($0.id).inserted }
+  }
+
+  private func artworkSource(for track: Track) -> Track? {
+    let candidates = queue + sourceQueue
+    return candidates.first {
+      $0.artworkData != nil && $0.album.caseInsensitiveCompare(track.album) == .orderedSame
+        && $0.albumArtist.caseInsensitiveCompare(track.albumArtist) == .orderedSame
+    }
+  }
+
+  private var shouldPreloadNextTrack: Bool {
+    let defaults = UserDefaults.standard
+    if defaults.object(forKey: "preloadNextTrack") == nil { return true }
+    return defaults.bool(forKey: "preloadNextTrack")
+  }
+
+  private var localPreloadBudgetBytes: Int64 {
+    let configured = UserDefaults.standard.double(forKey: "localBufferMB")
+    let megabytes = configured > 0 ? configured : 64
+    return Int64(megabytes * 1_048_576)
+  }
+
+  private func nextQueueIndex(after index: Int) -> Int? {
+    let next = index + 1
+    if queue.indices.contains(next) { return next }
+    if repeatMode == .all, !queue.isEmpty { return 0 }
+    return nil
+  }
+
+  private func preloadQueueIndex(after index: Int) -> Int? {
+    if repeatMode == .one, queue.indices.contains(index) { return index }
+    return nextQueueIndex(after: index)
+  }
+
+  private func preloadCandidate(after index: Int) -> Track? {
+    guard shouldPreloadNextTrack,
+      let candidateIndex = preloadQueueIndex(after: index),
+      queue.indices.contains(candidateIndex)
+    else { return nil }
+    let candidate = queue[candidateIndex]
+    guard let url = candidate.fileURL, FileManager.default.fileExists(atPath: url.path) else {
+      return nil
+    }
+    return candidate
+  }
+
+  private static func audioFormatDescription(
+    sourceChannels: AVAudioChannelCount,
+    outputChannels: AVAudioChannelCount
+  ) -> String {
+    if sourceChannels > outputChannels {
+      return "\(sourceChannels)-channel source → stereo downmix"
+    }
+    if sourceChannels == 1 { return "Mono source → stereo output" }
+    return "Stereo output"
+  }
+
+  private func safeSeekPosition(_ requested: Double, duration: Double) -> Double {
+    guard duration.isFinite, duration > 0 else { return 0 }
+    // Keep a small guard from the exact endpoint so dragging to the end does
+    // not get interpreted as a natural completion while the user is seeking.
+    let endGuard = duration > 1.25 ? duration - 0.75 : duration
+    return min(max(0, requested), max(0, endGuard))
+  }
+
+  private func updateElapsedFromClock() {
+    switch activeBackend {
+    case .gapless:
+      guard isPlaying, let playbackAnchorDate else { return }
+      elapsed = min(duration, playbackAnchorElapsed + Date().timeIntervalSince(playbackAnchorDate))
+    case .legacy:
+      if let audioPlayer { elapsed = audioPlayer.currentTime }
+    case .remote:
+      if let remotePlayer {
+        let seconds = remotePlayer.currentTime().seconds
+        if seconds.isFinite { elapsed = max(0, seconds) }
+      }
+    case .none:
+      break
+    }
+  }
+
+  private func refreshPreloadedTrackAfterQueueChange() {
+    switch activeBackend {
+    case .remote:
+      break
+    case .gapless:
+      guard let currentTrack else { return }
+      let expected = preloadCandidate(after: currentQueueIndex)?.id
+      guard expected != preloadedTrackID else { return }
+      updateElapsedFromClock()
+      let wasPlaying = isPlaying
+      _ = loadAndPlay(
+        currentTrack,
+        at: currentQueueIndex,
+        startTime: elapsed,
+        autoPlay: wasPlaying,
+        notifyTrackStarted: false
+      )
+    case .legacy, .none:
+      break
+    }
+  }
+
+  private func handleGaplessTrackFinished(trackID: UUID, generation: Int) {
+    guard generation == playbackGeneration,
+      activeBackend == .gapless,
+      currentTrack?.id == trackID
+    else { return }
+
+    if sleepTimerOption == .endOfTrack {
+      stop()
+      return
+    }
+
+    let targetIndex: Int?
+    if repeatMode == .one {
+      targetIndex = currentQueueIndex
+    } else {
+      targetIndex = nextQueueIndex(after: currentQueueIndex)
+    }
+
+    guard let targetIndex, queue.indices.contains(targetIndex) else {
+      stop()
+      return
+    }
+
+    let target = queue[targetIndex]
+    guard preloadedTrackID == target.id else {
+      _ = loadAndPlay(target, at: targetIndex)
+      return
+    }
+
+    currentQueueIndex = targetIndex
+    currentTrack = target
+    duration = engineDurations[target.id] ?? max(0, target.duration)
+    if let channels = engineChannelCounts[target.id] {
+      audioFormatStatus = Self.audioFormatDescription(
+        sourceChannels: channels,
+        outputChannels: gaplessEngine.outputChannelCount
+      )
+      downmixRoutingStatus = gaplessEngine.downmixRoutingDescription
+    }
+    elapsed = 0
+    playbackAnchorElapsed = 0
+    playbackAnchorDate = isPlaying ? Date() : nil
+    lastNowPlayingProgressUpdate = 0
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+
+    if let remainingStartFrame = partialPreloadFrames.removeValue(forKey: target.id),
+      let targetURL = target.fileURL
+    {
+      do {
+        _ = try gaplessEngine.appendRemainder(
+          trackID: target.id,
+          url: targetURL,
+          startingFrame: remainingStartFrame,
+          generation: playbackGeneration
+        )
+        preloadDetail = "Large track is streaming after its preloaded opening segment"
+      } catch {
+        playbackEngineStatus = "Partial preload continuation failed"
+      }
+    }
+
+    onTrackStarted?(target)
+    scheduleTrackAfterCurrentBoundary()
+    updateNowPlaying()
+  }
+
+  private func scheduleTrackAfterCurrentBoundary() {
+    guard activeBackend == .gapless,
+      let candidate = preloadCandidate(after: currentQueueIndex),
+      let url = candidate.fileURL
+    else {
+      preloadedTrackID = nil
+      preloadedTrackTitle = nil
+      preloadDetail = shouldPreloadNextTrack ? "End of queue" : "Preloading disabled"
+      playbackEngineStatus = shouldPreloadNextTrack ? "Playing — end of queue" : "Gapless preload off"
+      return
+    }
+
+    do {
+      let scheduled = try gaplessEngine.appendPreloaded(
+        trackID: candidate.id,
+        url: url,
+        preloadBudgetBytes: localPreloadBudgetBytes,
+        generation: playbackGeneration
+      )
+      engineDurations[candidate.id] = scheduled.duration
+      engineChannelCounts[candidate.id] = scheduled.channelCount
+      preloadedTrackID = candidate.id
+      preloadedTrackTitle = candidate.title
+      if let remainingFrame = scheduled.remainingStartFrame {
+        partialPreloadFrames[candidate.id] = remainingFrame
+        preloadDetail = "Opening segment scheduled; remainder streams from disk"
+        playbackEngineStatus = "Gapless ready — partial preload"
+      } else {
+        partialPreloadFrames[candidate.id] = nil
+        preloadDetail = "Complete next track scheduled"
+        playbackEngineStatus = "Gapless ready"
+      }
+    } catch {
+      preloadedTrackID = nil
+      preloadedTrackTitle = nil
+      preloadDetail = "The next file could not be opened by the gapless engine"
+      playbackEngineStatus = "Next track will load normally"
+    }
+  }
+
+  private func clearUnplayableTrack() {
+    if !playbackStartupDiagnostic.contains("failed") {
+      markPlaybackStartupStage("Playback request rejected as unplayable")
+    }
+    playbackGeneration += 1
+    playbackTimerTask?.cancel()
+    playbackTimerTask = nil
+    tearDownActiveBackend()
+    activeBackend = .none
+    currentTrack = nil
+    isPlaying = false
+    elapsed = 0
+    duration = 0
+    meterLevel = 0
+    playbackAnchorDate = nil
+    playbackAnchorElapsed = 0
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    preloadDetail = "No track preloaded"
+    audioFormatStatus = "Stereo output ready"
+    downmixRoutingStatus = "Automatic stereo routing"
+    engineDurations.removeAll()
+    engineChannelCounts.removeAll()
+    partialPreloadFrames.removeAll()
+    networkBufferStatus = "No remote stream active"
+    playbackEngineStatus = "Unable to play this file"
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+  }
+
+  private func startPlaybackTimer() {
+    playbackTimerTask?.cancel()
+    playbackTimerTask = Task { @MainActor [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(120))
+        guard !Task.isCancelled, let self else { return }
+        self.updatePlaybackClockAndMeters()
+      }
+    }
+  }
+
+  private func updatePlaybackClockAndMeters() {
+    updateElapsedFromClock()
+
+    switch activeBackend {
+    case .gapless:
+      meterLevel = isPlaying ? gaplessEngine.meterLevel : 0.08
+    case .legacy:
+      if let audioPlayer {
+        audioPlayer.updateMeters()
+        let decibels = audioPlayer.averagePower(forChannel: 0)
+        let linear = pow(10.0, Double(decibels) / 20.0)
+        meterLevel = audioPlayer.isPlaying ? min(1, max(0.06, linear * 4.5)) : 0.08
+      }
+    case .remote:
+      updateRemoteBufferStatus()
+      meterLevel = isPlaying ? 0.24 + (sin(elapsed * 3.7) + 1) * 0.12 : 0.08
+    case .none:
+      meterLevel = 0
+    }
+
+    if !hasRecordedFirstPlaybackTick {
+      hasRecordedFirstPlaybackTick = true
+      markPlaybackRuntimeStage("First playback timer tick completed")
+    }
+
+    if abs(elapsed - lastNowPlayingProgressUpdate) >= 0.8 {
+      lastNowPlayingProgressUpdate = elapsed
+      updateNowPlayingProgress()
+    }
+  }
+
+  fileprivate func handlePlaybackFinished(_ finishedPlayer: AVAudioPlayer, successfully: Bool) {
+    guard activeBackend == .legacy, let audioPlayer, finishedPlayer === audioPlayer else { return }
+
+    if sleepTimerOption == .endOfTrack {
+      stop()
+    } else if repeatMode == .one, let currentTrack {
+      _ = loadAndPlay(currentTrack, at: currentQueueIndex)
+    } else {
+      next()
+    }
+  }
+
+  fileprivate func handleDecodeError(_ failedPlayer: AVAudioPlayer, error: Error?) {
+    guard activeBackend == .legacy, let audioPlayer, failedPlayer === audioPlayer else { return }
+    reportRuntimeError("Audio decode failed: \(error?.localizedDescription ?? "Unknown decoder error")")
+    clearUnplayableTrack()
+  }
+
+  private func configureSession() {
+    do {
+      try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      reportRuntimeError(source: "Audio Session", "Audio session setup failed: \(error.localizedDescription)")
+    }
+  }
+
+  private func configureRemoteCommands() {
+    let commands = MPRemoteCommandCenter.shared()
+
+    commands.playCommand.addTarget { [weak self] _ in
+      Task { @MainActor in self?.play() }
+      return .success
+    }
+    commands.pauseCommand.addTarget { [weak self] _ in
+      Task { @MainActor in self?.pause() }
+      return .success
+    }
+    commands.nextTrackCommand.addTarget { [weak self] _ in
+      Task { @MainActor in self?.next() }
+      return .success
+    }
+    commands.previousTrackCommand.addTarget { [weak self] _ in
+      Task { @MainActor in self?.previous() }
+      return .success
+    }
+
+    commands.skipForwardCommand.isEnabled = true
+    commands.skipForwardCommand.preferredIntervals = [15]
+    commands.skipForwardCommand.addTarget { [weak self] event in
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
+      Task { @MainActor in self?.skip(by: interval) }
+      return .success
+    }
+
+    commands.skipBackwardCommand.isEnabled = true
+    commands.skipBackwardCommand.preferredIntervals = [15]
+    commands.skipBackwardCommand.addTarget { [weak self] event in
+      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
+      Task { @MainActor in self?.skip(by: -interval) }
+      return .success
+    }
+
+    commands.changePlaybackPositionCommand.addTarget { [weak self] event in
+      guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      Task { @MainActor in self?.seek(to: event.positionTime) }
+      return .success
+    }
+  }
+
+  private func updateNowPlaying() {
+    guard let track = currentTrack else { return }
+    var info: [String: Any] = [
+      MPMediaItemPropertyTitle: track.title,
+      MPMediaItemPropertyArtist: track.artist,
+      MPMediaItemPropertyAlbumTitle: track.album,
+      MPMediaItemPropertyPlaybackDuration: duration,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+      MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1 : 0,
+      MPNowPlayingInfoPropertyPlaybackQueueIndex: currentQueueIndex,
+      MPNowPlayingInfoPropertyPlaybackQueueCount: queue.count,
+    ]
+
+    // MediaPlayer may invoke its artwork request handler on a non-main thread.
+    // Prepare one bounded image up front and keep the request handler free of
+    // UIKit drawing or thumbnail work. This is the only post-start callback
+    // shared by local and remote playback after the startup stage succeeds.
+    if UserDefaults.standard.object(forKey: "showLockScreenArtwork") == nil
+        || UserDefaults.standard.bool(forKey: "showLockScreenArtwork") {
+      if let data = artworkData(for: track) {
+        if let image = UIImage(data: data)?.resonancePreparedNowPlayingImage(maxDimension: 1024) {
+          info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        } else {
+          reportRuntimeError(source: "Lock Screen", "Album artwork could not be decoded for Now Playing.")
+        }
+      }
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+  }
+
+  private func updateNowPlayingProgress() {
+    guard var info = MPNowPlayingInfoCenter.default().nowPlayingInfo else {
+      updateNowPlaying()
+      return
+    }
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
+    info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1 : 0
+    info[MPMediaItemPropertyPlaybackDuration] = duration
+    info[MPNowPlayingInfoPropertyPlaybackQueueIndex] = currentQueueIndex
+    info[MPNowPlayingInfoPropertyPlaybackQueueCount] = queue.count
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+  }
+}
+
+private final class AudioPlayerDelegateProxy: NSObject, AVAudioPlayerDelegate {
+  weak var owner: PlayerController?
+
+  init(owner: PlayerController) {
+    self.owner = owner
+  }
+
+  func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    Task { @MainActor [weak owner] in
+      owner?.handlePlaybackFinished(player, successfully: flag)
+    }
+  }
+
+  func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    Task { @MainActor [weak owner] in
+      owner?.handleDecodeError(player, error: error)
+    }
+  }
+}
+
+private final class RemotePlayerObserver: @unchecked Sendable {
+  weak var owner: PlayerController?
+  private var token: NSObjectProtocol?
+
+  init(owner: PlayerController) {
+    self.owner = owner
+  }
+
+  func observe(_ item: AVPlayerItem) {
+    stop()
+    token = NotificationCenter.default.addObserver(
+      forName: .AVPlayerItemDidPlayToEndTime,
+      object: item,
+      queue: .main
+    ) { [weak self, weak item] _ in
+      guard let item else { return }
+      let owner = self?.owner
+      Task { @MainActor [weak owner] in
+        owner?.handleRemotePlaybackFinished(item)
+      }
+    }
+  }
+
+  func stop() {
+    if let token { NotificationCenter.default.removeObserver(token) }
+    token = nil
+  }
+
+  deinit { stop() }
+}
+
+extension UIImage {
+  @MainActor
+  fileprivate func resonancePreparedNowPlayingImage(maxDimension: CGFloat) -> UIImage {
+    let largestDimension = max(size.width, size.height)
+    guard largestDimension > maxDimension, largestDimension > 0 else { return self }
+    let scale = maxDimension / largestDimension
+    let targetSize = CGSize(
+      width: max(1, size.width * scale),
+      height: max(1, size.height * scale)
+    )
+    let renderer = UIGraphicsImageRenderer(size: targetSize)
+    return renderer.image { _ in
+      draw(in: CGRect(origin: .zero, size: targetSize))
+    }
+  }
+}

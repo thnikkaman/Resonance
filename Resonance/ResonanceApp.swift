@@ -1,0 +1,29 @@
+import SwiftUI
+
+@main
+struct ResonanceApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var library = LibraryStore()
+    @StateObject private var player = PlayerController()
+    @StateObject private var settings = AppSettings()
+    @StateObject private var remoteLibrary = RemoteLibraryStore()
+    @StateObject private var errorLog = AppErrorLog()
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environmentObject(library)
+                .environmentObject(player)
+                .environmentObject(settings)
+                .environmentObject(remoteLibrary)
+                .environmentObject(errorLog)
+                .tint(settings.accentColor)
+                .preferredColorScheme(settings.colorScheme)
+                .task(id: scenePhase) {
+                    guard scenePhase == .active else { return }
+                    await library.refreshForActiveState()
+                    await remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
+                }
+        }
+    }
+}
