@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 50;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 51;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -124,6 +124,8 @@ assert 'RemotePlaylistCollectionView' in streaming
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert '.padding(.bottom, 76)' in views
+assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
+assert 'Alpha 3.7.4 (47)' not in settings_view
 assert 'markPlayed(trackID:' in root_view
 
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view

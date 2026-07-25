@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **50**
+Build: **51**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -74,7 +74,7 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 50 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, and groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
+Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
 ## Next major phase
 

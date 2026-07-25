@@ -11,6 +11,12 @@ struct SettingsView: View {
     @FocusState private var isTextFieldFocused: Bool
     private let palette = ["A855F7", "3B82F6", "14B8A6", "22C55E", "EAB308", "F97316", "EF4444"]
 
+    private var buildDescription: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+        return "Alpha \(version) (\(build))"
+    }
+
     var body: some View {
         Form {
             SettingsCategory(
@@ -337,7 +343,7 @@ struct SettingsView: View {
                 key: "prototype-status",
                 isExpanded: $settings.settingsPrototypeExpanded
             ) {
-                LabeledContent("Build", value: "Alpha 3.7.4 (47)")
+                LabeledContent("Build", value: buildDescription)
                 StatusRow(title: "Finder and Files app transfer folder", detail: "Available", icon: "checkmark.circle.fill")
                 StatusRow(title: "Shared-folder rescanning", detail: "Launch, foreground, import, or manual", icon: "checkmark.circle.fill")
                 StatusRow(title: "Local import and indexing", detail: "Available", icon: "checkmark.circle.fill")
