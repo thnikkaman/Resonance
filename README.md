@@ -1,7 +1,7 @@
-# Resonance Alpha 3.7.4 — Playback Recovery and Artist Index Fix
+# Resonance Alpha 3.7.4 — Compilation Artist Grouping
 
 Version: **0.3.7.4**  
-Build: **44**
+Build: **45**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -43,6 +43,10 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 - Remote catalog filtering, album grouping, and artist grouping are cached by track revision, search text, and sort direction.
 - Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
 
+## Compilation-only artist grouping
+
+The Streaming Library options include **Group compilation-only artists**. When enabled, artists whose remote tracks appear only on compilation or Various Artists albums are grouped under one synthetic artist named **Various Artists**. Artists who also have regular albums remain visible separately, with only their compilation tracks moved into the grouped entry. The setting is stored locally and is off by default to preserve the existing view until enabled.
+
 ## Validation performed here
 
 - Every Swift source passed Swift 6 syntax parsing.
@@ -51,7 +55,7 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 44 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+Alpha 3.7.4 build 45 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
 
 ## Device diagnostics
 
