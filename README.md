@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **55**
+Build: **57**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -92,9 +92,11 @@ The first build-55 device recording review found that the title still was not vi
 
 Alpha 3.7.4 build 56 is a performance-focused pass. The 120 ms playback clock and meter no longer publish through the shared `PlayerController` observed by catalog, library, settings, and queue rows; only the Now Playing scrubber observes the separate high-frequency progress store, and list visualizers use a static current-track indicator. Inactive tab stacks no longer construct mini-player overlays. Regression checks, simulator and generic-device preflight, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. The device reports version 0.3.7.4/build 56; the app was not launched, so runtime performance acceptance remains pending.
 
+Alpha 3.7.4 build 57 is a second performance pass based on the build-56 screen recording and diagnostics. Root-level catalog/scanner error observation is isolated into a coordinator, cached-catalog automatic checks return before scheduling or logging redundant work, foreground local-file inventory runs at utility priority and is throttled across rapid scene activations, playback-stage diagnostics no longer synchronously write diagnostics/UserDefaults on the main actor, and Lock Screen artwork conversion is prepared off-main and cached per track. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 57. Runtime performance, FLAC startup, and playback acceptance remain pending.
+
 ## Next major phase
 
-- Perform physical-device performance acceptance for build 56 while audio is stopped and playing: switch repeatedly among Library, Streaming, Settings, and Playing; scroll a large Streaming catalog; open/close album, artist, playlist, search, and settings surfaces; verify the progress bar remains responsive; and retrieve diagnostics/resource logs after any slowdown or lockup.
+- Perform physical-device performance acceptance for build 57 while audio is stopped and playing: switch repeatedly among Library, Streaming, Settings, and Playing; scroll a large Streaming catalog; open/close album, artist, playlist, search, and settings surfaces; verify the progress bar remains responsive; and retrieve the now-clean diagnostics/resource logs after any slowdown or lockup.
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
 - Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
 - Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
@@ -116,7 +118,7 @@ file can be copied from the app container with:
 
 ```sh
 xcrun devicectl device copy from \
-  --device 00008150-001144383612401C \
+  --device 9629DEED-EBF9-5835-B98A-9FAEC81CBDC6 \
   --domain-type appDataContainer \
   --domain-identifier com.example.ResonancePrototype \
   --source Documents/Resonance-Diagnostics.log \

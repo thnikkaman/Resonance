@@ -10,10 +10,7 @@ private enum MiniPlayerDock: String {
 }
 
 struct RootView: View {
-    @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var settings: AppSettings
-  @EnvironmentObject private var errorLog: AppErrorLog
   @State private var selectedTab: AppTab = .library
   @State private var miniPlayerDock: MiniPlayerDock = .top
 
@@ -72,6 +69,11 @@ struct RootView: View {
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+
+            ErrorReportingCoordinatorView()
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .overlay(alignment: .leading) {
             if miniPlayerDock == .leading {
@@ -108,28 +110,38 @@ struct RootView: View {
                 }
             }
         }
-        .onChange(of: remote.connectionStatus) { _, status in
-            if Self.looksLikeError(status) {
-                errorLog.report(source: "Streaming", message: status)
-            }
-        }
-        .onChange(of: remote.catalogSyncStatus) { _, status in
-            if Self.looksLikeError(status) {
-                errorLog.report(source: "Remote Catalog", message: status)
-            }
-        }
-        .onChange(of: library.scanStatus) { _, status in
-            if Self.looksLikeError(status) {
-                errorLog.report(source: "Library Scanner", message: status)
-            }
-        }
     }
+}
+
+private struct ErrorReportingCoordinatorView: View {
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var errorLog: AppErrorLog
+
+    var body: some View {
+        Color.clear
+            .onChange(of: remote.connectionStatus) { _, status in
+                if Self.looksLikeError(status) {
+                    errorLog.report(source: "Streaming", message: status)
+                }
+            }
+            .onChange(of: remote.catalogSyncStatus) { _, status in
+                if Self.looksLikeError(status) {
+                    errorLog.report(source: "Remote Catalog", message: status)
+                }
+            }
+            .onChange(of: library.scanStatus) { _, status in
+                if Self.looksLikeError(status) {
+                    errorLog.report(source: "Library Scanner", message: status)
+                }
+            }
+    }
+
     private static func looksLikeError(_ value: String) -> Bool {
         let lowered = value.lowercased()
         return ["error", "failed", "could not", "unable", "invalid", "denied"]
             .contains { lowered.contains($0) }
     }
-
 }
 
 private extension View {

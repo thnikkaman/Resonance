@@ -62,6 +62,11 @@ final class PlaybackProgress: ObservableObject {
   }
 }
 
+private struct PreparedNowPlayingArtwork: Sendable {
+  let imageData: Data
+  let boundsSize: CGSize
+}
+
 @MainActor
 final class PlayerController: NSObject, ObservableObject {
   let progress = PlaybackProgress()
@@ -122,6 +127,10 @@ final class PlayerController: NSObject, ObservableObject {
   private var playbackAnchorElapsed = 0.0
   private var playbackGeneration = 0
   private var playbackTimerTickCount = 0
+  private var nowPlayingArtworkTask: Task<Void, Never>?
+  private var nowPlayingArtworkTrackID: UUID?
+  private var cachedNowPlayingArtworkTrackID: UUID?
+  private var cachedNowPlayingArtwork: PreparedNowPlayingArtwork?
   private var preloadedTrackID: UUID?
   private var remoteSeekInFlight = false
   private var remoteEndHandledGeneration: Int?
@@ -634,21 +643,25 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private func markPlaybackStartupStage(_ stage: String) {
-    ResonanceDiagnostics.shared.record(
+    ResonanceDiagnostics.shared.recordDeferred(
       "playback.startup.stage",
       details: ["stage": stage, "generation": String(playbackGeneration)]
     )
     playbackStartupDiagnostic = stage
-    UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackStartupStage")
+    DispatchQueue.global(qos: .utility).async {
+      UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackStartupStage")
+    }
   }
 
   private func markPlaybackRuntimeStage(_ stage: String) {
-    ResonanceDiagnostics.shared.record(
+    ResonanceDiagnostics.shared.recordDeferred(
       "playback.runtime.stage",
       details: ["stage": stage, "generation": String(playbackGeneration)]
     )
     playbackRuntimeDiagnostic = stage
-    UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackRuntimeStage")
+    DispatchQueue.global(qos: .utility).async {
+      UserDefaults.standard.set(stage, forKey: "resonance.lastPlaybackRuntimeStage")
+    }
   }
 
   private func reportRuntimeError(source: String = "Playback", _ message: String) {
@@ -1386,7 +1399,7 @@ final class PlayerController: NSObject, ObservableObject {
   private func startPlaybackTimer() {
     playbackTimerTask?.cancel()
     playbackTimerTickCount = 0
-    ResonanceDiagnostics.shared.record("playback.timer.created")
+    ResonanceDiagnostics.shared.recordDeferred("playback.timer.created")
     playbackTimerTask = Task { @MainActor [weak self] in
       while !Task.isCancelled {
         try? await Task.sleep(for: .milliseconds(120))
@@ -1400,7 +1413,7 @@ final class PlayerController: NSObject, ObservableObject {
     playbackTimerTickCount += 1
     let shouldLogTick = playbackTimerTickCount <= 3
     if shouldLogTick {
-      ResonanceDiagnostics.shared.record(
+      ResonanceDiagnostics.shared.recordDeferred(
         "playback.timer.tick.begin",
         details: ["tick": String(playbackTimerTickCount)]
       )
@@ -1409,10 +1422,10 @@ final class PlayerController: NSObject, ObservableObject {
 
     switch activeBackend {
     case .gapless:
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.gapless.begin") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.gapless.begin") }
       meterLevel = isPlaying ? gaplessEngine.meterLevel : 0.08
       if shouldLogTick {
-        ResonanceDiagnostics.shared.record(
+        ResonanceDiagnostics.shared.recordDeferred(
           "playback.timer.gapless.end",
           details: [
             "meter": String(format: "%.5f", gaplessEngine.meterLevel),
@@ -1422,18 +1435,18 @@ final class PlayerController: NSObject, ObservableObject {
         )
       }
     case .legacy:
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.legacy.begin") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.legacy.begin") }
       if let audioPlayer {
         audioPlayer.updateMeters()
         let decibels = audioPlayer.averagePower(forChannel: 0)
         let linear = pow(10.0, Double(decibels) / 20.0)
         meterLevel = audioPlayer.isPlaying ? min(1, max(0.06, linear * 4.5)) : 0.08
       }
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.legacy.end") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.legacy.end") }
     case .remote:
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.remoteBuffer.begin") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.remoteBuffer.begin") }
       updateRemoteBufferStatus()
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.remoteBuffer.end") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.remoteBuffer.end") }
       meterLevel = isPlaying ? 0.24 + (sin(elapsed * 3.7) + 1) * 0.12 : 0.08
     case .none:
       meterLevel = 0
@@ -1446,11 +1459,11 @@ final class PlayerController: NSObject, ObservableObject {
 
     if abs(elapsed - lastNowPlayingProgressUpdate) >= 0.8 {
       lastNowPlayingProgressUpdate = elapsed
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.nowPlayingProgress.begin") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.nowPlayingProgress.begin") }
       updateNowPlayingProgress()
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.nowPlayingProgress.end") }
+      if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.nowPlayingProgress.end") }
     }
-    if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.tick.end") }
+    if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.tick.end") }
   }
 
   fileprivate func handlePlaybackFinished(_ finishedPlayer: AVAudioPlayer, successfully: Bool) {
@@ -1521,7 +1534,7 @@ final class PlayerController: NSObject, ObservableObject {
     guard let track = currentTrack else { return }
     let showsArtwork = UserDefaults.standard.object(forKey: "showLockScreenArtwork") == nil
       || UserDefaults.standard.bool(forKey: "showLockScreenArtwork")
-    ResonanceDiagnostics.shared.record(
+    ResonanceDiagnostics.shared.recordDeferred(
       "nowPlaying.update.begin",
       details: ["backend": activeBackendLabel, "artworkSetting": String(showsArtwork)]
     )
@@ -1536,32 +1549,50 @@ final class PlayerController: NSObject, ObservableObject {
       MPNowPlayingInfoPropertyPlaybackQueueCount: queue.count,
     ]
 
-    // MediaPlayer invokes the artwork request handler on its own access queue.
-    // Never capture a @MainActor closure or UIImage in that handler. Capture
-    // immutable JPEG bytes instead and construct the UIImage on the access
-    // queue, which avoids the Swift concurrency isolation trap seen on device.
     if showsArtwork {
-      if let data = artworkData(for: track) {
-        if let image = UIImage(data: data)?.resonancePreparedNowPlayingImage(maxDimension: 1024) {
-          if let imageData = image.jpegData(compressionQuality: 0.85) {
-            info[MPMediaItemPropertyArtwork] = Self.makeNowPlayingArtwork(
-              imageData: imageData,
-              boundsSize: image.size
-            )
-            ResonanceDiagnostics.shared.record(
-              "nowPlaying.artwork.handlerPrepared",
-              details: ["bytes": String(imageData.count)]
-            )
-          } else {
-            ResonanceDiagnostics.shared.record("nowPlaying.artwork.encodingFailed")
-          }
-        } else {
-          reportRuntimeError(source: "Lock Screen", "Album artwork could not be decoded for Now Playing.")
-          ResonanceDiagnostics.shared.record("nowPlaying.artwork.decodeFailed")
-        }
+      if cachedNowPlayingArtworkTrackID == track.id, let artwork = cachedNowPlayingArtwork {
+        info[MPMediaItemPropertyArtwork] = Self.makeNowPlayingArtwork(
+          imageData: artwork.imageData,
+          boundsSize: artwork.boundsSize
+        )
+      } else if let data = artworkData(for: track), nowPlayingArtworkTrackID != track.id {
+        scheduleNowPlayingArtworkPreparation(data: data, trackID: track.id)
       }
     }
-    ResonanceDiagnostics.shared.record("nowPlaying.update.publish")
+    ResonanceDiagnostics.shared.recordDeferred("nowPlaying.update.publish")
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+  }
+
+  private func scheduleNowPlayingArtworkPreparation(data: Data, trackID: UUID) {
+    nowPlayingArtworkTask?.cancel()
+    nowPlayingArtworkTrackID = trackID
+    nowPlayingArtworkTask = Task { @MainActor [weak self] in
+      let prepared = await Task.detached(priority: .utility) {
+        Self.prepareNowPlayingArtwork(data: data)
+      }.value
+      guard !Task.isCancelled, let self, self.currentTrack?.id == trackID else { return }
+      self.nowPlayingArtworkTask = nil
+      guard let prepared else {
+        self.reportRuntimeError(source: "Lock Screen", "Album artwork could not be decoded for Now Playing.")
+        ResonanceDiagnostics.shared.recordDeferred("nowPlaying.artwork.decodeFailed")
+        return
+      }
+      self.cachedNowPlayingArtworkTrackID = trackID
+      self.cachedNowPlayingArtwork = prepared
+      ResonanceDiagnostics.shared.recordDeferred(
+        "nowPlaying.artwork.handlerPrepared",
+        details: ["bytes": String(prepared.imageData.count)]
+      )
+      self.publishNowPlayingArtwork(prepared, for: trackID)
+    }
+  }
+
+  private func publishNowPlayingArtwork(_ artwork: PreparedNowPlayingArtwork, for trackID: UUID) {
+    guard currentTrack?.id == trackID, var info = MPNowPlayingInfoCenter.default().nowPlayingInfo else { return }
+    info[MPMediaItemPropertyArtwork] = Self.makeNowPlayingArtwork(
+      imageData: artwork.imageData,
+      boundsSize: artwork.boundsSize
+    )
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
   }
 
@@ -1585,6 +1616,15 @@ final class PlayerController: NSObject, ObservableObject {
     case .legacy: "legacy"
     case .remote: "remote"
     }
+  }
+
+  private nonisolated static func prepareNowPlayingArtwork(data: Data) -> PreparedNowPlayingArtwork? {
+    guard let image = UIImage(data: data)?.resonancePreparedNowPlayingImage(maxDimension: 1024),
+      let imageData = image.jpegData(compressionQuality: 0.85)
+    else {
+      return nil
+    }
+    return PreparedNowPlayingArtwork(imageData: imageData, boundsSize: image.size)
   }
 
   private nonisolated static func makeNowPlayingArtwork(
@@ -1649,7 +1689,6 @@ private final class RemotePlayerObserver: @unchecked Sendable {
 }
 
 extension UIImage {
-  @MainActor
   fileprivate func resonancePreparedNowPlayingImage(maxDimension: CGFloat) -> UIImage {
     let largestDimension = max(size.width, size.height)
     guard largestDimension > maxDimension, largestDimension > 0 else { return self }

@@ -1,6 +1,12 @@
 import Foundation
 import UniformTypeIdentifiers
 
+private struct LibraryDocumentInventory: Sendable {
+    let urls: [URL]
+    let modificationDates: [String: Date]
+    let sharedFolderTrackCount: Int
+}
+
 @MainActor
 final class LibraryStore: ObservableObject {
     static let sharedMusicFolderName = "Resonance Music"
@@ -24,6 +30,7 @@ final class LibraryStore: ObservableObject {
     private let reader = MetadataReader()
     private var knownModificationDates: [String: Date] = [:]
     private var didBootstrap = false
+    private var lastActiveRefresh: Date?
 
     private enum PersistenceKey {
         static let favorites = "resonance.favoriteTrackIDs"
@@ -117,6 +124,11 @@ final class LibraryStore: ObservableObject {
 
     func refreshForActiveState() async {
         if didBootstrap {
+            let now = Date()
+            if let lastActiveRefresh, now.timeIntervalSince(lastActiveRefresh) < 30 {
+                return
+            }
+            lastActiveRefresh = now
             await scanDocuments(forceMetadataRefresh: false)
         } else {
             await bootstrap()
@@ -479,11 +491,16 @@ final class LibraryStore: ObservableObject {
         scanStatus = "Scanning transferred music…"
         defer { isScanning = false }
 
-        let urls = allDocumentAudioURLs()
+        let documentsURL = self.documentsURL
         let sharedRootPath = sharedMusicFolderURL.standardizedFileURL.path + "/"
-        sharedFolderTrackCount = urls.filter {
-            $0.standardizedFileURL.path.hasPrefix(sharedRootPath)
-        }.count
+        let inventory = await Task.detached(priority: .utility) {
+            Self.collectDocumentInventory(
+                documentsURL: documentsURL,
+                sharedFolderPath: sharedRootPath
+            )
+        }.value
+        let urls = inventory.urls
+        sharedFolderTrackCount = inventory.sharedFolderTrackCount
 
         let currentPaths = Set(urls.map(normalizedPath))
         let existingByPath = Dictionary(
@@ -494,9 +511,8 @@ final class LibraryStore: ObservableObject {
         )
 
         let knownPaths = Set(existingByPath.keys)
-        let modificationsChanged = urls.contains { url in
-            let path = normalizedPath(url)
-            return knownModificationDates[path] != modificationDate(for: url)
+        let modificationsChanged = inventory.modificationDates.contains { path, modified in
+            knownModificationDates[path] != modified
         }
         let needsRefresh = forceMetadataRefresh || currentPaths != knownPaths || modificationsChanged
 
@@ -507,12 +523,11 @@ final class LibraryStore: ObservableObject {
         }
 
         var refreshed: [Track] = []
-        var newModificationDates: [String: Date] = [:]
+        let newModificationDates = inventory.modificationDates
 
         for url in urls {
             let path = normalizedPath(url)
-            let modified = modificationDate(for: url)
-            newModificationDates[path] = modified
+            let modified = newModificationDates[path] ?? .distantPast
             let existing = existingByPath[path]
             let changed = knownModificationDates[path] != modified
 
@@ -534,6 +549,49 @@ final class LibraryStore: ObservableObject {
         await database.replaceAll(with: tracks)
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
+    }
+
+    private nonisolated static func collectDocumentInventory(
+        documentsURL: URL,
+        sharedFolderPath: String
+    ) -> LibraryDocumentInventory {
+        let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey]
+        let enumerator = FileManager.default.enumerator(
+            at: documentsURL,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        )
+        let urls = (enumerator?.allObjects as? [URL] ?? [])
+            .filter { url in
+                guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else {
+                    return false
+                }
+                return (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
+            }
+            .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+
+        var modificationDates: [String: Date] = [:]
+        modificationDates.reserveCapacity(urls.count)
+        for url in urls {
+            modificationDates[normalizedPathForInventory(url)] =
+                (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? .distantPast
+        }
+
+        let sharedFolderTrackCount = urls.reduce(into: 0) { count, url in
+            if url.standardizedFileURL.path.hasPrefix(sharedFolderPath) {
+                count += 1
+            }
+        }
+        return LibraryDocumentInventory(
+            urls: urls,
+            modificationDates: modificationDates,
+            sharedFolderTrackCount: sharedFolderTrackCount
+        )
+    }
+
+    private nonisolated static func normalizedPathForInventory(_ url: URL) -> String {
+        url.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     private func preservingIdentity(of parsed: Track, existing: Track?) -> Track {

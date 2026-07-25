@@ -597,6 +597,12 @@ final class RemoteLibraryStore: ObservableObject {
     func activateCachedCatalogAndCheckForChanges(using settings: AppSettings, forceCheck: Bool = false) async {
         guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
+        // Once a cached catalog is visible, automatic scene/view appearances do
+        // not need to start another task just to discover that the check is
+        // intentionally deferred. Settings' explicit check still bypasses this
+        // guard and is the only path that should refresh cached content.
+        if !forceCheck, !tracks.isEmpty { return }
+
         ResonanceDiagnostics.shared.recordDeferred(
             "remote.catalogCheck.begin",
             details: [
@@ -622,14 +628,6 @@ final class RemoteLibraryStore: ObservableObject {
             } catch {
                 catalogSyncStatus = "Cached catalog could not be activated: \(error.localizedDescription)"
             }
-        }
-
-        if !forceCheck, !tracks.isEmpty {
-            ResonanceDiagnostics.shared.recordDeferred(
-                "remote.catalogCheck.deferred",
-                details: ["reason": "cached-first", "trackCount": String(tracks.count)]
-            )
-            return
         }
 
         let now = Date()

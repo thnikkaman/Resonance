@@ -19,6 +19,7 @@ gapless = (root / 'Resonance/Services/GaplessAudioEngine.swift').read_text()
 database = (root / 'Resonance/Services/LibraryDatabase.swift').read_text()
 views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
 remote = (root / 'Resonance/Services/RemoteLibraryStore.swift').read_text()
+library_store = (root / 'Resonance/Services/LibraryStore.swift').read_text()
 settings = (root / 'Resonance/Services/AppSettings.swift').read_text()
 settings_view = (root / 'Resonance/Views/SettingsView.swift').read_text()
 diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
@@ -34,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 56;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 57;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -154,6 +155,12 @@ assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
 assert 'markPlayed(trackID:' in root_view
+assert 'ErrorReportingCoordinatorView' in root_view
+assert 'collectDocumentInventory' in library_store
+assert 'Task.detached(priority: .utility)' in library_store
+assert 'if !forceCheck, !tracks.isEmpty { return }' in remote
+assert 'scheduleNowPlayingArtworkPreparation' in player
+assert 'prepareNowPlayingArtwork(data: data)' in player
 
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view
 assert 'Backend in use' in settings_view
@@ -177,7 +184,6 @@ assert 'playback.timer.tick.begin' in player
 assert 'private nonisolated static func makeNowPlayingArtwork' in player
 assert 'UIImage(data: imageData) ?? UIImage()' in player
 assert 'remote.catalogCheck.cancelled' in remote
-assert 'remote.catalogCheck.deferred' in remote
 assert 'remote.catalogCache.activated' in remote
 assert 'canonicalizeAlbumArtists' in remote
 assert 'Showing cached catalog — remote check available in Settings' in remote
