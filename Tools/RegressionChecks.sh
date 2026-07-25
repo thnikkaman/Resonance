@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 45;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 46;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -92,6 +92,7 @@ assert 'case recentlyAdded' in remote
 assert 'case recentlyPlayed' in remote
 assert 'RemoteLibraryOptionsSheet' in streaming
 assert 'groupCompilationArtists' in settings
+assert 'streamingConnectionInfoExpanded' in settings
 assert 'Group compilation-only artists' in streaming
 assert 'compilationAlbumKeys' in remote
 assert 'Various Artists' in remote
@@ -100,6 +101,14 @@ assert 'RemotePlaylistPickerSheet' in streaming
 assert 'Play Artist' in streaming and 'contrastingAccentTextColor' in streaming
 assert 'Play Album' in streaming and 'Play All Albums' in streaming
 assert 'VerticalArtistIndex' in streaming
+assert 'RemoteAlbumCollectionView' in streaming
+assert 'streaming-albums' in streaming
+assert 'scrollIndicators(.hidden)' in streaming
+assert 'highPriorityGesture' in library_view
+assert 'alphabet.gesture.begin' in library_view
+assert 'alphabet.scrollTo' in streaming
+assert 'streaming.connectionInfo.changed' in streaming
+assert 'navigationBarTitleDisplayMode(.inline)' in streaming
 assert 'markPlayed(trackID:' in root_view
 
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view

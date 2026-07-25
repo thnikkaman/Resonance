@@ -1,7 +1,7 @@
-# Resonance Alpha 3.7.4 — Compilation Artist Grouping
+# Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **45**
+Build: **46**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -11,6 +11,9 @@ Install directly over Alpha 3.7.3 with the same bundle identifier and signing te
 - Streaming and Library alphabet touches did not reliably scroll to the selected artist section.
 - The streaming screen's full-screen back-swipe recognizer competed with normal vertical scrolling.
 - Remote artwork decoding could occupy the main actor while the streaming catalog was scrolling.
+- The streaming connection header consumed browse space and could visually compete with the active grouping title during pull-down.
+- The native right-side scroll indicator competed with the custom alphabet index.
+- Streaming artist and album alphabet gestures did not always claim the intended touch strip or complete the section jump.
 
 ## Playback recovery
 
@@ -36,6 +39,15 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 - Releasing over a letter keeps the bubble briefly visible and leaves the list at that section.
 - A new touch on the same letter dispatches the navigation again.
 - Streaming back navigation is restricted to a 24-point left-edge strip.
+- The native scroll indicator is hidden in streaming collections; normal scrolling belongs to the main artwork/text area,
+  while the right strip belongs to the alphabet index.
+- Albums use the same alphabet index as artists, based on album title.
+
+## Streaming connection panel
+
+The server connection information is now a persisted disclosure panel. Collapse it from the streaming tab to reclaim
+vertical space for artists and albums. The active grouping remains visible in the compact panel label, and the
+streaming navigation title stays inline so “Album Artists” does not overlay the connection panel during pull-down.
 
 ## Streaming performance
 
@@ -55,15 +67,18 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 45 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+Alpha 3.7.4 build 46 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
 
 ## Device diagnostics
 
-Build 44 writes a bounded, privacy-safe playback trace to:
+Build 46 writes a bounded, privacy-safe playback and streaming interaction trace to:
 
 `Documents/Resonance-Diagnostics.log`
 
-The trace records lifecycle, playback-stage, timer, Now Playing, and remote-catalog cancellation boundaries. It does not record track names, local paths, server URLs, credentials, private music, or audio data. After manually reproducing a problem on the iPhone, the file can be copied from the app container with:
+The trace records lifecycle, playback-stage, timer, Now Playing, remote-catalog cancellation boundaries, connection-panel
+state, selected browse grouping/layout, and alphabet gesture/section-jump events. It does not record track names, local
+paths, server URLs, credentials, private music, or audio data. After manually reproducing a problem on the iPhone, the
+file can be copied from the app container with:
 
 ```sh
 xcrun devicectl device copy from \
