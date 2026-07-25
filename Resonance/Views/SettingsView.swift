@@ -397,13 +397,6 @@ struct SettingsView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: openLibrary) { Label("Library", systemImage: "chevron.left") }
             }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    isTextFieldFocused = false
-                    UIApplication.shared.endEditing()
-                }
-            }
         }
     }
 }

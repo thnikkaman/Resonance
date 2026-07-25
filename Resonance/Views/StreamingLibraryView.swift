@@ -28,7 +28,9 @@ struct StreamingLibraryView: View {
                             artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
                         )
                     case .albumArtists:
-                        RemoteArtistCollectionView(artists: remote.albumArtists)
+                        RemoteArtistCollectionView(
+                            artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists)
+                        )
                     case .albums:
                         RemoteAlbumCollectionView(albums: remote.albums)
                     case .songs:
@@ -79,18 +81,15 @@ struct StreamingLibraryView: View {
                         .labelStyle(.titleAndIcon)
                 }
 
-                NavigationLink {
-                    RemotePlaylistCollectionView()
+                Menu {
+                    NavigationLink {
+                        RemotePlaylistCollectionView()
+                    } label: {
+                        Label("Playlists", systemImage: "music.note.list")
+                    }
                 } label: {
-                    Label("Playlists", systemImage: "music.note.list")
-                        .labelStyle(.titleAndIcon)
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .foregroundStyle(settings.contrastingAccentTextColor)
-                        .background(settings.accentColor, in: Capsule())
+                    Image(systemName: "music.note.list")
                 }
-                .buttonStyle(.plain)
                 .disabled(settings.streamBackend != .subsonic)
             }
 
@@ -257,7 +256,7 @@ private struct RemoteLibraryOptionsSheet: View {
                         "Group compilation-only artists",
                         isOn: $settings.groupCompilationArtists
                     )
-                    Text("In Artists view, tracks from compilation albums appear under a single Various Artists entry.")
+                    Text("In Artists and Album Artists views, tracks from compilation albums appear under a single Various Artists entry.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 

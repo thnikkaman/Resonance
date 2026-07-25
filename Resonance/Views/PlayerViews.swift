@@ -15,8 +15,9 @@ struct NowPlayingView: View {
   }
 
   var body: some View {
-    VStack(spacing: 16) {
-      Spacer(minLength: 4)
+    ScrollView {
+      VStack(spacing: 16) {
+        Spacer(minLength: 4)
 
       VStack(spacing: 16) {
         NowPlayingArtworkPager()
@@ -198,9 +199,13 @@ struct NowPlayingView: View {
         }
         .buttonStyle(.bordered)
       }
-      Spacer(minLength: 4)
+        Spacer(minLength: 4)
+      }
+      .padding(24)
+      .padding(.bottom, 76)
     }
-    .padding(24)
+    .scrollIndicators(.hidden)
+    .scrollDismissesKeyboard(.interactively)
     .navigationTitle("Now Playing")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

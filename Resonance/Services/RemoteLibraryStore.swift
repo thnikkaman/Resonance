@@ -299,10 +299,14 @@ final class RemoteLibraryStore: ObservableObject {
     var albums: [RemoteAlbum] { browseData().albums }
 
     var artists: [RemoteArtist] { browseData(groupCompilationArtists: false).artists }
-    var albumArtists: [RemoteArtist] { browseData().albumArtists }
+    var albumArtists: [RemoteArtist] { browseData(groupCompilationArtists: false).albumArtists }
 
     func artists(groupCompilationArtists: Bool) -> [RemoteArtist] {
         browseData(groupCompilationArtists: groupCompilationArtists).artists
+    }
+
+    func albumArtists(groupCompilationArtists: Bool) -> [RemoteArtist] {
+        browseData(groupCompilationArtists: groupCompilationArtists).albumArtists
     }
 
     private func browseData(groupCompilationArtists: Bool = false) -> BrowseCache {
@@ -399,7 +403,7 @@ final class RemoteLibraryStore: ObservableObject {
             return resonanceNormalizedRemoteKey(sourceName)
         }
 
-        if !usingAlbumArtist, !compilationAlbumKeys.isEmpty {
+        if !compilationAlbumKeys.isEmpty {
             var variousTracks: [RemoteTrackItem] = []
             for key in Array(grouped.keys) {
                 guard let values = grouped[key] else { continue }
@@ -427,10 +431,14 @@ final class RemoteLibraryStore: ObservableObject {
             let displayName = key == resonanceNormalizedRemoteKey("Various Artists")
                 ? "Various Artists"
                 : Self.preferredDisplayName(names, fallback: names.first ?? "Unknown Artist")
+            let albumGroupingKey: (RemoteTrackItem) -> String = { track in
+                if compilationAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
+                    return Self.compilationAlbumIdentity(track)
+                }
+                return usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
+            }
             let artistAlbums = Dictionary(grouping: unique) { track in
-                // The Artists view deliberately ignores album-artist spelling/case
-                // so one album cannot split merely because ALBUMARTIST differs.
-                usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
+                albumGroupingKey(track)
             }.compactMap { albumKey, albumTracks -> RemoteAlbum? in
                 let sorted = Self.uniqueTracks(albumTracks).sorted {
                     ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title)
@@ -455,7 +463,10 @@ final class RemoteLibraryStore: ObservableObject {
                 guard !allTracks.isEmpty else { return nil }
                 let name = Self.preferredDisplayName(artists.map(\.name), fallback: artists[0].name)
                 let albums = Dictionary(grouping: allTracks) { track in
-                    usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
+                    if compilationAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
+                        return Self.compilationAlbumIdentity(track)
+                    }
+                    return usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
                 }.compactMap { albumKey, albumTracks -> RemoteAlbum? in
                     let sorted = Self.uniqueTracks(albumTracks).sorted {
                         ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title)

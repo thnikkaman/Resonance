@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **49**
+Build: **50**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -74,13 +74,14 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 49 keeps the Streaming connection header visible, explicitly renders the Streaming Library title in the navigation-bar principal position, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, and groups compilation tracks using album identity that is independent of inconsistent album-artist tags. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
+Alpha 3.7.4 build 50 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, and groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
 ## Next major phase
 
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
 - Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
-- Complete compilation grouping acceptance in the **Artists** view with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that Album Artists remains intentionally unchanged.
+- Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
+- Complete shared-layout acceptance: the mini-player must remain in the top safe-area inset without covering navigation or editable content, Now Playing’s Browse Library and Stop actions must remain fully visible, and the keyboard Done action must dismiss URL, number-pad, standard text, and custom hex fields on every screen.
 - Re-run the cached-catalog, manual-change-check, 5.1, local playback, remote playback, artwork, settings-category, and performance checks after these runtime fixes.
 
 ## Device diagnostics

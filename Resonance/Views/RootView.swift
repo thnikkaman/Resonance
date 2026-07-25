@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum AppTab: Hashable {
     case playing, library, streaming, settings
@@ -12,7 +13,7 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .library
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             TabView(selection: $selectedTab) {
                 NavigationStack {
                     NowPlayingView(openLibrary: { selectedTab = .library })
@@ -37,13 +38,14 @@ struct RootView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(AppTab.settings)
             }
-
-            MiniPlayerOverlay(isVisible: selectedTab != .playing) {
-                selectedTab = .playing
+            .safeAreaInset(edge: .top, spacing: 0) {
+                MiniPlayerOverlay(isVisible: selectedTab != .playing) {
+                    selectedTab = .playing
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 6)
+                .padding(.bottom, 6)
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 58)
-            .zIndex(10)
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
@@ -52,6 +54,19 @@ struct RootView: View {
         }
         .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : Color.primary)
         .tint(settings.accentColor)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                }
+            }
+        }
         .onChange(of: remote.connectionStatus) { _, status in
             if Self.looksLikeError(status) {
                 errorLog.report(source: "Streaming", message: status)
