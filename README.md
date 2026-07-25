@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **48**
+Build: **49**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -74,7 +74,14 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 48 enables the Lock Screen previous/next transport commands explicitly and places the Streaming connection header in the top safe-area inset so it remains visible during navigation and browse layout changes. It passed the supplied simulator and generic-device preflight builds with warnings treated as errors.
+Alpha 3.7.4 build 49 keeps the Streaming connection header visible, explicitly renders the Streaming Library title in the navigation-bar principal position, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, and groups compilation tracks using album identity that is independent of inconsistent album-artist tags. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
+
+## Next major phase
+
+- Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
+- Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
+- Complete compilation grouping acceptance in the **Artists** view with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that Album Artists remains intentionally unchanged.
+- Re-run the cached-catalog, manual-change-check, 5.1, local playback, remote playback, artwork, settings-category, and performance checks after these runtime fixes.
 
 ## Device diagnostics
 

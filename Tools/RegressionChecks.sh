@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 48;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 49;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -113,7 +113,12 @@ assert '.accessibilityElement(children: .combine)' in streaming
 assert 'navigationBarTitleDisplayMode(.inline)' in streaming
 assert 'commands.nextTrackCommand.isEnabled = true' in player
 assert 'commands.previousTrackCommand.isEnabled = true' in player
+assert 'commands.skipForwardCommand.isEnabled = false' in player
+assert 'commands.skipBackwardCommand.isEnabled = false' in player
 assert '.safeAreaInset(edge: .top, spacing: 0)' in streaming
+assert 'ToolbarItem(placement: .principal)' in streaming
+assert 'streaming.option.compilationGrouping.changed' in streaming
+assert 'compilationAlbumIdentity' in remote
 assert 'markPlayed(trackID:' in root_view
 
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view

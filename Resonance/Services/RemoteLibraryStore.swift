@@ -403,8 +403,12 @@ final class RemoteLibraryStore: ObservableObject {
             var variousTracks: [RemoteTrackItem] = []
             for key in Array(grouped.keys) {
                 guard let values = grouped[key] else { continue }
-                let regularTracks = values.filter { !compilationAlbumKeys.contains($0.albumKey) }
-                variousTracks.append(contentsOf: values.filter { compilationAlbumKeys.contains($0.albumKey) })
+                let regularTracks = values.filter {
+                    !compilationAlbumKeys.contains(Self.compilationAlbumIdentity($0))
+                }
+                variousTracks.append(contentsOf: values.filter {
+                    compilationAlbumKeys.contains(Self.compilationAlbumIdentity($0))
+                })
                 if regularTracks.isEmpty {
                     grouped.removeValue(forKey: key)
                 } else {
@@ -470,8 +474,18 @@ final class RemoteLibraryStore: ObservableObject {
         return sortDirection == .ascending ? merged : Array(merged.reversed())
     }
 
+    nonisolated private static func compilationAlbumIdentity(_ track: RemoteTrackItem) -> String {
+        // albumKey includes albumArtist. Compilation tags often vary that field
+        // from track to track, so using albumKey would split one compilation
+        // before it can be recognized and grouped.
+        [
+            resonanceNormalizedRemoteKey(track.album),
+            track.releaseYear > 0 ? String(track.releaseYear) : ""
+        ].joined(separator: "|")
+    }
+
     nonisolated private static func compilationAlbumKeys(in tracks: [RemoteTrackItem]) -> Set<String> {
-        Dictionary(grouping: tracks, by: \.albumKey).compactMap { key, albumTracks in
+        Dictionary(grouping: tracks, by: compilationAlbumIdentity).compactMap { key, albumTracks in
             isVariousArtistsAlbum(albumTracks) ? key : nil
         }.reduce(into: Set<String>()) { result, key in
             result.insert(key)
@@ -490,6 +504,9 @@ final class RemoteLibraryStore: ObservableObject {
                 .filter { !$0.isEmpty }
         )
         guard trackArtistKeys.count > 1 else { return false }
+        // Multiple album-artist values on the same normalized album are a
+        // common Navidrome representation of a compilation.
+        if albumArtistKeys.count > 1 { return true }
         guard let albumArtistKey = albumArtistKeys.first else { return true }
         return !trackArtistKeys.contains(albumArtistKey)
     }

@@ -60,6 +60,14 @@ struct StreamingLibraryView: View {
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Streaming Library")
+                    .font(.headline)
+                    .foregroundStyle(Color.primary)
+                    .lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+            }
+
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
                     Image(systemName: "chevron.left")
@@ -249,7 +257,7 @@ private struct RemoteLibraryOptionsSheet: View {
                         "Group compilation-only artists",
                         isOn: $settings.groupCompilationArtists
                     )
-                    Text("Tracks from Various Artists albums appear under a single Various Artists entry.")
+                    Text("In Artists view, tracks from compilation albums appear under a single Various Artists entry.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -282,6 +290,12 @@ private struct RemoteLibraryOptionsSheet: View {
                 ResonanceDiagnostics.shared.record(
                     "streaming.option.sort.changed",
                     details: ["direction": direction.rawValue]
+                )
+            }
+            .onChange(of: settings.groupCompilationArtists) { _, enabled in
+                ResonanceDiagnostics.shared.record(
+                    "streaming.option.compilationGrouping.changed",
+                    details: ["enabled": String(enabled)]
                 )
             }
             .onChange(of: settings.albumLayout) { _, layout in

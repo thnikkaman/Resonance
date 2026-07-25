@@ -1334,21 +1334,11 @@ final class PlayerController: NSObject, ObservableObject {
     }
     commands.previousTrackCommand.isEnabled = true
 
-    commands.skipForwardCommand.isEnabled = true
-    commands.skipForwardCommand.preferredIntervals = [15]
-    commands.skipForwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
-      Task { @MainActor in self?.skip(by: interval) }
-      return .success
-    }
-
-    commands.skipBackwardCommand.isEnabled = true
-    commands.skipBackwardCommand.preferredIntervals = [15]
-    commands.skipBackwardCommand.addTarget { [weak self] event in
-      let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 15
-      Task { @MainActor in self?.skip(by: -interval) }
-      return .success
-    }
+    // Keep the Lock Screen transport focused on track navigation. The in-app
+    // 15-second controls still call skip(by:), but advertising skip commands
+    // causes iOS to replace the primary previous/next layout with seek buttons.
+    commands.skipForwardCommand.isEnabled = false
+    commands.skipBackwardCommand.isEnabled = false
 
     commands.changePlaybackPositionCommand.addTarget { [weak self] event in
       guard let event = event as? MPChangePlaybackPositionCommandEvent else {
