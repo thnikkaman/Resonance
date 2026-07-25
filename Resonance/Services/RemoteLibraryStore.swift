@@ -110,6 +110,29 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             lastPlayed: date
         )
     }
+
+    func settingAlbumArtist(_ value: String) -> RemoteTrackItem {
+        RemoteTrackItem(
+            id: id,
+            sourceID: sourceID,
+            title: title,
+            artist: artist,
+            albumArtist: value,
+            album: album,
+            trackNumber: trackNumber,
+            discNumber: discNumber,
+            releaseYear: releaseYear,
+            duration: duration,
+            fileSizeBytes: fileSizeBytes,
+            streamURL: streamURL,
+            artworkURL: artworkURL,
+            artworkBase64: artworkBase64,
+            coverArtID: coverArtID,
+            starred: starred,
+            dateAdded: dateAdded,
+            lastPlayed: lastPlayed
+        )
+    }
 }
 
 struct RemoteAlbum: Identifiable, Hashable, Sendable {
@@ -500,6 +523,40 @@ final class RemoteLibraryStore: ObservableObject {
         }.first ?? fallback
     }
 
+    nonisolated fileprivate static func canonicalizeAlbumArtists(_ values: [RemoteTrackItem]) -> [RemoteTrackItem] {
+        let grouped = Dictionary(grouping: values) {
+            "\(resonanceNormalizedRemoteKey($0.artist))|\(resonanceNormalizedRemoteKey($0.album))"
+        }
+        var canonicalNames: [UUID: String] = [:]
+
+        for albumTracks in grouped.values {
+            guard !albumTracks.isEmpty else { continue }
+            let artistKeys = Set(albumTracks.map { resonanceNormalizedRemoteKey($0.artist) })
+            guard artistKeys.count == 1, let first = albumTracks.first else { continue }
+
+            let albumArtistKeys = Set(albumTracks.map { resonanceNormalizedRemoteKey($0.albumArtist) })
+            let albumArtistsMatchTrackArtist = albumArtistKeys.allSatisfy { artistKeys.contains($0) }
+            let containsDisplayComposite = albumTracks.contains {
+                $0.albumArtist.contains("•")
+                    || $0.albumArtist.localizedCaseInsensitiveContains("unknown artist")
+            }
+            guard albumArtistsMatchTrackArtist || containsDisplayComposite else { continue }
+
+            let canonical = preferredDisplayName(
+                albumTracks.map(\.artist),
+                fallback: first.artist
+            )
+            for track in albumTracks {
+                canonicalNames[track.id] = canonical
+            }
+        }
+
+        return values.map { track in
+            guard let canonical = canonicalNames[track.id], track.albumArtist != canonical else { return track }
+            return track.settingAlbumArtist(canonical)
+        }
+    }
+
     nonisolated private static func albumFingerprint(_ albums: [SubsonicAlbumSummary]) -> String {
         albums
             .map { "\($0.id)|\($0.songCount ?? 0)|\($0.coverArt ?? "")|\($0.year ?? 0)" }
@@ -524,18 +581,34 @@ final class RemoteLibraryStore: ObservableObject {
         if settings.streamBackend == .subsonic, tracks.isEmpty, let cached = pendingSubsonicCache {
             do {
                 let client = try makeSubsonicClient(using: settings)
-                tracks = try cached.tracks.map { try client.restoreCachedTrack($0) }
+                let restored = try cached.tracks.map { try client.restoreCachedTrack($0) }
+                tracks = Self.canonicalizeAlbumArtists(restored)
                 serverName = cached.serverName
                 lastRefresh = cached.savedAt
-                connectionStatus = "Showing cached catalog — checking server in background"
+                connectionStatus = "Showing cached catalog — remote check available in Settings"
                 catalogSyncStatus = "Cached \(tracks.count) tracks"
+                ResonanceDiagnostics.shared.record(
+                    "remote.catalogCache.activated",
+                    details: ["trackCount": String(tracks.count)]
+                )
             } catch {
                 catalogSyncStatus = "Cached catalog could not be activated: \(error.localizedDescription)"
             }
         }
 
+        if !forceCheck, !tracks.isEmpty {
+            ResonanceDiagnostics.shared.record(
+                "remote.catalogCheck.deferred",
+                details: ["reason": "cached-first", "trackCount": String(tracks.count)]
+            )
+            return
+        }
+
         let now = Date()
-        if !forceCheck, let lastAutomaticCatalogCheck, now.timeIntervalSince(lastAutomaticCatalogCheck) < 300 { return }
+        if !forceCheck, let lastAutomaticCatalogCheck, now.timeIntervalSince(lastAutomaticCatalogCheck) < 300 {
+            ResonanceDiagnostics.shared.record("remote.catalogCheck.throttled")
+            return
+        }
         lastAutomaticCatalogCheck = now
         lastCatalogCheck = now
 
@@ -557,9 +630,17 @@ final class RemoteLibraryStore: ObservableObject {
                 let added = currentIDs.subtracting(previousIDs).count
                 let removed = previousIDs.subtracting(currentIDs).count
                 catalogSyncStatus = "Catalog updated: +\(added), −\(removed), \(tracks.count) total"
+                ResonanceDiagnostics.shared.record(
+                    "remote.catalogCheck.completed",
+                    details: ["result": "updated", "trackCount": String(tracks.count)]
+                )
             } else {
                 connectionStatus = "Connected — cached catalog is up to date"
                 catalogSyncStatus = "No remote library changes found"
+                ResonanceDiagnostics.shared.record(
+                    "remote.catalogCheck.completed",
+                    details: ["result": "unchanged", "trackCount": String(tracks.count)]
+                )
             }
         } catch is CancellationError {
             connectionStatus = tracks.isEmpty
@@ -857,7 +938,7 @@ final class RemoteLibraryStore: ObservableObject {
         try validate(response: response, data: data)
         let manifest = try JSONDecoder().decode(RemoteLibraryManifest.self, from: data)
         let resolved = manifest.tracks.compactMap { resolveManifestTrack($0, relativeTo: manifestURL) }
-        let unique = Self.uniqueTracks(resolved)
+        let unique = Self.canonicalizeAlbumArtists(Self.uniqueTracks(resolved))
         tracks = unique
         playlists = []
         serverName = manifest.name?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Remote Library"
@@ -894,10 +975,12 @@ final class RemoteLibraryStore: ObservableObject {
                 return result
             }
             resolved.append(contentsOf: batchTracks)
-            connectionStatus = "Indexing albums \(batchEnd) of \(summaries.count)…"
+            if batchEnd == summaries.count || batchEnd % (batchSize * 8) == 0 {
+                connectionStatus = "Indexing albums \(batchEnd) of \(summaries.count)…"
+            }
         }
 
-        let deduplicated = Self.uniqueTracks(resolved)
+        let deduplicated = Self.canonicalizeAlbumArtists(Self.uniqueTracks(resolved))
         tracks = deduplicated.sorted {
             ($0.artist, $0.album, $0.discNumber, $0.trackNumber, $0.title) <
             ($1.artist, $1.album, $1.discNumber, $1.trackNumber, $1.title)
@@ -1198,12 +1281,13 @@ private struct SubsonicClient: Sendable {
                 ]
             )
         }
-        let albumArtist = song.albumArtist?.nonEmpty
-            ?? song.displayAlbumArtist?.nonEmpty
+        let artist = song.artist?.nonEmpty
             ?? fallbackArtist?.nonEmpty
-            ?? song.artist?.nonEmpty
+            ?? song.albumArtist?.nonEmpty
+            ?? song.displayAlbumArtist?.nonEmpty
             ?? "Unknown Artist"
-        let artist = song.artist?.nonEmpty ?? albumArtist
+        let albumArtist = song.albumArtist?.nonEmpty
+            ?? artist
         let albumTitle = song.album?.nonEmpty ?? fallbackAlbum?.nonEmpty ?? "Unknown Album"
         let stableSource = "subsonic|\(apiBaseURL.absoluteString)|\(song.id)"
 
@@ -1252,7 +1336,7 @@ private struct SubsonicClient: Sendable {
             sourceID: cached.sourceID,
             title: cached.title,
             artist: cached.artist,
-            albumArtist: cached.albumArtist,
+            albumArtist: cached.albumArtist.nonEmpty ?? cached.artist,
             album: cached.album,
             trackNumber: cached.trackNumber,
             discNumber: cached.discNumber,
