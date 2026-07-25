@@ -26,6 +26,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("artistAlbumSort") private var artistAlbumSortRaw = ArtistAlbumSort.title.rawValue
     @AppStorage("libraryThumbnailSize") private var libraryThumbnailSizeRaw = LibraryThumbnailSize.medium.rawValue
     @AppStorage("libraryTextSize") private var libraryTextSizeRaw = LibraryTextSize.standard.rawValue
+    @AppStorage("groupCompilationArtists") var groupCompilationArtists = false
     @AppStorage("showArtworkWarning") var showArtworkWarning = true
     @AppStorage("showLockScreenArtwork") var showLockScreenArtwork = true
     @AppStorage("preloadNextTrack") var preloadNextTrack = true

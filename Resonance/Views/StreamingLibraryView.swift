@@ -26,7 +26,9 @@ struct StreamingLibraryView: View {
                     Group {
                         switch remote.grouping {
                         case .artists:
-                            RemoteArtistCollectionView(artists: remote.artists)
+                            RemoteArtistCollectionView(
+                                artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
+                            )
                         case .albumArtists:
                             RemoteArtistCollectionView(artists: remote.albumArtists)
                         case .albums:
@@ -198,6 +200,14 @@ private struct RemoteLibraryOptionsSheet: View {
                 }
 
                 Section("View Options") {
+                    Toggle(
+                        "Group compilation-only artists",
+                        isOn: $settings.groupCompilationArtists
+                    )
+                    Text("Tracks from Various Artists albums appear under a single Various Artists entry.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Picker("Artwork size", selection: $settings.libraryThumbnailSize) {
                         ForEach(LibraryThumbnailSize.allCases) { size in
                             Text(size.rawValue).tag(size)
