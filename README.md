@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback Recovery and Artist Index Fix
 
 Version: **0.3.7.4**  
-Build: **41**
+Build: **42**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
