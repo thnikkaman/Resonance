@@ -50,13 +50,31 @@ struct PlaybackBookmark: Identifiable, Codable, Hashable, Sendable {
   }
 }
 
+/// High-frequency playback progress is kept separate from the controller's
+/// normal state so catalog and settings views do not invalidate on every timer
+/// tick. Only progress-aware views should observe this object.
+@MainActor
+final class PlaybackProgress: ObservableObject {
+  @Published private(set) var elapsed = 0.0
+
+  fileprivate func update(elapsed: Double) {
+    self.elapsed = elapsed
+  }
+}
+
 @MainActor
 final class PlayerController: NSObject, ObservableObject {
+  let progress = PlaybackProgress()
   @Published private(set) var currentTrack: Track?
   @Published private(set) var isPlaying = false
-  @Published private(set) var elapsed = 0.0
+  private(set) var elapsed = 0.0 {
+    didSet { progress.update(elapsed: elapsed) }
+  }
   @Published private(set) var duration = 0.0
-  @Published private(set) var meterLevel = 0.0
+  // Meter values are used for diagnostics and audio-state decisions. Keeping
+  // them off PlayerController.objectWillChange prevents every visible track
+  // row from rebuilding at the 120 ms playback cadence.
+  private(set) var meterLevel = 0.0
   @Published private(set) var queue: [Track] = []
   @Published private(set) var currentQueueIndex = 0
   @Published var shuffleEnabled = false

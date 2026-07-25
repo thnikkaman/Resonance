@@ -265,23 +265,20 @@ struct PlayingTrackVisualizer: View {
     let track: Track
 
     private var isCurrent: Bool { player.currentTrack?.id == track.id }
-    private let multipliers: [CGFloat] = [0.72, 1.0, 0.58, 0.88]
+    private let heights: [CGFloat] = [8, 14, 6, 11]
 
     var body: some View {
         HStack(alignment: .center, spacing: 1.5) {
-            ForEach(Array(multipliers.enumerated()), id: \.offset) { index, multiplier in
+            ForEach(Array(heights.enumerated()), id: \.offset) { _, height in
                 Capsule()
                     .frame(
                         width: 2,
-                        height: isCurrent
-                            ? max(3, 4 + CGFloat(player.meterLevel) * 14 * multiplier + CGFloat(index % 2) * 1.5)
-                            : 2
+                        height: isCurrent ? height : 2
                     )
             }
         }
         .frame(width: 13, height: 22)
         .foregroundStyle(isCurrent ? Color.accentColor : Color.clear)
-        .animation(.linear(duration: 0.12), value: player.meterLevel)
         .accessibilityHidden(true)
     }
 }

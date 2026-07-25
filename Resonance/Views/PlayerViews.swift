@@ -395,11 +395,12 @@ private struct CachedPagerArtwork: View {
 
 private struct TrackScrubber: View {
   @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var playbackProgress: PlaybackProgress
   @EnvironmentObject private var settings: AppSettings
   @State private var previewTime: Double?
   @State private var fingerX: CGFloat = 0
 
-  private var displayedTime: Double { previewTime ?? player.elapsed }
+  private var displayedTime: Double { previewTime ?? playbackProgress.elapsed }
   private var isScrubbing: Bool { previewTime != nil }
 
   var body: some View {

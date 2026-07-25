@@ -24,7 +24,7 @@ struct RootView: View {
                     NowPlayingView(openLibrary: { selectedTab = .library })
                 }
                 .resonanceMiniPlayerInsets(
-                    isVisible: selectedTab != .playing,
+                    isVisible: false,
                     dock: miniPlayerDock,
                     openNowPlaying: { selectedTab = .playing },
                     onDock: { miniPlayerDock = $0 }
@@ -34,7 +34,7 @@ struct RootView: View {
 
                 NavigationStack { LibraryView() }
                     .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab != .playing,
+                        isVisible: selectedTab == .library,
                         dock: miniPlayerDock,
                         openNowPlaying: { selectedTab = .playing },
                         onDock: { miniPlayerDock = $0 }
@@ -49,7 +49,7 @@ struct RootView: View {
                     )
                 }
                     .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab != .playing,
+                        isVisible: selectedTab == .streaming,
                         dock: miniPlayerDock,
                         openNowPlaying: { selectedTab = .playing },
                         onDock: { miniPlayerDock = $0 }
@@ -59,7 +59,7 @@ struct RootView: View {
 
                 NavigationStack { SettingsView(openLibrary: { selectedTab = .library }) }
                     .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab != .playing,
+                        isVisible: selectedTab == .settings,
                         dock: miniPlayerDock,
                         openNowPlaying: { selectedTab = .playing },
                         onDock: { miniPlayerDock = $0 }
@@ -159,7 +159,7 @@ private struct MiniPlayerInsets: ViewModifier {
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
-                if dock == .top {
+                if isVisible, dock == .top {
                     MiniPlayerOverlay(
                         isVisible: isVisible,
                         dock: .top,
@@ -172,7 +172,7 @@ private struct MiniPlayerInsets: ViewModifier {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if dock == .bottom {
+                if isVisible, dock == .bottom {
                     MiniPlayerOverlay(
                         isVisible: isVisible,
                         dock: .bottom,

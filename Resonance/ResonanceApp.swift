@@ -18,6 +18,7 @@ struct ResonanceApp: App {
             RootView()
                 .environmentObject(library)
                 .environmentObject(player)
+                .environmentObject(player.progress)
                 .environmentObject(settings)
                 .environmentObject(remoteLibrary)
                 .environmentObject(errorLog)
