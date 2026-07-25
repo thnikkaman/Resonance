@@ -53,7 +53,6 @@ struct StreamingLibraryView: View {
                         }
                     }
                 }
-                .clipped()
                 .searchable(text: $remote.searchText, prompt: "Search remote music")
                 .refreshable { await remote.refresh(using: settings) }
             }
@@ -138,41 +137,53 @@ private struct RemoteServerHeader: View {
     @Binding var isExpanded: Bool
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(settings.streamBackend.shortName)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(settings.accentColor)
-                Text(remote.connectionStatus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                Text(remote.catalogSyncStatus)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                if let lastRefresh = remote.lastRefresh {
-                    Text("Updated \(lastRefresh.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption2)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: remote.isLoading ? "network.badge.shield.half.filled" : "externaldrive.connected.to.line.below")
+                        .font(.title2)
+                        .foregroundStyle(settings.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(remote.serverName)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text(remote.grouping.rawValue)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(settings.accentColor)
+                    }
+                    Spacer()
+                    if remote.isLoading { ProgressView() }
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.top, 4)
-        } label: {
-            HStack(alignment: .center, spacing: 10) {
-                Image(systemName: remote.isLoading ? "network.badge.shield.half.filled" : "externaldrive.connected.to.line.below")
-                    .font(.title2)
-                    .foregroundStyle(settings.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(remote.serverName)
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(remote.grouping.rawValue)
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(settings.streamBackend.shortName)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(settings.accentColor)
+                    Text(remote.connectionStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Text(remote.catalogSyncStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    if let lastRefresh = remote.lastRefresh {
+                        Text("Updated \(lastRefresh.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                Spacer()
-                if remote.isLoading { ProgressView() }
+                .padding(.top, 4)
             }
         }
         .tint(settings.accentColor)
@@ -180,6 +191,7 @@ private struct RemoteServerHeader: View {
         .padding(.vertical, 10)
         .background(.bar)
         .zIndex(1)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel("Streaming connection information")
         .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         .onChange(of: isExpanded) { _, expanded in

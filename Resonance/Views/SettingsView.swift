@@ -13,7 +13,11 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
+            SettingsCategory(
+                "Appearance",
+                key: "appearance",
+                isExpanded: $settings.settingsAppearanceExpanded
+            ) {
                 Picker("Theme", selection: $settings.appearance) {
                     Text("System").tag("system")
                     Text("Light").tag("light")
@@ -49,7 +53,11 @@ struct SettingsView: View {
                 ThemePreview()
             }
 
-            Section("Playback") {
+            SettingsCategory(
+                "Playback",
+                key: "playback",
+                isExpanded: $settings.settingsPlaybackExpanded
+            ) {
                 Toggle("Gapless preload next track", isOn: $settings.preloadNextTrack)
                 LabeledContent("Local preload budget", value: "\(Int(settings.localBufferMB)) MB")
                 Slider(value: $settings.localBufferMB, in: 10...250, step: 10)
@@ -104,7 +112,11 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Reported Errors") {
+            SettingsCategory(
+                "Reported Errors",
+                key: "reported-errors",
+                isExpanded: $settings.settingsReportedErrorsExpanded
+            ) {
                 if errorLog.entries.isEmpty {
                     Label("No errors have been reported", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -154,7 +166,11 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Streaming Library") {
+            SettingsCategory(
+                "Streaming Library",
+                key: "streaming",
+                isExpanded: $settings.settingsStreamingExpanded
+            ) {
                 Picker("Backend", selection: $settings.streamBackend) {
                     ForEach(RemoteLibraryBackend.allCases) { backend in
                         Text(backend.rawValue).tag(backend)
@@ -267,7 +283,11 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Finder File Sharing") {
+            SettingsCategory(
+                "Finder File Sharing",
+                key: "finder-file-sharing",
+                isExpanded: $settings.settingsFinderExpanded
+            ) {
                 LabeledContent("Status") {
                     Label(
                         library.sharedFolderIsReady ? "Ready" : "Unavailable",
@@ -304,12 +324,20 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Library") {
+            SettingsCategory(
+                "Library",
+                key: "library",
+                isExpanded: $settings.settingsLibraryExpanded
+            ) {
                 Button("Restore demo library") { Task { await library.resetDemoLibrary() } }
             }
 
-            Section("Prototype Status") {
-                LabeledContent("Build", value: "Alpha 3.7.1")
+            SettingsCategory(
+                "Prototype Status",
+                key: "prototype-status",
+                isExpanded: $settings.settingsPrototypeExpanded
+            ) {
+                LabeledContent("Build", value: "Alpha 3.7.4 (47)")
                 StatusRow(title: "Finder and Files app transfer folder", detail: "Available", icon: "checkmark.circle.fill")
                 StatusRow(title: "Shared-folder rescanning", detail: "Launch, foreground, import, or manual", icon: "checkmark.circle.fill")
                 StatusRow(title: "Local import and indexing", detail: "Available", icon: "checkmark.circle.fill")
@@ -375,6 +403,45 @@ struct SettingsView: View {
                     isTextFieldFocused = false
                     UIApplication.shared.endEditing()
                 }
+            }
+        }
+    }
+}
+
+private struct SettingsCategory<Content: View>: View {
+    let title: String
+    let key: String
+    @Binding var isExpanded: Bool
+    let content: Content
+
+    init(
+        _ title: String,
+        key: String,
+        isExpanded: Binding<Bool>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.key = key
+        self._isExpanded = isExpanded
+        self.content = content()
+    }
+
+    var body: some View {
+        Section {
+            DisclosureGroup(isExpanded: $isExpanded) {
+                content
+            } label: {
+                Text(title)
+                    .font(.headline)
+            }
+            .onChange(of: isExpanded) { _, expanded in
+                ResonanceDiagnostics.shared.record(
+                    "settings.category.changed",
+                    details: [
+                        "category": key,
+                        "expanded": String(expanded)
+                    ]
+                )
             }
         }
     }

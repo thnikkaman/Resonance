@@ -28,6 +28,13 @@ final class AppSettings: ObservableObject {
     @AppStorage("libraryTextSize") private var libraryTextSizeRaw = LibraryTextSize.standard.rawValue
     @AppStorage("groupCompilationArtists") var groupCompilationArtists = false
     @AppStorage("streamingConnectionInfoExpanded") var streamingConnectionInfoExpanded = true
+    @AppStorage("settingsAppearanceExpanded") var settingsAppearanceExpanded = true
+    @AppStorage("settingsPlaybackExpanded") var settingsPlaybackExpanded = true
+    @AppStorage("settingsReportedErrorsExpanded") var settingsReportedErrorsExpanded = true
+    @AppStorage("settingsStreamingExpanded") var settingsStreamingExpanded = true
+    @AppStorage("settingsFinderExpanded") var settingsFinderExpanded = true
+    @AppStorage("settingsLibraryExpanded") var settingsLibraryExpanded = true
+    @AppStorage("settingsPrototypeExpanded") var settingsPrototypeExpanded = true
     @AppStorage("showArtworkWarning") var showArtworkWarning = true
     @AppStorage("showLockScreenArtwork") var showLockScreenArtwork = true
     @AppStorage("preloadNextTrack") var preloadNextTrack = true
