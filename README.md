@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback Recovery and Artist Index Fix
 
 Version: **0.3.7.4**  
-Build: **42**
+Build: **43**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -49,4 +49,21 @@ Remote cover art is downloaded and downsampled outside the main actor into a bou
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-This environment does not contain Xcode or an Apple SDK, so a signed current-SDK compile and definitive playback/UI validation must be performed on the Mac and physical iPhone.
+Alpha 3.7.4 build 43 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+
+## Device diagnostics
+
+Build 43 writes a bounded, privacy-safe playback trace to:
+
+`Documents/Resonance-Diagnostics.log`
+
+The trace records lifecycle, playback-stage, timer, Now Playing, and remote-catalog cancellation boundaries. It does not record track names, local paths, server URLs, credentials, private music, or audio data. After manually reproducing a problem on the iPhone, the file can be copied from the app container with:
+
+```sh
+xcrun devicectl device copy from \
+  --device 00008150-001144383612401C \
+  --domain-type appDataContainer \
+  --domain-identifier com.example.ResonancePrototype \
+  --source Documents/Resonance-Diagnostics.log \
+  --destination /Users/brian/Resonance/diagnostics/Resonance-Diagnostics.log
+```

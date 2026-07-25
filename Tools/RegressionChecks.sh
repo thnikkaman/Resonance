@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 42;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 43;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -111,6 +111,15 @@ assert '<key>CFBundleShortVersionString</key>' in plist
 assert '<string>$(MARKETING_VERSION)</string>' in plist
 assert '<key>CFBundleVersion</key>' in plist
 assert '<string>$(CURRENT_PROJECT_VERSION)</string>' in plist
+
+# Alpha 3.7.4 build 43 playback crash isolation and device diagnostics.
+diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
+assert 'ResonanceDiagnostics.swift in Sources' in pbx
+assert 'Documents/Resonance-Diagnostics.log' in diagnostics
+assert 'playback.timer.tick.begin' in player
+assert 'private nonisolated static func makeNowPlayingArtwork' in player
+assert 'UIImage(data: imageData) ?? UIImage()' in player
+assert 'remote.catalogCheck.cancelled' in remote
 
 # Alpha 3.6 locally reported compile fixes.
 assert 'nonisolated fileprivate static func uniqueTracks' in remote
