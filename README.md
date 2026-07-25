@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **54**
+Build: **55**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -86,12 +86,15 @@ Alpha 3.7.4 build 53 removes the Now Playing scroll container, compacts the fixe
 
 Alpha 3.7.4 build 54 changes Streaming Library to the same large navigation-title treatment used by Library and Settings, so the full white title remains visible instead of truncating to “Stream…” between toolbar controls.
 
+Alpha 3.7.4 build 55 applies the mini-player safe-area insets to each navigation stack, keeping top docking above navigation content and bottom docking above the custom tab bar. It enables the Matrix Mixer master, input, and output gains in addition to the explicit cross-point routing so gapless local playback cannot report ready while rendering silence. The playback trace now records gapless engine/render state and begin/completed seek events, including the measured audio meter level.
+
 ## Next major phase
 
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
 - Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
 - Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
-- Complete build 54 physical-device acceptance: fixed Now Playing layout, mini-player top/bottom/side docking and restore, keyboard dismissal, local stereo/5.1 gapless, remote queue advance, accurate remote seeking, and the full Streaming Library title.
+- Complete build 55 physical-device acceptance: fixed Now Playing layout, mini-player top/bottom/side docking and restore without covering navigation or the tab bar, keyboard dismissal, audible local stereo/5.1 gapless, remote queue advance, accurate remote seeking, and the full Streaming Library title.
+- After playback and seek tests, retrieve `Resonance-Diagnostics.log` and verify `playback.gapless.prepared`, `playback.timer.gapless.end` meter/render-state details, and `playback.seek.begin`/completion events correlate with the user-visible behavior.
 - Re-run the cached-catalog, manual-change-check, artwork, settings-category, Streaming title, grouping, and long-idle performance checks after these runtime fixes.
 - Profile the deferred-diagnostics build on the physical device while switching tabs, scrolling Streaming, dragging the alphabet, and leaving playback stopped; inspect the diagnostics and system crash logs after any sluggishness or lockup. Complete local gapless acceptance and decide whether remote gapless can be implemented without regressing the single-item playback crash shield.
 

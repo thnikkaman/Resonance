@@ -57,6 +57,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
   }
 
   var isPlaying: Bool { playerNode.isPlaying }
+  var isEngineRunning: Bool { engine.isRunning }
   var meterLevel: Double { meterState.value }
   var outputChannelCount: AVAudioChannelCount { 2 }
 
@@ -322,6 +323,34 @@ final class GaplessAudioEngine: @unchecked Sendable {
     guard outputChannels == 2 else { return }
     let unit = matrixNode.audioUnit
 
+    // A matrix mixer has four independent gain stages. Cross-point gains are
+    // not audible unless the matrix master, every input channel, and every
+    // output channel are enabled as well. Those defaults are not reliable
+    // after an AVAudioEngine reset, which previously let playback advance
+    // with a silent render graph.
+    try setMatrixGain(
+      unit,
+      scope: kAudioUnitScope_Global,
+      element: AudioUnitElement(UInt32.max),
+      gain: 1
+    )
+    for input in 0..<inputChannels {
+      try setMatrixGain(
+        unit,
+        scope: kAudioUnitScope_Input,
+        element: AudioUnitElement(input),
+        gain: 1
+      )
+    }
+    for output in 0..<outputChannels {
+      try setMatrixGain(
+        unit,
+        scope: kAudioUnitScope_Output,
+        element: AudioUnitElement(output),
+        gain: 1
+      )
+    }
+
     // Matrix cross-points encode input in the high 16 bits and output in the
     // low 16 bits of the global-scope element number.
     for input in 0..<inputChannels {
@@ -382,11 +411,25 @@ final class GaplessAudioEngine: @unchecked Sendable {
     gain: Float
   ) throws {
     let crossPoint = AudioUnitElement((input << 16) | output)
+    try setMatrixGain(
+      unit,
+      scope: kAudioUnitScope_Global,
+      element: crossPoint,
+      gain: gain
+    )
+  }
+
+  private func setMatrixGain(
+    _ unit: AudioUnit,
+    scope: AudioUnitScope,
+    element: AudioUnitElement,
+    gain: Float
+  ) throws {
     let status = AudioUnitSetParameter(
       unit,
       kMatrixMixerParam_Volume,
-      kAudioUnitScope_Global,
-      crossPoint,
+      scope,
+      element,
       AudioUnitParameterValue(gain),
       0
     )
@@ -511,7 +554,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
       }
       let divisor = Float(max(1, samplesPerBuffer * bufferCount))
       let rms = sqrt(max(0, sumSquares / divisor))
-      meterState.value = min(1, max(0.04, Double(rms) * 4.5))
+      meterState.value = min(1, max(0, Double(rms) * 4.5))
     }
   }
 }

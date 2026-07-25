@@ -495,11 +495,34 @@ final class PlayerController: NSObject, ObservableObject {
   func seek(to value: Double) {
     guard let currentTrack else { return }
     let clamped = safeSeekPosition(value, duration: duration)
+    ResonanceDiagnostics.shared.record(
+      "playback.seek.begin",
+      details: [
+        "backend": activeBackendLabel,
+        "position": String(format: "%.3f", clamped),
+        "duration": String(format: "%.3f", duration)
+      ]
+    )
 
     switch activeBackend {
     case .gapless:
       let wasPlaying = isPlaying
-      if loadAndPlay(currentTrack, at: currentQueueIndex, startTime: clamped, autoPlay: wasPlaying, notifyTrackStarted: false) {
+      let succeeded = loadAndPlay(
+        currentTrack,
+        at: currentQueueIndex,
+        startTime: clamped,
+        autoPlay: wasPlaying,
+        notifyTrackStarted: false
+      )
+      ResonanceDiagnostics.shared.record(
+        "playback.seek.completed",
+        details: [
+          "backend": "gapless",
+          "success": String(succeeded),
+          "position": String(format: "%.3f", clamped)
+        ]
+      )
+      if succeeded {
         elapsed = clamped
         playbackAnchorElapsed = clamped
         if !wasPlaying { pause() }
@@ -511,6 +534,14 @@ final class PlayerController: NSObject, ObservableObject {
       playbackAnchorElapsed = elapsed
       playbackAnchorDate = isPlaying ? Date() : nil
       updateNowPlayingProgress()
+      ResonanceDiagnostics.shared.record(
+        "playback.seek.completed",
+        details: [
+          "backend": "legacy",
+          "success": "true",
+          "position": String(format: "%.3f", elapsed)
+        ]
+      )
     case .remote:
       guard let remotePlayer else { return }
       let target = CMTime(seconds: clamped, preferredTimescale: 600)
@@ -534,6 +565,10 @@ final class PlayerController: NSObject, ObservableObject {
           guard finished else {
             self.updateElapsedFromClock()
             self.updateNowPlayingProgress()
+            ResonanceDiagnostics.shared.recordDeferred(
+              "remote.player.seek.completed",
+              details: ["finished": String(finished)]
+            )
             return
           }
 
@@ -732,6 +767,15 @@ final class PlayerController: NSObject, ObservableObject {
         outputChannels: gaplessEngine.outputChannelCount
       )
       downmixRoutingStatus = gaplessEngine.downmixRoutingDescription
+      ResonanceDiagnostics.shared.record(
+        "playback.gapless.prepared",
+        details: [
+          "sourceChannels": String(prepared.current.channelCount),
+          "engineRunning": String(gaplessEngine.isEngineRunning),
+          "playerNodePlaying": String(gaplessEngine.isPlaying),
+          "meter": String(format: "%.5f", gaplessEngine.meterLevel)
+        ]
+      )
       if let following, let followingSchedule = prepared.following {
         preloadedTrackID = following.id
         preloadedTrackTitle = following.title
@@ -1349,7 +1393,16 @@ final class PlayerController: NSObject, ObservableObject {
     case .gapless:
       if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.gapless.begin") }
       meterLevel = isPlaying ? gaplessEngine.meterLevel : 0.08
-      if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.gapless.end") }
+      if shouldLogTick {
+        ResonanceDiagnostics.shared.record(
+          "playback.timer.gapless.end",
+          details: [
+            "meter": String(format: "%.5f", gaplessEngine.meterLevel),
+            "engineRunning": String(gaplessEngine.isEngineRunning),
+            "playerNodePlaying": String(gaplessEngine.isPlaying)
+          ]
+        )
+      }
     case .legacy:
       if shouldLogTick { ResonanceDiagnostics.shared.record("playback.timer.legacy.begin") }
       if let audioPlayer {

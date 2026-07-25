@@ -34,7 +34,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 54;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 55;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -143,6 +143,13 @@ assert '.frame(width: pageWidth, height: 260' in views
 assert '.frame(width: 252, height: 252)' in views
 assert 'matrixConfiguration = configureSignalPath' in gapless
 assert 'try startEngineIfNeeded()' in gapless
+assert 'kAudioUnitScope_Input' in gapless
+assert 'kAudioUnitScope_Output' in gapless
+assert 'AudioUnitElement(UInt32.max)' in gapless
+assert 'var isEngineRunning: Bool' in gapless
+assert 'playback.gapless.prepared' in player
+assert 'playback.seek.begin' in player
+assert 'playback.seek.completed' in player
 assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
@@ -202,6 +209,7 @@ assert r'.id("artist-section-\(section.key)")' in library_view
 assert r'.id("remote-artist-section-\(section.key)")' in streaming
 assert '.frame(width: 24)' in streaming
 assert 'MiniPlayerOverlay' in root_view
+assert 'MiniPlayerInsets' in root_view
 assert 'PlaybackCoordinatorView' in root_view
 assert 'private var browseCache: BrowseCache?' in remote
 assert 'trackRevision &+= 1' in remote

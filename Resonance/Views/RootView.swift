@@ -23,10 +23,22 @@ struct RootView: View {
                 NavigationStack {
                     NowPlayingView(openLibrary: { selectedTab = .library })
                 }
+                .resonanceMiniPlayerInsets(
+                    isVisible: selectedTab != .playing,
+                    dock: miniPlayerDock,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
                 .tabItem { Label("Playing", systemImage: "music.note") }
                 .tag(AppTab.playing)
 
                 NavigationStack { LibraryView() }
+                    .resonanceMiniPlayerInsets(
+                        isVisible: selectedTab != .playing,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
                     .tabItem { Label("Library", systemImage: "square.stack") }
                     .tag(AppTab.library)
 
@@ -36,36 +48,24 @@ struct RootView: View {
                         openSettings: { selectedTab = .settings }
                     )
                 }
+                    .resonanceMiniPlayerInsets(
+                        isVisible: selectedTab != .playing,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
                     .tabItem { Label("Streaming", systemImage: "network") }
                     .tag(AppTab.streaming)
 
                 NavigationStack { SettingsView(openLibrary: { selectedTab = .library }) }
+                    .resonanceMiniPlayerInsets(
+                        isVisible: selectedTab != .playing,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(AppTab.settings)
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if miniPlayerDock == .top {
-                    MiniPlayerOverlay(isVisible: selectedTab != .playing, dock: .top) {
-                        selectedTab = .playing
-                    } onDock: { dock in
-                        miniPlayerDock = dock
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 6)
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if miniPlayerDock == .bottom {
-                    MiniPlayerOverlay(isVisible: selectedTab != .playing, dock: .bottom) {
-                        selectedTab = .playing
-                    } onDock: { dock in
-                        miniPlayerDock = dock
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 6)
-                }
             }
 
             PlaybackCoordinatorView()
@@ -130,6 +130,61 @@ struct RootView: View {
             .contains { lowered.contains($0) }
     }
 
+}
+
+private extension View {
+    func resonanceMiniPlayerInsets(
+        isVisible: Bool,
+        dock: MiniPlayerDock,
+        openNowPlaying: @escaping () -> Void,
+        onDock: @escaping (MiniPlayerDock) -> Void
+    ) -> some View {
+        modifier(
+            MiniPlayerInsets(
+                isVisible: isVisible,
+                dock: dock,
+                openNowPlaying: openNowPlaying,
+                onDock: onDock
+            )
+        )
+    }
+}
+
+private struct MiniPlayerInsets: ViewModifier {
+    let isVisible: Bool
+    let dock: MiniPlayerDock
+    let openNowPlaying: () -> Void
+    let onDock: (MiniPlayerDock) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if dock == .top {
+                    MiniPlayerOverlay(
+                        isVisible: isVisible,
+                        dock: .top,
+                        openNowPlaying: openNowPlaying,
+                        onDock: onDock
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if dock == .bottom {
+                    MiniPlayerOverlay(
+                        isVisible: isVisible,
+                        dock: .bottom,
+                        openNowPlaying: openNowPlaying,
+                        onDock: onDock
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
+                }
+            }
+    }
 }
 
 private struct MiniPlayerOverlay: View {
