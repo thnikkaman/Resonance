@@ -9,6 +9,10 @@ struct ResonanceApp: App {
     @StateObject private var remoteLibrary = RemoteLibraryStore()
     @StateObject private var errorLog = AppErrorLog()
 
+    init() {
+        ResonanceDiagnostics.shared.record("app.init")
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -20,9 +24,15 @@ struct ResonanceApp: App {
                 .tint(settings.accentColor)
                 .preferredColorScheme(settings.colorScheme)
                 .task(id: scenePhase) {
+                    ResonanceDiagnostics.shared.record(
+                        "scene.phase.task",
+                        details: ["phase": String(describing: scenePhase)]
+                    )
                     guard scenePhase == .active else { return }
+                    ResonanceDiagnostics.shared.record("scene.active.refresh.begin")
                     await library.refreshForActiveState()
                     await remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
+                    ResonanceDiagnostics.shared.record("scene.active.refresh.end")
                 }
         }
     }

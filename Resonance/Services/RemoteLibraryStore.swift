@@ -398,6 +398,15 @@ final class RemoteLibraryStore: ObservableObject {
     func activateCachedCatalogAndCheckForChanges(using settings: AppSettings, forceCheck: Bool = false) async {
         guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
+        ResonanceDiagnostics.shared.record(
+            "remote.catalogCheck.begin",
+            details: [
+                "backend": settings.streamBackend.shortName,
+                "force": String(forceCheck),
+                "trackCount": String(tracks.count)
+            ]
+        )
+
         if settings.streamBackend == .subsonic, tracks.isEmpty, let cached = pendingSubsonicCache {
             do {
                 let client = try makeSubsonicClient(using: settings)
@@ -438,9 +447,25 @@ final class RemoteLibraryStore: ObservableObject {
                 connectionStatus = "Connected — cached catalog is up to date"
                 catalogSyncStatus = "No remote library changes found"
             }
+        } catch is CancellationError {
+            connectionStatus = tracks.isEmpty
+                ? "Background catalog check cancelled"
+                : "Offline — showing cached catalog"
+            catalogSyncStatus = "Last check cancelled; cached catalog retained"
+            ResonanceDiagnostics.shared.record("remote.catalogCheck.cancelled")
+        } catch let error as URLError where error.code == .cancelled {
+            connectionStatus = tracks.isEmpty
+                ? "Background catalog check cancelled"
+                : "Offline — showing cached catalog"
+            catalogSyncStatus = "Last check cancelled; cached catalog retained"
+            ResonanceDiagnostics.shared.record("remote.catalogCheck.cancelled", details: ["error": "URLError.cancelled"])
         } catch {
             connectionStatus = tracks.isEmpty ? "Background catalog check failed: \(error.localizedDescription)" : "Offline — showing cached catalog"
             catalogSyncStatus = "Last check failed: \(error.localizedDescription)"
+            ResonanceDiagnostics.shared.record(
+                "remote.catalogCheck.failed",
+                details: ["errorType": String(describing: type(of: error))]
+            )
         }
     }
 
