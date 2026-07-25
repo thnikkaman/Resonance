@@ -25,14 +25,16 @@ struct StreamingLibraryView: View {
                     switch remote.grouping {
                     case .artists:
                         RemoteArtistCollectionView(
-                            artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
+                            artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
+                            sortDirection: remote.sortDirection
                         )
                     case .albumArtists:
                         RemoteArtistCollectionView(
-                            artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists)
+                            artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
+                            sortDirection: remote.sortDirection
                         )
                     case .albums:
-                        RemoteAlbumCollectionView(albums: remote.albums)
+                        RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
                     case .songs:
                         RemoteTrackCollectionView(tracks: remote.filteredTracks)
                     case .favorites:
@@ -308,9 +310,19 @@ private struct RemoteLibraryOptionsSheet: View {
 }
 
 private struct RemoteArtistCollectionView: View {
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var remote: RemoteLibraryStore
-    let artists: [RemoteArtist]
+  @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var remote: RemoteLibraryStore
+  let artists: [RemoteArtist]
+  let sortDirection: SortDirection
+  private let artistIDs: [String]
+  @State private var sections: [ArtistIndexSection<RemoteArtist>]
+
+  init(artists: [RemoteArtist], sortDirection: SortDirection) {
+    self.artists = artists
+    self.sortDirection = sortDirection
+    self.artistIDs = artists.map(\.id)
+    _sections = State(initialValue: Self.makeSections(artists, ascending: sortDirection == .ascending))
+  }
 
     private var columns: [GridItem] {
         Array(
@@ -319,20 +331,23 @@ private struct RemoteArtistCollectionView: View {
         )
     }
 
-    private var sections: [ArtistIndexSection<RemoteArtist>] {
-        let uniqueArtists = Dictionary(grouping: artists) { resonanceNormalizedRemoteKey($0.name) }
+  private static func makeSections(
+    _ artists: [RemoteArtist],
+    ascending: Bool
+  ) -> [ArtistIndexSection<RemoteArtist>] {
+    let uniqueArtists = Dictionary(grouping: artists) { resonanceNormalizedRemoteKey($0.name) }
             .compactMap { _, values in values.first }
         let grouped = Dictionary(grouping: uniqueArtists) { resonanceArtistIndexKey($0.name) }
-        let order = resonanceArtistIndexOrder(
-            for: Array(grouped.keys),
-            ascending: remote.sortDirection == .ascending
-        )
+    let order = resonanceArtistIndexOrder(
+      for: Array(grouped.keys),
+      ascending: ascending
+    )
         return order.compactMap { key in
             guard let items = grouped[key], !items.isEmpty else { return nil }
             let sorted = items.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             return ArtistIndexSection(
                 key: key,
-                items: remote.sortDirection == .ascending ? sorted : Array(sorted.reversed())
+            items: ascending ? sorted : Array(sorted.reversed())
             )
         }
     }
@@ -412,6 +427,12 @@ private struct RemoteArtistCollectionView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .onChange(of: sortDirection) { _, direction in
+                sections = Self.makeSections(artists, ascending: direction == .ascending)
+            }
+            .onChange(of: artistIDs) { _, _ in
+                sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
+            }
         }
     }
 }
@@ -440,9 +461,19 @@ private struct RemoteArtistTile: View {
 }
 
 private struct RemoteAlbumCollectionView: View {
-    @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var remote: RemoteLibraryStore
-    let albums: [RemoteAlbum]
+  @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var remote: RemoteLibraryStore
+  let albums: [RemoteAlbum]
+  let sortDirection: SortDirection
+  private let albumIDs: [String]
+  @State private var sections: [ArtistIndexSection<RemoteAlbum>]
+
+  init(albums: [RemoteAlbum], sortDirection: SortDirection) {
+    self.albums = albums
+    self.sortDirection = sortDirection
+    self.albumIDs = albums.map(\.id)
+    _sections = State(initialValue: Self.makeSections(albums, ascending: sortDirection == .ascending))
+  }
 
     private var columns: [GridItem] {
         Array(
@@ -451,18 +482,21 @@ private struct RemoteAlbumCollectionView: View {
         )
     }
 
-    private var sections: [ArtistIndexSection<RemoteAlbum>] {
-        let grouped = Dictionary(grouping: albums) { resonanceArtistIndexKey($0.title) }
-        let order = resonanceArtistIndexOrder(
-            for: Array(grouped.keys),
-            ascending: remote.sortDirection == .ascending
+  private static func makeSections(
+    _ albums: [RemoteAlbum],
+    ascending: Bool
+  ) -> [ArtistIndexSection<RemoteAlbum>] {
+    let grouped = Dictionary(grouping: albums) { resonanceArtistIndexKey($0.title) }
+    let order = resonanceArtistIndexOrder(
+        for: Array(grouped.keys),
+            ascending: ascending
         )
         return order.compactMap { key in
             guard let values = grouped[key], !values.isEmpty else { return nil }
             let sorted = values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
             return ArtistIndexSection(
                 key: key,
-                items: remote.sortDirection == .ascending ? sorted : Array(sorted.reversed())
+              items: ascending ? sorted : Array(sorted.reversed())
             )
         }
     }
@@ -555,6 +589,12 @@ private struct RemoteAlbumCollectionView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .onChange(of: sortDirection) { _, direction in
+                sections = Self.makeSections(albums, ascending: direction == .ascending)
+            }
+            .onChange(of: albumIDs) { _, _ in
+                sections = Self.makeSections(albums, ascending: sortDirection == .ascending)
+            }
         }
     }
 }

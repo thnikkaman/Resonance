@@ -15,14 +15,10 @@ struct NowPlayingView: View {
   }
 
   var body: some View {
-    ScrollView {
-      VStack(spacing: 16) {
-        Spacer(minLength: 4)
-
-      VStack(spacing: 16) {
+    VStack(spacing: 10) {
         NowPlayingArtworkPager()
 
-        VStack(spacing: 5) {
+        VStack(spacing: 4) {
           Text(player.currentTrack?.title ?? "Nothing Playing")
             .font(.title2.bold())
             .lineLimit(1)
@@ -51,7 +47,6 @@ struct NowPlayingView: View {
             .lineLimit(1)
           }
         }
-      }
 
       TrackScrubber()
         .frame(maxWidth: 320)
@@ -168,7 +163,7 @@ struct NowPlayingView: View {
       }
       .font(.title3)
 
-      HStack(spacing: 10) {
+      HStack(spacing: 8) {
         Image(systemName: "speaker.fill")
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -199,13 +194,10 @@ struct NowPlayingView: View {
         }
         .buttonStyle(.bordered)
       }
-        Spacer(minLength: 4)
-      }
-      .padding(24)
-      .padding(.bottom, 76)
     }
-    .scrollIndicators(.hidden)
-    .scrollDismissesKeyboard(.interactively)
+    .padding(.horizontal, 16)
+    .padding(.top, 2)
+    .padding(.bottom, 8)
     .navigationTitle("Now Playing")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -286,7 +278,7 @@ private struct NowPlayingArtworkPager: View {
         .frame(width: pageWidth * 3, alignment: .leading)
         .offset(x: -pageWidth + dragOffset)
       }
-      .frame(width: pageWidth, height: 294, alignment: .leading)
+      .frame(width: pageWidth, height: 260, alignment: .leading)
       .contentShape(Rectangle())
       .clipped()
       .gesture(
@@ -318,7 +310,7 @@ private struct NowPlayingArtworkPager: View {
       .accessibilityElement(children: .contain)
       .accessibilityHint("Swipe left for the next track or right for the previous track")
     }
-    .frame(height: 294)
+    .frame(height: 260)
   }
 
   @ViewBuilder
@@ -334,7 +326,7 @@ private struct NowPlayingArtworkPager: View {
       .accessibilityLabel(track.map { "\($0.album) artwork" } ?? "No adjacent track")
       Spacer(minLength: 0)
     }
-    .frame(width: pageWidth, height: 294)
+    .frame(width: pageWidth, height: 260)
   }
 
   private func completeTransition(toOffset: CGFloat, action: @escaping () -> Void) {
@@ -385,7 +377,7 @@ private struct CachedPagerArtwork: View {
         }
       }
     }
-    .frame(width: 286, height: 286)
+    .frame(width: 252, height: 252)
     .clipShape(RoundedRectangle(cornerRadius: 23))
     .overlay {
       if settings.showArtworkWarning && data != nil && !embedded {
@@ -461,8 +453,7 @@ private struct TrackScrubber: View {
             .onChanged { value in
               guard player.currentTrack != nil else { return }
               fingerX = min(max(0, value.location.x), width)
-              // A drag covering 80% of the visible bar reaches the full track.
-              let normalized = min(max(fingerX / max(1, width * 0.8), 0), 1)
+              let normalized = min(max(fingerX / max(1, width), 0), 1)
               previewTime = normalized * duration
             }
             .onEnded { _ in

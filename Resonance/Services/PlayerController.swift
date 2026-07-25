@@ -105,6 +105,8 @@ final class PlayerController: NSObject, ObservableObject {
   private var playbackGeneration = 0
   private var playbackTimerTickCount = 0
   private var preloadedTrackID: UUID?
+  private var remoteSeekInFlight = false
+  private var remoteEndHandledGeneration: Int?
   private var engineDurations: [UUID: TimeInterval] = [:]
   private var engineChannelCounts: [UUID: AVAudioChannelCount] = [:]
   private var partialPreloadFrames: [UUID: AVAudioFramePosition] = [:]
@@ -512,11 +514,42 @@ final class PlayerController: NSObject, ObservableObject {
     case .remote:
       guard let remotePlayer else { return }
       let target = CMTime(seconds: clamped, preferredTimescale: 600)
-      remotePlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+      remoteSeekInFlight = true
       elapsed = clamped
       playbackAnchorElapsed = clamped
       playbackAnchorDate = isPlaying ? Date() : nil
       updateNowPlayingProgress()
+      let generation = playbackGeneration
+      remotePlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) {
+        [weak self, weak remotePlayer] finished in
+        Task { @MainActor [weak self, weak remotePlayer] in
+          guard let self,
+            let remotePlayer,
+            self.activeBackend == .remote,
+            self.remotePlayer === remotePlayer,
+            self.playbackGeneration == generation
+          else { return }
+
+          self.remoteSeekInFlight = false
+          guard finished else {
+            self.updateElapsedFromClock()
+            self.updateNowPlayingProgress()
+            return
+          }
+
+          let actual = remotePlayer.currentTime().seconds
+          if actual.isFinite {
+            self.elapsed = max(0, actual)
+            self.playbackAnchorElapsed = self.elapsed
+            self.playbackAnchorDate = self.isPlaying ? Date() : nil
+          }
+          self.updateNowPlayingProgress()
+          ResonanceDiagnostics.shared.recordDeferred(
+            "remote.player.seek.completed",
+            details: ["finished": String(finished)]
+          )
+        }
+      }
     case .none:
       break
     }
@@ -588,6 +621,8 @@ final class PlayerController: NSObject, ObservableObject {
       remotePlayer?.pause()
       remotePlayer?.replaceCurrentItem(with: nil)
       remotePlayer = nil
+      remoteSeekInFlight = false
+      remoteEndHandledGeneration = nil
     case .none:
       break
     }  }
@@ -855,6 +890,8 @@ final class PlayerController: NSObject, ObservableObject {
     isPlaying = autoPlay
     preloadedTrackID = nil
     preloadedTrackTitle = nil
+    remoteSeekInFlight = false
+    remoteEndHandledGeneration = nil
     preloadDetail = "Stable single-item remote playback"
     audioFormatStatus = "Remote stream — system audio output"
     downmixRoutingStatus = "Remote stream uses system channel routing"
@@ -894,6 +931,12 @@ final class PlayerController: NSObject, ObservableObject {
 
   fileprivate func handleRemotePlaybackFinished(_ item: AVPlayerItem) {
     guard activeBackend == .remote, remotePlayer?.currentItem === item else { return }
+    guard remoteEndHandledGeneration != playbackGeneration else { return }
+    remoteEndHandledGeneration = playbackGeneration
+    ResonanceDiagnostics.shared.record(
+      "remote.player.finished",
+      details: ["generation": String(playbackGeneration)]
+    )
     if sleepTimerOption == .endOfTrack {
       stop()
     } else if repeatMode == .one, let currentTrack {
@@ -963,6 +1006,23 @@ final class PlayerController: NSObject, ObservableObject {
       networkBufferStatus = "Waiting for the server response…"
     @unknown default:
       break
+    }
+
+    if item.status == .readyToPlay,
+      isPlaying,
+      !remoteSeekInFlight,
+      remotePlayer.timeControlStatus == .paused,
+      duration > 0,
+      elapsed >= max(0, duration - 0.35)
+    {
+      ResonanceDiagnostics.shared.record(
+        "remote.player.endFallback",
+        details: [
+          "elapsed": String(format: "%.3f", elapsed),
+          "duration": String(format: "%.3f", duration)
+        ]
+      )
+      handleRemotePlaybackFinished(item)
     }
   }
 
@@ -1057,7 +1117,7 @@ final class PlayerController: NSObject, ObservableObject {
     case .legacy:
       if let audioPlayer { elapsed = audioPlayer.currentTime }
     case .remote:
-      if let remotePlayer {
+      if let remotePlayer, !remoteSeekInFlight {
         let seconds = remotePlayer.currentTime().seconds
         if seconds.isFinite { elapsed = max(0, seconds) }
       }

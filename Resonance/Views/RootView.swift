@@ -2,15 +2,20 @@ import SwiftUI
 import UIKit
 
 enum AppTab: Hashable {
-    case playing, library, streaming, settings
+  case playing, library, streaming, settings
+}
+
+private enum MiniPlayerDock: String {
+  case top, bottom, leading, trailing
 }
 
 struct RootView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var settings: AppSettings
-    @EnvironmentObject private var errorLog: AppErrorLog
-    @State private var selectedTab: AppTab = .library
+  @EnvironmentObject private var errorLog: AppErrorLog
+  @State private var selectedTab: AppTab = .library
+  @State private var miniPlayerDock: MiniPlayerDock = .top
 
     var body: some View {
         ZStack {
@@ -39,18 +44,54 @@ struct RootView: View {
                     .tag(AppTab.settings)
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                MiniPlayerOverlay(isVisible: selectedTab != .playing) {
-                    selectedTab = .playing
+                if miniPlayerDock == .top {
+                    MiniPlayerOverlay(isVisible: selectedTab != .playing, dock: .top) {
+                        selectedTab = .playing
+                    } onDock: { dock in
+                        miniPlayerDock = dock
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
                 }
-                .padding(.horizontal, 8)
-                .padding(.top, 6)
-                .padding(.bottom, 6)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if miniPlayerDock == .bottom {
+                    MiniPlayerOverlay(isVisible: selectedTab != .playing, dock: .bottom) {
+                        selectedTab = .playing
+                    } onDock: { dock in
+                        miniPlayerDock = dock
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 6)
+                }
             }
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+        .overlay(alignment: .leading) {
+            if miniPlayerDock == .leading {
+                MiniPlayerEdgeHandle(isVisible: selectedTab != .playing, edge: .leading) {
+                    selectedTab = .playing
+                } onUndock: {
+                    miniPlayerDock = .top
+                }
+                .padding(.leading, 2)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if miniPlayerDock == .trailing {
+                MiniPlayerEdgeHandle(isVisible: selectedTab != .playing, edge: .trailing) {
+                    selectedTab = .playing
+                } onUndock: {
+                    miniPlayerDock = .top
+                }
+                .padding(.trailing, 2)
+            }
         }
         .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : Color.primary)
         .tint(settings.accentColor)
@@ -92,15 +133,71 @@ struct RootView: View {
 }
 
 private struct MiniPlayerOverlay: View {
-    @EnvironmentObject private var player: PlayerController
-    let isVisible: Bool
-    let openNowPlaying: () -> Void
+  @EnvironmentObject private var player: PlayerController
+  let isVisible: Bool
+  let dock: MiniPlayerDock
+  let openNowPlaying: () -> Void
+  let onDock: (MiniPlayerDock) -> Void
 
-    var body: some View {
-        if isVisible, player.currentTrack != nil {
-            MiniPlayerView(openNowPlaying: openNowPlaying)
-        }
+  var body: some View {
+    if isVisible, player.currentTrack != nil {
+      MiniPlayerView(openNowPlaying: openNowPlaying)
+        .simultaneousGesture(
+          DragGesture(minimumDistance: 18, coordinateSpace: .local)
+            .onEnded { value in
+              let horizontal = abs(value.translation.width)
+              let vertical = abs(value.translation.height)
+              if horizontal > vertical, horizontal > 70 {
+                onDock(value.translation.width < 0 ? .trailing : .leading)
+              } else if vertical > 70 {
+                onDock(value.translation.height < 0 ? .top : .bottom)
+              }
+            }
+        )
+        .accessibilityHint("Swipe to dock this player at the top, bottom, or side of the screen")
     }
+  }
+}
+
+private struct MiniPlayerEdgeHandle: View {
+  @EnvironmentObject private var player: PlayerController
+  let isVisible: Bool
+  let edge: MiniPlayerDock
+  let openNowPlaying: () -> Void
+  let onUndock: () -> Void
+
+  var body: some View {
+    if isVisible, player.currentTrack != nil {
+      Button(action: openNowPlaying) {
+        HStack(spacing: 3) {
+          if let track = player.currentTrack {
+            ArtworkView(
+              data: player.artworkData(for: track),
+              embedded: player.artworkIsEmbedded(for: track),
+              size: 32
+            )
+          }
+          Image(systemName: edge == .leading ? "chevron.right" : "chevron.left")
+            .font(.caption.weight(.bold))
+        }
+        .padding(5)
+        .background(.ultraThinMaterial, in: Capsule())
+        .shadow(radius: 4, y: 2)
+      }
+      .buttonStyle(.plain)
+      .simultaneousGesture(
+        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+          .onEnded { value in
+            let returnsInward = edge == .leading
+              ? value.translation.width > 35
+              : value.translation.width < -35
+            if returnsInward { onUndock() }
+          }
+      )
+      .accessibilityLabel("Show mini player")
+      .accessibilityHint("Swipe inward to return the mini player to the top")
+    }
+  }
 }
 
 private struct PlaybackCoordinatorView: View {

@@ -96,8 +96,15 @@ final class GaplessAudioEngine: @unchecked Sendable {
     stop(resetEngine: true)
 
     let currentFile = try openFile(at: currentURL)
-    try configureSignalPath(for: currentFile.processingFormat)
+    let matrixConfiguration = configureSignalPath(for: currentFile.processingFormat)
     try startEngineIfNeeded()
+    if let matrixConfiguration {
+      try configureExplicitDownmixMatrix(
+        matrixConfiguration.unit,
+        inputChannels: matrixConfiguration.inputChannels,
+        outputChannels: matrixConfiguration.outputChannels
+      )
+    }
     let currentDuration = Self.duration(of: currentFile)
     let safeStart = min(max(0, startTime), max(0, currentDuration - 0.05))
     let startFrame = AVAudioFramePosition(safeStart * currentFile.processingFormat.sampleRate)
@@ -259,7 +266,9 @@ final class GaplessAudioEngine: @unchecked Sendable {
     meterState.value = 0
   }
 
-  private func configureSignalPath(for sourceFormat: AVAudioFormat) throws {
+  private func configureSignalPath(
+    for sourceFormat: AVAudioFormat
+  ) -> (unit: AVAudioUnit, inputChannels: Int, outputChannels: Int)? {
     engine.disconnectNodeOutput(playerNode)
     engine.disconnectNodeInput(stereoMixer)
     if let matrixMixer {
@@ -276,7 +285,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
     ) else {
       engine.connect(playerNode, to: stereoMixer, format: sourceFormat)
       downmixRoutingDescription = "System stereo routing"
-      return
+      return nil
     }
 
     guard sourceFormat.channelCount > 2, let matrixMixer else {
@@ -285,17 +294,11 @@ final class GaplessAudioEngine: @unchecked Sendable {
       downmixRoutingDescription = sourceFormat.channelCount == 1
         ? "Mono duplicated to left and right"
         : "Native stereo: left → left, right → right"
-      return
+      return nil
     }
 
     engine.connect(playerNode, to: matrixMixer, format: sourceFormat)
     engine.connect(matrixMixer, to: stereoMixer, format: stereoFormat)
-    try configureExplicitDownmixMatrix(
-      matrixMixer,
-      inputChannels: Int(sourceFormat.channelCount),
-      outputChannels: Int(outputChannelCount)
-    )
-
     // Multiple source channels are summed into each stereo output. Preserve
     // headroom so full-scale center, LFE, and surround content doesn't clip.
     stereoMixer.outputVolume = 0.5
@@ -304,6 +307,11 @@ final class GaplessAudioEngine: @unchecked Sendable {
     } else {
       downmixRoutingDescription = "Explicit \(sourceFormat.channelCount)-channel matrix → stereo"
     }
+    return (
+      unit: matrixMixer,
+      inputChannels: Int(sourceFormat.channelCount),
+      outputChannels: Int(outputChannelCount)
+    )
   }
 
   private func configureExplicitDownmixMatrix(

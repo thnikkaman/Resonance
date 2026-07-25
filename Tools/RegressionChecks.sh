@@ -27,11 +27,14 @@ streaming = (root / 'Resonance/Views/StreamingLibraryView.swift').read_text()
 library_view = (root / 'Resonance/Views/LibraryView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
+now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
+    'private struct NowPlayingArtworkPager', 1
+)[0]
 
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 52;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 53;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -127,9 +130,20 @@ assert 'albumArtists: remoteArtists(\n                usingAlbumArtist: true,' i
 assert 'recordDeferred' in diagnostics
 assert 'playback.gapless.boundary.begin' in player
 assert 'playback.gapless.preload' in player
+assert 'remoteSeekInFlight' in player
+assert 'remote.player.seek.completed' in player
+assert 'remote.player.endFallback' in player
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
-assert '.padding(.bottom, 76)' in views
+assert 'MiniPlayerDock' in root_view
+assert 'MiniPlayerEdgeHandle' in root_view
+assert 'ScrollView' not in now_playing
+assert '.padding(.bottom, 8)' in now_playing
+assert '.frame(width: pageWidth, height: 260' in views
+assert '.frame(width: 252, height: 252)' in views
+assert 'matrixConfiguration = configureSignalPath' in gapless
+assert 'try startEngineIfNeeded()' in gapless
+assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
 assert 'markPlayed(trackID:' in root_view
