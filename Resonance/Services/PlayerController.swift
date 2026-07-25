@@ -1327,10 +1327,12 @@ final class PlayerController: NSObject, ObservableObject {
       Task { @MainActor in self?.next() }
       return .success
     }
+    commands.nextTrackCommand.isEnabled = true
     commands.previousTrackCommand.addTarget { [weak self] _ in
       Task { @MainActor in self?.previous() }
       return .success
     }
+    commands.previousTrackCommand.isEnabled = true
 
     commands.skipForwardCommand.isEnabled = true
     commands.skipForwardCommand.preferredIntervals = [15]

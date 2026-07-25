@@ -21,37 +21,37 @@ struct StreamingLibraryView: View {
                         .buttonStyle(.borderedProminent)
                 }
             } else {
-                VStack(spacing: 0) {
+                Group {
+                    switch remote.grouping {
+                    case .artists:
+                        RemoteArtistCollectionView(
+                            artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
+                        )
+                    case .albumArtists:
+                        RemoteArtistCollectionView(artists: remote.albumArtists)
+                    case .albums:
+                        RemoteAlbumCollectionView(albums: remote.albums)
+                    case .songs:
+                        RemoteTrackCollectionView(tracks: remote.filteredTracks)
+                    case .favorites:
+                        RemoteTrackCollectionView(tracks: remote.favoriteTracks)
+                    case .recentlyAdded:
+                        RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
+                    case .recentlyPlayed:
+                        RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
+                    }
+                }
+                .overlay {
+                    if !remote.isLoading && remote.filteredTracks.isEmpty {
+                        ContentUnavailableView(
+                            "No Remote Music",
+                            systemImage: "music.note.list",
+                            description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
+                        )
+                    }
+                }
+                .safeAreaInset(edge: .top, spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
-                    Group {
-                        switch remote.grouping {
-                        case .artists:
-                            RemoteArtistCollectionView(
-                                artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
-                            )
-                        case .albumArtists:
-                            RemoteArtistCollectionView(artists: remote.albumArtists)
-                        case .albums:
-                            RemoteAlbumCollectionView(albums: remote.albums)
-                        case .songs:
-                            RemoteTrackCollectionView(tracks: remote.filteredTracks)
-                        case .favorites:
-                            RemoteTrackCollectionView(tracks: remote.favoriteTracks)
-                        case .recentlyAdded:
-                            RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
-                        case .recentlyPlayed:
-                            RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
-                        }
-                    }
-                    .overlay {
-                        if !remote.isLoading && remote.filteredTracks.isEmpty {
-                            ContentUnavailableView(
-                                "No Remote Music",
-                                systemImage: "music.note.list",
-                                description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
-                            )
-                        }
-                    }
                 }
                 .searchable(text: $remote.searchText, prompt: "Search remote music")
                 .refreshable { await remote.refresh(using: settings) }
