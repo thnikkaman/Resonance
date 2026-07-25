@@ -90,7 +90,7 @@ final class PlayerController: NSObject, ObservableObject {
       switch activeBackend {
       case .gapless: gaplessEngine.volume = clamped
       case .legacy: audioPlayer?.volume = clamped
-      case .remote: remotePlayer?.volume = clamped
+      case .remote: activeRemotePlayer?.volume = clamped
       case .none: break
       }
     }
@@ -118,6 +118,8 @@ final class PlayerController: NSObject, ObservableObject {
   private var activeBackend: ActiveBackend = .none
   private var audioPlayer: AVAudioPlayer?
   private var remotePlayer: AVPlayer?
+  private var remoteQueuePlayer: AVQueuePlayer?
+  private var remoteItemTracks: [ObjectIdentifier: Track] = [:]
   private lazy var remoteObserver = RemotePlayerObserver(owner: self)
   private var playbackTimerTask: Task<Void, Never>?
   private var sleepTimerTask: Task<Void, Never>?
@@ -133,7 +135,7 @@ final class PlayerController: NSObject, ObservableObject {
   private var cachedNowPlayingArtwork: PreparedNowPlayingArtwork?
   private var preloadedTrackID: UUID?
   private var remoteSeekInFlight = false
-  private var remoteEndHandledGeneration: Int?
+  private var remoteEndHandledTrackID: UUID?
   private var lastRemoteBufferStatusPublicationDate = Date.distantPast
   private var engineDurations: [UUID: TimeInterval] = [:]
   private var engineChannelCounts: [UUID: AVAudioChannelCount] = [:]
@@ -141,6 +143,14 @@ final class PlayerController: NSObject, ObservableObject {
   private lazy var audioDelegate = AudioPlayerDelegateProxy(owner: self)
   private lazy var gaplessEngine = makeGaplessEngine()
   private var gaplessDisabledForSession = false
+
+  private var activeRemotePlayer: AVPlayer? {
+    remoteQueuePlayer ?? remotePlayer
+  }
+
+  private var remoteGaplessExperimentalEnabled: Bool {
+    UserDefaults.standard.bool(forKey: "streamingGaplessExperimental")
+  }
 
   private func makeGaplessEngine() -> GaplessAudioEngine {
     let engine = GaplessAudioEngine()
@@ -296,8 +306,8 @@ final class PlayerController: NSObject, ObservableObject {
     case .legacy:
       guard audioPlayer?.play() == true else { return }
     case .remote:
-      guard let remotePlayer else { return }
-      remotePlayer.play()
+      guard let activeRemotePlayer else { return }
+      activeRemotePlayer.play()
     case .none:
       return
     }
@@ -314,7 +324,7 @@ final class PlayerController: NSObject, ObservableObject {
     switch activeBackend {
     case .gapless: gaplessEngine.pause()
     case .legacy: audioPlayer?.pause()
-    case .remote: remotePlayer?.pause()
+    case .remote: activeRemotePlayer?.pause()
     case .none: break
     }
     playbackAnchorDate = nil
@@ -571,7 +581,7 @@ final class PlayerController: NSObject, ObservableObject {
         ]
       )
     case .remote:
-      guard let remotePlayer else { return }
+      guard let activeRemotePlayer else { return }
       let target = CMTime(seconds: clamped, preferredTimescale: 600)
       remoteSeekInFlight = true
       elapsed = clamped
@@ -579,13 +589,13 @@ final class PlayerController: NSObject, ObservableObject {
       playbackAnchorDate = isPlaying ? Date() : nil
       updateNowPlayingProgress()
       let generation = playbackGeneration
-      remotePlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) {
-        [weak self, weak remotePlayer] finished in
-        Task { @MainActor [weak self, weak remotePlayer] in
+      activeRemotePlayer.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) {
+        [weak self, weak activeRemotePlayer] finished in
+        Task { @MainActor [weak self, weak activeRemotePlayer] in
           guard let self,
-            let remotePlayer,
+            let activeRemotePlayer,
             self.activeBackend == .remote,
-            self.remotePlayer === remotePlayer,
+            self.activeRemotePlayer === activeRemotePlayer,
             self.playbackGeneration == generation
           else { return }
 
@@ -600,7 +610,7 @@ final class PlayerController: NSObject, ObservableObject {
             return
           }
 
-          let actual = remotePlayer.currentTime().seconds
+          let actual = activeRemotePlayer.currentTime().seconds
           if actual.isFinite {
             self.elapsed = max(0, actual)
             self.playbackAnchorElapsed = self.elapsed
@@ -627,11 +637,24 @@ final class PlayerController: NSObject, ObservableObject {
   func refreshPlaybackConfiguration() {
     guard let currentTrack else { return }
     if activeBackend == .remote {
-      remotePlayer?.currentItem?.preferredForwardBufferDuration = remoteForwardBufferDuration(for: currentTrack)
+      activeRemotePlayer?.currentItem?.preferredForwardBufferDuration = remoteForwardBufferDuration(for: currentTrack)
       updateRemoteBufferStatus()
       return
     }
     guard activeBackend == .gapless else { return }
+    updateElapsedFromClock()
+    let wasPlaying = isPlaying
+    _ = loadAndPlay(
+      currentTrack,
+      at: currentQueueIndex,
+      startTime: elapsed,
+      autoPlay: wasPlaying,
+      notifyTrackStarted: false
+    )
+  }
+
+  func refreshRemoteGaplessConfiguration() {
+    guard activeBackend == .remote, let currentTrack else { return }
     updateElapsedFromClock()
     let wasPlaying = isPlaying
     _ = loadAndPlay(
@@ -685,11 +708,14 @@ final class PlayerController: NSObject, ObservableObject {
       audioPlayer = nil
     case .remote:
       remoteObserver.stop()
-      remotePlayer?.pause()
+      activeRemotePlayer?.pause()
+      remoteQueuePlayer?.removeAllItems()
       remotePlayer?.replaceCurrentItem(with: nil)
+      remoteQueuePlayer = nil
       remotePlayer = nil
+      remoteItemTracks.removeAll()
       remoteSeekInFlight = false
-      remoteEndHandledGeneration = nil
+      remoteEndHandledTrackID = nil
     case .none:
       break
     }  }
@@ -959,11 +985,32 @@ final class PlayerController: NSObject, ObservableObject {
     notifyTrackStarted: Bool
   ) -> Bool {
     let item = makeRemoteItem(for: track, url: url)
-    let newPlayer = AVPlayer(playerItem: item)
+    let experimentalGapless = remoteGaplessExperimentalEnabled
+    let nextTrack = experimentalGapless ? remotePreloadCandidate(after: targetIndex) : nil
+    var queuedItems = [item]
+    if let nextTrack, let nextURL = nextTrack.fileURL {
+      queuedItems.append(makeRemoteItem(for: nextTrack, url: nextURL))
+    }
+
+    let newPlayer: AVPlayer
+    if experimentalGapless {
+      let queuePlayer = AVQueuePlayer(items: queuedItems)
+      remoteQueuePlayer = queuePlayer
+      remotePlayer = nil
+      newPlayer = queuePlayer
+    } else {
+      let singlePlayer = AVPlayer(playerItem: item)
+      remoteQueuePlayer = nil
+      remotePlayer = singlePlayer
+      newPlayer = singlePlayer
+    }
     newPlayer.automaticallyWaitsToMinimizeStalling = true
     newPlayer.volume = Float(min(max(volume, 0), 1))
-    remotePlayer = newPlayer
-    remoteObserver.observe(item)
+    remoteItemTracks = [ObjectIdentifier(item): track]
+    if queuedItems.count > 1, let nextTrack {
+      remoteItemTracks[ObjectIdentifier(queuedItems[1])] = nextTrack
+    }
+    remoteObserver.observe(queuedItems)
     activeBackend = .remote
     currentQueueIndex = targetIndex
     currentTrack = track
@@ -975,12 +1022,29 @@ final class PlayerController: NSObject, ObservableObject {
     preloadedTrackID = nil
     preloadedTrackTitle = nil
     remoteSeekInFlight = false
-    remoteEndHandledGeneration = nil
-    preloadDetail = "Stable single-item remote playback"
+    remoteEndHandledTrackID = nil
+    if experimentalGapless, let nextTrack {
+      preloadedTrackID = nextTrack.id
+      preloadedTrackTitle = nextTrack.title
+      preloadDetail = "Experimental remote gapless candidate queued"
+    } else if experimentalGapless {
+      preloadDetail = "Experimental remote gapless — end of queue"
+    } else {
+      preloadDetail = "Stable single-item remote playback"
+    }
     audioFormatStatus = "Remote stream — system audio output"
     downmixRoutingStatus = "Remote stream uses system channel routing"
     networkBufferStatus = "Connecting to remote stream…"
-    playbackEngineStatus = "Remote streaming — connecting"
+    playbackEngineStatus = experimentalGapless
+      ? "Remote gapless — connecting"
+      : "Remote streaming — connecting"
+    ResonanceDiagnostics.shared.record(
+      "remote.player.queueConfigured",
+      details: [
+        "experimental": String(experimentalGapless),
+        "queuedNext": String(nextTrack != nil)
+      ]
+    )
 
     if elapsed > 0 {
       newPlayer.seek(to: CMTime(seconds: elapsed, preferredTimescale: 600))
@@ -1014,20 +1078,151 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   fileprivate func handleRemotePlaybackFinished(_ item: AVPlayerItem) {
-    guard activeBackend == .remote, remotePlayer?.currentItem === item else { return }
-    guard remoteEndHandledGeneration != playbackGeneration else { return }
-    remoteEndHandledGeneration = playbackGeneration
+    guard activeBackend == .remote,
+      let finishedTrack = remoteItemTracks[ObjectIdentifier(item)]
+    else { return }
+    guard remoteEndHandledTrackID != finishedTrack.id else { return }
+    remoteEndHandledTrackID = finishedTrack.id
     ResonanceDiagnostics.shared.record(
       "remote.player.finished",
-      details: ["generation": String(playbackGeneration)]
+      details: [
+        "generation": String(playbackGeneration),
+        "experimental": String(remoteQueuePlayer != nil)
+      ]
     )
     if sleepTimerOption == .endOfTrack {
       stop()
+    } else if let remoteQueuePlayer {
+      handleRemoteQueueBoundary(finishedTrack, player: remoteQueuePlayer)
     } else if repeatMode == .one, let currentTrack {
       _ = loadAndPlay(currentTrack, at: currentQueueIndex)
     } else {
       next()
     }
+  }
+
+  private func handleRemoteQueueBoundary(_ finishedTrack: Track, player: AVQueuePlayer) {
+    let finishedIndex = queue.firstIndex(of: finishedTrack) ?? currentQueueIndex
+
+    if repeatMode == .one {
+      guard let currentItem = player.currentItem else {
+        _ = loadAndPlay(finishedTrack, at: finishedIndex)
+        return
+      }
+      currentItem.seek(
+        to: .zero,
+        toleranceBefore: .zero,
+        toleranceAfter: .zero,
+        completionHandler: nil
+      )
+      currentQueueIndex = finishedIndex
+      currentTrack = finishedTrack
+      elapsed = 0
+      playbackAnchorElapsed = 0
+      playbackAnchorDate = Date()
+      isPlaying = true
+      remoteEndHandledTrackID = nil
+      player.play()
+      onTrackStarted?(finishedTrack)
+      updateNowPlaying()
+      ResonanceDiagnostics.shared.recordDeferred(
+        "remote.player.boundary.end",
+        details: ["result": "repeated"]
+      )
+      return
+    }
+
+    guard let targetIndex = nextQueueIndex(after: finishedIndex),
+      queue.indices.contains(targetIndex)
+    else {
+      stop()
+      ResonanceDiagnostics.shared.recordDeferred(
+        "remote.player.boundary.end",
+        details: ["result": "stopped-at-end"]
+      )
+      return
+    }
+
+    let target = queue[targetIndex]
+    let targetItem = player.items().first { remoteItemTracks[ObjectIdentifier($0)]?.id == target.id }
+    if player.currentItem !== targetItem, let targetItem {
+      while let currentItem = player.currentItem,
+        currentItem !== targetItem,
+        player.items().contains(where: { $0 === targetItem })
+      {
+        player.advanceToNextItem()
+      }
+    }
+
+    guard player.currentItem === targetItem else {
+      ResonanceDiagnostics.shared.recordDeferred(
+        "remote.player.boundary.end",
+        details: ["result": "fallback-load"]
+      )
+      _ = loadAndPlay(target, at: targetIndex)
+      return
+    }
+
+    currentQueueIndex = targetIndex
+    currentTrack = target
+    duration = max(0, target.duration)
+    elapsed = 0
+    playbackAnchorElapsed = 0
+    playbackAnchorDate = Date()
+    isPlaying = true
+    remoteEndHandledTrackID = finishedTrack.id
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    networkBufferStatus = "Connecting to remote stream…"
+    playbackEngineStatus = "Remote gapless — buffering"
+    onTrackStarted?(target)
+    refreshRemotePreloadAfterQueueChange()
+    player.play()
+    updateNowPlaying()
+    ResonanceDiagnostics.shared.recordDeferred(
+      "remote.player.boundary.end",
+      details: [
+        "result": "advanced",
+        "queueIndex": String(targetIndex),
+        "preloadedTarget": String(preloadedTrackID != nil)
+      ]
+    )
+  }
+
+  private func refreshRemotePreloadAfterQueueChange() {
+    guard remoteGaplessExperimentalEnabled,
+      let player = remoteQueuePlayer,
+      let currentItem = player.currentItem,
+      currentTrack != nil
+    else { return }
+
+    let expected = remotePreloadCandidate(after: currentQueueIndex)
+    if expected?.id == preloadedTrackID,
+      player.items().contains(where: { remoteItemTracks[ObjectIdentifier($0)]?.id == expected?.id })
+    {
+      return
+    }
+
+    for item in player.items() where item !== currentItem {
+      player.remove(item)
+      remoteItemTracks.removeValue(forKey: ObjectIdentifier(item))
+    }
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+
+    guard let expected, let url = expected.fileURL else {
+      preloadDetail = "Experimental remote gapless — end of queue"
+      remoteObserver.observe(player.items())
+      return
+    }
+
+    let item = makeRemoteItem(for: expected, url: url)
+    player.insert(item, after: currentItem)
+    remoteItemTracks[ObjectIdentifier(item)] = expected
+    remoteObserver.observe(player.items())
+    preloadedTrackID = expected.id
+    preloadedTrackTitle = expected.title
+    preloadDetail = "Experimental remote gapless candidate queued"
   }
 
   private func remoteForwardBufferDuration(for track: Track) -> TimeInterval {
@@ -1047,7 +1242,10 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private func updateRemoteBufferStatus() {
-    guard activeBackend == .remote, let remotePlayer, let item = remotePlayer.currentItem else { return }
+    guard activeBackend == .remote,
+      let activeRemotePlayer,
+      let item = activeRemotePlayer.currentItem
+    else { return }
     let itemDuration = item.duration.seconds
     if itemDuration.isFinite, itemDuration > 0, abs(duration - itemDuration) > 0.01 {
       duration = itemDuration
@@ -1082,7 +1280,7 @@ final class PlayerController: NSObject, ObservableObject {
       isPlaying = false
     case .readyToPlay:
       let playbackStatus: String
-      switch remotePlayer.timeControlStatus {
+      switch activeRemotePlayer.timeControlStatus {
       case .waitingToPlayAtSpecifiedRate:
         playbackStatus = "Remote streaming — buffering"
       case .playing:
@@ -1118,7 +1316,7 @@ final class PlayerController: NSObject, ObservableObject {
     if item.status == .readyToPlay,
       isPlaying,
       !remoteSeekInFlight,
-      remotePlayer.timeControlStatus == .paused,
+      activeRemotePlayer.timeControlStatus == .paused,
       duration > 0,
       elapsed >= max(0, duration - 0.35)
     {
@@ -1197,6 +1395,19 @@ final class PlayerController: NSObject, ObservableObject {
     return candidate
   }
 
+  private func remotePreloadCandidate(after index: Int) -> Track? {
+    guard remoteGaplessExperimentalEnabled,
+      shouldPreloadNextTrack,
+      let candidateIndex = preloadQueueIndex(after: index),
+      queue.indices.contains(candidateIndex)
+    else { return nil }
+    let candidate = queue[candidateIndex]
+    guard let url = candidate.fileURL,
+      url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https"
+    else { return nil }
+    return candidate
+  }
+
   private static func audioFormatDescription(
     sourceChannels: AVAudioChannelCount,
     outputChannels: AVAudioChannelCount
@@ -1224,8 +1435,8 @@ final class PlayerController: NSObject, ObservableObject {
     case .legacy:
       if let audioPlayer { elapsed = audioPlayer.currentTime }
     case .remote:
-      if let remotePlayer, !remoteSeekInFlight {
-        let seconds = remotePlayer.currentTime().seconds
+      if let activeRemotePlayer, !remoteSeekInFlight {
+        let seconds = activeRemotePlayer.currentTime().seconds
         if seconds.isFinite { elapsed = max(0, seconds) }
       }
     case .none:
@@ -1236,7 +1447,7 @@ final class PlayerController: NSObject, ObservableObject {
   private func refreshPreloadedTrackAfterQueueChange() {
     switch activeBackend {
     case .remote:
-      break
+      refreshRemotePreloadAfterQueueChange()
     case .gapless:
       guard let currentTrack else { return }
       let expected = preloadCandidate(after: currentQueueIndex)?.id
@@ -1691,30 +1902,38 @@ private final class AudioPlayerDelegateProxy: NSObject, AVAudioPlayerDelegate {
 
 private final class RemotePlayerObserver: @unchecked Sendable {
   weak var owner: PlayerController?
-  private var token: NSObjectProtocol?
+  private var tokens: [NSObjectProtocol] = []
 
   init(owner: PlayerController) {
     self.owner = owner
   }
 
   func observe(_ item: AVPlayerItem) {
+    observe([item])
+  }
+
+  func observe(_ items: [AVPlayerItem]) {
     stop()
-    token = NotificationCenter.default.addObserver(
-      forName: .AVPlayerItemDidPlayToEndTime,
-      object: item,
-      queue: .main
-    ) { [weak self, weak item] _ in
-      guard let item else { return }
-      let owner = self?.owner
-      Task { @MainActor [weak owner] in
-        owner?.handleRemotePlaybackFinished(item)
+    tokens = items.map { item in
+      NotificationCenter.default.addObserver(
+        forName: .AVPlayerItemDidPlayToEndTime,
+        object: item,
+        queue: .main
+      ) { [weak self, weak item] _ in
+        guard let item else { return }
+        let owner = self?.owner
+        Task { @MainActor [weak owner] in
+          owner?.handleRemotePlaybackFinished(item)
+        }
       }
     }
   }
 
   func stop() {
-    if let token { NotificationCenter.default.removeObserver(token) }
-    token = nil
+    for token in tokens {
+      NotificationCenter.default.removeObserver(token)
+    }
+    tokens.removeAll()
   }
 
   deinit { stop() }

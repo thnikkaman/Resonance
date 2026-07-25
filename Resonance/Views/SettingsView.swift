@@ -228,6 +228,10 @@ struct SettingsView: View {
                 LabeledContent("Backend in use", value: settings.streamBackend.shortName)
                 LabeledContent("Streaming buffer budget", value: "\(Int(settings.networkBufferMB)) MB")
                 Slider(value: $settings.networkBufferMB, in: 10...250, step: 10)
+                Toggle("Experimental streaming gapless", isOn: $settings.streamingGaplessExperimental)
+                Text("When enabled, the remote player queues the next stream ahead of the current one. This is an experimental phase and may fall back to normal remote playback at a boundary.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 LabeledContent("Connection", value: remote.connectionStatus)
                 LabeledContent("Cached catalog", value: remote.catalogSyncStatus)
                 if let lastCheck = remote.lastCatalogCheck {

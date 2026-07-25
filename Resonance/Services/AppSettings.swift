@@ -40,6 +40,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("preloadNextTrack") var preloadNextTrack = true
     @AppStorage("localBufferMB") var localBufferMB = 64.0
     @AppStorage("networkBufferMB") var networkBufferMB = 128.0
+    @AppStorage("streamingGaplessExperimental") var streamingGaplessExperimental = false
     @AppStorage("streamBackend") private var streamBackendRaw = RemoteLibraryBackend.subsonic.rawValue
     @AppStorage("streamBackendDefaultsApplied") private var streamBackendDefaultsApplied = false
     @AppStorage("streamHost") var streamHost = ""

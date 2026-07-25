@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 63;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 64;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -55,12 +55,16 @@ assert 'LFE → both' in gapless
 # Alpha 3.7.1 focused playback crash hotfix.
 assert 'private var remotePlayer: AVPlayer?' in player
 assert 'AVPlayer(playerItem:' in player
-assert 'AVQueuePlayer(items:' not in player
+assert 'AVQueuePlayer(items:' in player
 assert 'appendRemotePreloadedItem' not in player
 assert 'remoteItemContexts' not in player
 assert 'private func tearDownActiveBackend()' in player
 assert 'gaplessEngine.stop(resetEngine: true)' in player
 assert 'Stable single-item remote playback' in player
+assert 'remoteGaplessExperimentalEnabled' in player
+assert 'remote.player.queueConfigured' in player
+assert 'handleRemoteQueueBoundary' in player
+assert 'observe(_ items: [AVPlayerItem])' in player
 assert 'playbackStartupDiagnostic' in player
 assert 'preferredForwardBufferDuration' in player
 assert 'networkBufferStatus' in player
@@ -253,6 +257,7 @@ assert 'First playback timer tick completed' in player
 assert 'resonancePreparedNowPlayingImage' in player
 assert 'resonanceAspectFit' not in player
 assert 'showLockScreenArtwork' in settings
+assert 'streamingGaplessExperimental' in settings
 assert 'Reported Errors' in settings_view
 assert '.foregroundStyle(.red)' in settings_view
 assert 'AppReportedError' in error_log and 'Copy Errors' in settings_view
