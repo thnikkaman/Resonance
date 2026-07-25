@@ -187,7 +187,26 @@ func resonanceArtistIndexKey(_ name: String) -> String {
     guard let character = folded.first else { return "#" }
     if character.isNumber { return "0–9" }
     if character >= "A" && character <= "Z" { return String(character) }
+    if first.isLetter { return String(first) }
     return "#"
+}
+
+func resonanceArtistIndexOrder(for keys: [String], ascending: Bool) -> [String] {
+    let romanKeys = Set(Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map(String.init))
+    let present = Set(keys)
+    var order: [String] = []
+
+    if present.contains("0–9") { order.append("0–9") }
+    order.append(contentsOf: romanKeys.sorted().filter { present.contains($0) })
+
+    let otherTextKeys = present
+        .subtracting(romanKeys)
+        .subtracting(["0–9", "#"])
+        .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    order.append(contentsOf: otherTextKeys)
+
+    if present.contains("#") { order.append("#") }
+    return ascending ? order : Array(order.reversed())
 }
 
 struct VerticalArtistIndex: View {
@@ -307,8 +326,10 @@ struct ArtistCollectionView: View {
 
     private var indexedSections: [ArtistIndexSection<Artist>] {
         let grouped = Dictionary(grouping: artists) { resonanceArtistIndexKey($0.name) }
-        let baseOrder = ["#", "0–9"] + Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map(String.init)
-        let preferredOrder = library.sortDirection == .ascending ? baseOrder : Array(baseOrder.reversed())
+        let preferredOrder = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: library.sortDirection == .ascending
+        )
         return preferredOrder.compactMap { key in
             guard let values = grouped[key], !values.isEmpty else { return nil }
             let sorted = values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

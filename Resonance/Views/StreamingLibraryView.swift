@@ -5,7 +5,6 @@ import ImageIO
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
-    @EnvironmentObject private var player: PlayerController
     @State private var showingOptions = false
     let openLibrary: () -> Void
     let openSettings: () -> Void
@@ -238,8 +237,10 @@ private struct RemoteArtistCollectionView: View {
         let uniqueArtists = Dictionary(grouping: artists) { resonanceNormalizedRemoteKey($0.name) }
             .compactMap { _, values in values.first }
         let grouped = Dictionary(grouping: uniqueArtists) { resonanceArtistIndexKey($0.name) }
-        let baseOrder = ["#", "0–9"] + Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map(String.init)
-        let order = remote.sortDirection == .ascending ? baseOrder : Array(baseOrder.reversed())
+        let order = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: remote.sortDirection == .ascending
+        )
         return order.compactMap { key in
             guard let items = grouped[key], !items.isEmpty else { return nil }
             let sorted = items.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

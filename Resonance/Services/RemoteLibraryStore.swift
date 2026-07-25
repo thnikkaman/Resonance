@@ -201,7 +201,12 @@ enum RemoteBrowseGrouping: String, CaseIterable, Identifiable {
 
 @MainActor
 final class RemoteLibraryStore: ObservableObject {
-    @Published private(set) var tracks: [RemoteTrackItem] = []
+    @Published private(set) var tracks: [RemoteTrackItem] = [] {
+        didSet {
+            trackRevision &+= 1
+            browseCache = nil
+        }
+    }
     @Published private(set) var serverName = "Remote Library"
     @Published private(set) var connectionStatus = "Not connected"
     @Published private(set) var lastRefresh: Date?
@@ -209,10 +214,14 @@ final class RemoteLibraryStore: ObservableObject {
     @Published private(set) var playlists: [RemotePlaylist] = []
     @Published private(set) var catalogSyncStatus = "No cached remote catalog"
     @Published private(set) var lastCatalogCheck: Date?
-    @Published var searchText = ""
+    @Published var searchText = "" {
+        didSet { browseCache = nil }
+    }
     @Published var playlistSearchText = ""
     @Published var grouping: RemoteBrowseGrouping = .artists
-    @Published var sortDirection: SortDirection = .ascending
+    @Published var sortDirection: SortDirection = .ascending {
+        didSet { browseCache = nil }
+    }
 
     private let artworkCache = NSCache<NSURL, NSData>()
     private var pendingSubsonicCache: CachedRemoteCatalog?
@@ -227,6 +236,23 @@ final class RemoteLibraryStore: ObservableObject {
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("remote-subsonic-catalog.json")
     }()
+
+    private struct BrowseCacheKey: Equatable {
+        let trackRevision: Int
+        let searchText: String
+        let sortDirection: String
+    }
+
+    private struct BrowseCache {
+        let key: BrowseCacheKey
+        let filteredTracks: [RemoteTrackItem]
+        let albums: [RemoteAlbum]
+        let artists: [RemoteArtist]
+        let albumArtists: [RemoteArtist]
+    }
+
+    private var trackRevision = 0
+    private var browseCache: BrowseCache?
 
     init() {
         if let data = try? Data(contentsOf: Self.cachedSubsonicCatalogURL),
@@ -244,7 +270,21 @@ final class RemoteLibraryStore: ObservableObject {
         }
     }
 
-    var filteredTracks: [RemoteTrackItem] {
+    var filteredTracks: [RemoteTrackItem] { browseData().filteredTracks }
+
+    var albums: [RemoteAlbum] { browseData().albums }
+
+    var artists: [RemoteArtist] { browseData().artists }
+    var albumArtists: [RemoteArtist] { browseData().albumArtists }
+
+    private func browseData() -> BrowseCache {
+        let key = BrowseCacheKey(
+            trackRevision: trackRevision,
+            searchText: searchText,
+            sortDirection: sortDirection.rawValue
+        )
+        if let browseCache, browseCache.key == key { return browseCache }
+
         let input = searchText.isEmpty ? tracks : tracks.filter {
             [$0.title, $0.artist, $0.albumArtist, $0.album]
                 .contains { $0.localizedCaseInsensitiveContains(searchText) }
@@ -253,10 +293,19 @@ final class RemoteLibraryStore: ObservableObject {
             ($0.artist, $0.album, $0.discNumber, $0.trackNumber, $0.title) <
             ($1.artist, $1.album, $1.discNumber, $1.trackNumber, $1.title)
         }
-        return sortDirection == .ascending ? sorted : Array(sorted.reversed())
+        let filtered = sortDirection == .ascending ? sorted : Array(sorted.reversed())
+        let cache = BrowseCache(
+            key: key,
+            filteredTracks: filtered,
+            albums: makeAlbums(from: filtered),
+            artists: remoteArtists(usingAlbumArtist: false, from: filtered),
+            albumArtists: remoteArtists(usingAlbumArtist: true, from: filtered)
+        )
+        browseCache = cache
+        return cache
     }
 
-    var albums: [RemoteAlbum] {
+    private func makeAlbums(from filteredTracks: [RemoteTrackItem]) -> [RemoteAlbum] {
         let grouped = Dictionary(grouping: filteredTracks, by: \.albumKey)
         let result = grouped.compactMap { key, values -> RemoteAlbum? in
             let unique = Self.uniqueTracks(values)
@@ -271,9 +320,6 @@ final class RemoteLibraryStore: ObservableObject {
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         return sortDirection == .ascending ? result : Array(result.reversed())
     }
-
-    var artists: [RemoteArtist] { remoteArtists(usingAlbumArtist: false) }
-    var albumArtists: [RemoteArtist] { remoteArtists(usingAlbumArtist: true) }
 
     var filteredPlaylists: [RemotePlaylist] {
         let input = playlistSearchText.isEmpty ? playlists : playlists.filter {
@@ -302,7 +348,7 @@ final class RemoteLibraryStore: ObservableObject {
             .sorted { ($0.lastPlayed ?? .distantPast) > ($1.lastPlayed ?? .distantPast) }
     }
 
-    private func remoteArtists(usingAlbumArtist: Bool) -> [RemoteArtist] {
+    private func remoteArtists(usingAlbumArtist: Bool, from filteredTracks: [RemoteTrackItem]) -> [RemoteArtist] {
         let sourceTracks = Self.uniqueTracks(filteredTracks)
         let grouped = Dictionary(grouping: sourceTracks) { track in
             let sourceName = usingAlbumArtist ? track.albumArtist : track.artist
