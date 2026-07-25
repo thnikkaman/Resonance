@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 65;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 66;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -176,6 +176,8 @@ assert 'playback.seek.completed' in player
 assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
+assert 'automaticallyWaitsToMinimizeStalling = !experimentalGapless' in player
+assert 'newPlayer.actionAtItemEnd = .advance' in player
 assert 'markPlayed(trackID:' in root_view
 assert 'ErrorReportingCoordinatorView' in root_view
 assert 'collectDocumentInventory' in library_store

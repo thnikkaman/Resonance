@@ -1004,7 +1004,14 @@ final class PlayerController: NSObject, ObservableObject {
       remotePlayer = singlePlayer
       newPlayer = singlePlayer
     }
-    newPlayer.automaticallyWaitsToMinimizeStalling = true
+    // A queued remote item must be allowed to start as soon as its available
+    // media begins. Waiting for AVPlayer's stall-minimization threshold at an
+    // item boundary turns a queued transition into an audible pause when the
+    // server is still delivering the opening packets of the next stream.
+    newPlayer.automaticallyWaitsToMinimizeStalling = !experimentalGapless
+    if experimentalGapless {
+      newPlayer.actionAtItemEnd = .advance
+    }
     newPlayer.volume = Float(min(max(volume, 0), 1))
     remoteItemTracks = [ObjectIdentifier(item): track]
     if queuedItems.count > 1, let nextTrack {
