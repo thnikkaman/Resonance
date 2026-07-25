@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 41;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 42;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -101,6 +101,16 @@ assert 'markPlayed(trackID:' in root_view
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view
 assert 'Backend in use' in settings_view
 assert 'NSAllowsArbitraryLoads' in plist
+assert '<key>CFBundleIdentifier</key>' in plist
+assert '<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>' in plist
+assert '<key>CFBundleExecutable</key>' in plist
+assert '<string>$(EXECUTABLE_NAME)</string>' in plist
+assert '<key>CFBundleName</key>' in plist
+assert '<string>$(PRODUCT_NAME)</string>' in plist
+assert '<key>CFBundleShortVersionString</key>' in plist
+assert '<string>$(MARKETING_VERSION)</string>' in plist
+assert '<key>CFBundleVersion</key>' in plist
+assert '<string>$(CURRENT_PROJECT_VERSION)</string>' in plist
 
 # Alpha 3.6 locally reported compile fixes.
 assert 'nonisolated fileprivate static func uniqueTracks' in remote
