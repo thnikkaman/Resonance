@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 43;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 44;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -140,9 +140,15 @@ assert 'Showing cached catalog' in remote
 assert 'frame(width: indexColumnWidth)' in library_view
 assert 'coordinateSpace: .local' in library_view
 assert 'y - topInset' in library_view
+assert 'if first.isLetter { return String(first) }' in library_view
+assert 'func resonanceArtistIndexOrder' in library_view
 assert r'.id("artist-section-\(section.key)")' in library_view
 assert r'.id("remote-artist-section-\(section.key)")' in streaming
 assert '.frame(width: 24)' in streaming
+assert 'MiniPlayerOverlay' in root_view
+assert 'PlaybackCoordinatorView' in root_view
+assert 'private var browseCache: BrowseCache?' in remote
+assert 'trackRevision &+= 1' in remote
 # Alpha 3.7.2 post-start crash diagnostics and safe MediaPlayer artwork.
 assert 'playbackRuntimeDiagnostic' in player
 assert 'First playback timer tick completed' in player

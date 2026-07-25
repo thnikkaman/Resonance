@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback Recovery and Artist Index Fix
 
 Version: **0.3.7.4**  
-Build: **43**
+Build: **44**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -28,7 +28,7 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 
 ## Artist alphabet navigation
 
-- The alphabet is fixed to a 32-point strip at the right edge.
+- The right-edge index orders numeric names first, then A–Z Roman names, then each available leading Kanji or other Unicode letter; punctuation-only names remain in a final `#` section.
 - Normal vertical drags over artist names belong only to the list or grid.
 - Touching or dragging inside the right-edge strip maps the finger position in the index container's coordinate space.
 - Every available section has a stable container ID used by `ScrollViewReader`.
@@ -37,9 +37,11 @@ A relaunch creates a fresh gapless engine and allows the explicit matrix to be a
 - A new touch on the same letter dispatches the navigation again.
 - Streaming back navigation is restricted to a 24-point left-edge strip.
 
-## Streaming performance retained
+## Streaming performance
 
-Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
+- High-frequency playback progress updates are isolated to the mini-player and Now Playing views instead of invalidating the root tab tree.
+- Remote catalog filtering, album grouping, and artist grouping are cached by track revision, search text, and sort direction.
+- Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
 
 ## Validation performed here
 
@@ -49,11 +51,11 @@ Remote cover art is downloaded and downsampled outside the main actor into a bou
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 43 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+Alpha 3.7.4 build 44 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
 
 ## Device diagnostics
 
-Build 43 writes a bounded, privacy-safe playback trace to:
+Build 44 writes a bounded, privacy-safe playback trace to:
 
 `Documents/Resonance-Diagnostics.log`
 
