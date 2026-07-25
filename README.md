@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **53**
+Build: **54**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -83,12 +83,14 @@ Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so sc
 
 Alpha 3.7.4 build 53 removes the Now Playing scroll container, compacts the fixed layout and artwork so Browse Library and Stop stay above the tab bar, and adds a keyboard Done action at the root. The mini-player can be swiped to the top, bottom, or either side; side docking leaves a small edge handle that can be swiped inward to restore it. Remote seeking now stays stable until AVPlayer confirms the seek, remote end detection has a guarded fallback for advancing the queue, and the explicit 5.1 matrix is configured after the engine starts. Remote artist and album index sections are also cached to reduce repeated SwiftUI layout work during long sessions. The AirPlay/output control visible in iOS Control Center remains system-owned; Resonance has no app-owned output picker.
 
+Alpha 3.7.4 build 54 changes Streaming Library to the same large navigation-title treatment used by Library and Settings, so the full white title remains visible instead of truncating to “Stream…” between toolbar controls.
+
 ## Next major phase
 
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
 - Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
 - Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
-- Complete build 53 physical-device acceptance: fixed Now Playing layout, mini-player top/bottom/side docking and restore, keyboard dismissal, local stereo/5.1 gapless, remote queue advance, and accurate remote seeking.
+- Complete build 54 physical-device acceptance: fixed Now Playing layout, mini-player top/bottom/side docking and restore, keyboard dismissal, local stereo/5.1 gapless, remote queue advance, accurate remote seeking, and the full Streaming Library title.
 - Re-run the cached-catalog, manual-change-check, artwork, settings-category, Streaming title, grouping, and long-idle performance checks after these runtime fixes.
 - Profile the deferred-diagnostics build on the physical device while switching tabs, scrolling Streaming, dragging the alphabet, and leaving playback stopped; inspect the diagnostics and system crash logs after any sluggishness or lockup. Complete local gapless acceptance and decide whether remote gapless can be implemented without regressing the single-item playback crash shield.
 

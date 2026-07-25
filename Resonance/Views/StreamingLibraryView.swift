@@ -62,16 +62,8 @@ struct StreamingLibraryView: View {
             }
         }
         .navigationTitle("Streaming Library")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Streaming Library")
-                    .font(.headline)
-                    .foregroundStyle(Color.primary)
-                    .lineLimit(1)
-                    .accessibilityAddTraits(.isHeader)
-            }
-
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
                     Image(systemName: "chevron.left")
