@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **47**
+Build: **48**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -74,7 +74,7 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 47 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+Alpha 3.7.4 build 48 enables the Lock Screen previous/next transport commands explicitly and places the Streaming connection header in the top safe-area inset so it remains visible during navigation and browse layout changes. It passed the supplied simulator and generic-device preflight builds with warnings treated as errors.
 
 ## Device diagnostics
 
