@@ -18,12 +18,17 @@ final class GaplessAudioEngine: @unchecked Sendable {
   struct PreparedDurations {
     let current: ScheduledTrack
     let following: ScheduledTrack?
+    let sourceSampleRate: Double
+    let sourceFrameLength: AVAudioFramePosition
+    let graphSampleRate: Double
+    let outputSampleRate: Double
   }
 
   enum EngineError: LocalizedError {
     case missingFile(URL)
     case emptyAudioFile(URL)
     case incompatiblePreloadChannels(expected: AVAudioChannelCount, actual: AVAudioChannelCount)
+    case incompatiblePreloadSampleRates(expected: Double, actual: Double)
     case matrixConfigurationFailed(OSStatus)
 
     var errorDescription: String? {
@@ -32,6 +37,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
       case .emptyAudioFile(let url): return "Audio file contains no playable frames: \(url.lastPathComponent)"
       case .incompatiblePreloadChannels(let expected, let actual):
         return "Gapless preload requires the same channel count (expected \(expected), found \(actual))."
+      case .incompatiblePreloadSampleRates(let expected, let actual):
+        return "Gapless preload requires the same sample rate (expected \(expected), found \(actual))."
       case .matrixConfigurationFailed(let status):
         return "The explicit surround downmix matrix could not be configured (OSStatus \(status))."
       }
@@ -48,6 +55,9 @@ final class GaplessAudioEngine: @unchecked Sendable {
   private let retainedFiles = RetainedAudioFiles()
   private var completionHandler: CompletionHandler?
   private var configuredSourceChannels: AVAudioChannelCount = 0
+  private var configuredSourceSampleRate: Double = 0
+  private var configuredGraphSampleRate: Double = 0
+  private var configuredOutputSampleRate: Double = 0
   private(set) var isPrepared = false
   private(set) var downmixRoutingDescription = "Automatic stereo routing"
 
@@ -134,7 +144,14 @@ final class GaplessAudioEngine: @unchecked Sendable {
 
     playerNode.play()
     isPrepared = true
-    return PreparedDurations(current: current, following: following)
+    return PreparedDurations(
+      current: current,
+      following: following,
+      sourceSampleRate: currentFile.processingFormat.sampleRate,
+      sourceFrameLength: currentFile.length,
+      graphSampleRate: configuredGraphSampleRate,
+      outputSampleRate: configuredOutputSampleRate
+    )
   }
 
   /// Schedules either the complete next track or a bounded opening segment.
@@ -152,6 +169,14 @@ final class GaplessAudioEngine: @unchecked Sendable {
       throw EngineError.incompatiblePreloadChannels(
         expected: configuredSourceChannels,
         actual: file.processingFormat.channelCount
+      )
+    }
+    guard configuredSourceSampleRate == 0
+      || Self.sampleRatesMatch(file.processingFormat.sampleRate, configuredSourceSampleRate)
+    else {
+      throw EngineError.incompatiblePreloadSampleRates(
+        expected: configuredSourceSampleRate,
+        actual: file.processingFormat.sampleRate
       )
     }
     let duration = Self.duration(of: file)
@@ -211,6 +236,14 @@ final class GaplessAudioEngine: @unchecked Sendable {
         actual: file.processingFormat.channelCount
       )
     }
+    guard configuredSourceSampleRate == 0
+      || Self.sampleRatesMatch(file.processingFormat.sampleRate, configuredSourceSampleRate)
+    else {
+      throw EngineError.incompatiblePreloadSampleRates(
+        expected: configuredSourceSampleRate,
+        actual: file.processingFormat.sampleRate
+      )
+    }
     scheduleCompleteTrack(
       file: file,
       trackID: trackID,
@@ -235,6 +268,9 @@ final class GaplessAudioEngine: @unchecked Sendable {
     retainedFiles.removeAll()
     isPrepared = false
     configuredSourceChannels = 0
+    configuredSourceSampleRate = 0
+    configuredGraphSampleRate = 0
+    configuredOutputSampleRate = 0
     downmixRoutingDescription = "Automatic stereo routing"
     stereoMixer.outputVolume = 1
     meterState.value = 0
@@ -262,6 +298,9 @@ final class GaplessAudioEngine: @unchecked Sendable {
     }
     isPrepared = false
     configuredSourceChannels = 0
+    configuredSourceSampleRate = 0
+    configuredGraphSampleRate = 0
+    configuredOutputSampleRate = 0
     downmixRoutingDescription = "Automatic stereo routing"
     stereoMixer.outputVolume = 1
     meterState.value = 0
@@ -278,8 +317,14 @@ final class GaplessAudioEngine: @unchecked Sendable {
     }
 
     configuredSourceChannels = sourceFormat.channelCount
+    configuredSourceSampleRate = sourceFormat.sampleRate
     let deviceFormat = engine.outputNode.inputFormat(forBus: 0)
-    let sampleRate = deviceFormat.sampleRate > 0 ? deviceFormat.sampleRate : sourceFormat.sampleRate
+    let deviceSampleRate = deviceFormat.sampleRate > 0 ? deviceFormat.sampleRate : 0
+    let sampleRate = sourceFormat.sampleRate > 0
+      ? sourceFormat.sampleRate
+      : (deviceSampleRate > 0 ? deviceSampleRate : 48_000)
+    configuredGraphSampleRate = sampleRate
+    configuredOutputSampleRate = deviceSampleRate > 0 ? deviceSampleRate : sampleRate
     guard let stereoFormat = AVAudioFormat(
       standardFormatWithSampleRate: sampleRate,
       channels: outputChannelCount
@@ -288,6 +333,14 @@ final class GaplessAudioEngine: @unchecked Sendable {
       downmixRoutingDescription = "System stereo routing"
       return nil
     }
+
+    // Keep the file's native sample rate through the player, matrix, and
+    // stereo mixer. The main mixer is the first graph stage allowed to
+    // convert to the current hardware route. Forcing a 96 kHz FLAC through a
+    // 48 kHz matrix output can make the file render at the wrong speed while
+    // still reporting a running engine and non-zero meter.
+    engine.disconnectNodeOutput(stereoMixer)
+    engine.connect(stereoMixer, to: engine.mainMixerNode, format: stereoFormat)
 
     guard sourceFormat.channelCount > 2, let matrixMixer else {
       engine.connect(playerNode, to: stereoMixer, format: sourceFormat)
@@ -531,6 +584,10 @@ final class GaplessAudioEngine: @unchecked Sendable {
     let rate = file.processingFormat.sampleRate
     guard rate > 0 else { return 0 }
     return Double(file.length) / rate
+  }
+
+  private static func sampleRatesMatch(_ lhs: Double, _ rhs: Double) -> Bool {
+    lhs > 0 && rhs > 0 && abs(lhs - rhs) < 0.5
   }
 
   private func installMeterTap() {

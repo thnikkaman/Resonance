@@ -777,6 +777,7 @@ final class PlayerController: NSObject, ObservableObject {
     let following = preloadCandidate(after: resolvedIndex)
     do {
       markPlaybackStartupStage("Preparing local audio engine")
+      let preparationStartedAt = Date()
       let prepared = try gaplessEngine.prepare(
         currentTrackID: track.id,
         currentURL: url,
@@ -802,6 +803,12 @@ final class PlayerController: NSObject, ObservableObject {
         "playback.gapless.prepared",
         details: [
           "sourceChannels": String(prepared.current.channelCount),
+          "sourceSampleRate": String(format: "%.0f", prepared.sourceSampleRate),
+          "sourceFrames": String(prepared.sourceFrameLength),
+          "duration": String(format: "%.3f", prepared.current.duration),
+          "graphSampleRate": String(format: "%.0f", prepared.graphSampleRate),
+          "outputSampleRate": String(format: "%.0f", prepared.outputSampleRate),
+          "preparationMs": String(format: "%.1f", Date().timeIntervalSince(preparationStartedAt) * 1000),
           "engineRunning": String(gaplessEngine.isEngineRunning),
           "playerNodePlaying": String(gaplessEngine.isPlaying),
           "meter": String(format: "%.5f", gaplessEngine.meterLevel)
