@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 62;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 63;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -126,8 +126,8 @@ assert 'streaming.option.compilationGrouping.changed' in streaming
 assert 'compilationAlbumIdentity' in remote
 assert 'albumArtists(groupCompilationArtists:' in remote
 assert 'RemotePlaylistCollectionView' in streaming
-assert 'albumArtists: remoteArtists(' in remote
-assert 'albumArtists: remoteArtists(\n                usingAlbumArtist: true,' in remote
+assert 'var albumArtists: [RemoteArtist]?' in remote
+assert 'cache.albumArtists = artists' in remote
 assert 'recordDeferred' in diagnostics
 assert 'playback.gapless.boundary.begin' in player
 assert 'playback.gapless.preload' in player
@@ -142,7 +142,7 @@ assert 'Only the selected track\'s artwork is needed to start playback.' in remo
 assert 'State(initialValue: Self.makeSections' not in streaming
 assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
-assert '.toolbar(.hidden, for: .tabBar)' in root_view
+assert 'TabView(selection:' not in root_view
 assert 'private struct ResonanceTabBar' in root_view
 assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
 assert 'transaction.animation = nil' in root_view
@@ -243,6 +243,10 @@ assert 'MiniPlayerInsets' in root_view
 assert 'PlaybackCoordinatorView' in root_view
 assert 'private var browseCache: BrowseCache?' in remote
 assert 'trackRevision &+= 1' in remote
+assert 'private enum BrowseNeed: Equatable' in remote
+assert 'populate(&cache, need: need)' in remote
+assert 'activeTabContent' in root_view and 'TabView(selection:' not in root_view
+assert 'if isExpanded {' in settings_view and 'self.content = content' in settings_view
 # Alpha 3.7.2 post-start crash diagnostics and safe MediaPlayer artwork.
 assert 'playbackRuntimeDiagnostic' in player
 assert 'First playback timer tick completed' in player

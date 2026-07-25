@@ -268,12 +268,28 @@ final class RemoteLibraryStore: ObservableObject {
         let groupCompilationArtists: Bool
     }
 
+    private enum BrowseNeed: Equatable {
+        case filtered
+        case albums
+        case artists
+        case albumArtists
+    }
+
     private struct BrowseCache {
         let key: BrowseCacheKey
         let filteredTracks: [RemoteTrackItem]
-        let albums: [RemoteAlbum]
-        let artists: [RemoteArtist]
-        let albumArtists: [RemoteArtist]
+        var albums: [RemoteAlbum]?
+        var artists: [RemoteArtist]?
+        var albumArtists: [RemoteArtist]?
+
+        func contains(_ need: BrowseNeed) -> Bool {
+            switch need {
+            case .filtered: true
+            case .albums: albums != nil
+            case .artists: artists != nil
+            case .albumArtists: albumArtists != nil
+            }
+        }
     }
 
     private var trackRevision = 0
@@ -295,29 +311,38 @@ final class RemoteLibraryStore: ObservableObject {
         }
     }
 
-    var filteredTracks: [RemoteTrackItem] { browseData().filteredTracks }
+    var filteredTracks: [RemoteTrackItem] { browseData(need: .filtered).filteredTracks }
 
-    var albums: [RemoteAlbum] { browseData().albums }
+    var albums: [RemoteAlbum] { browseData(need: .albums).albums ?? [] }
 
-    var artists: [RemoteArtist] { browseData(groupCompilationArtists: false).artists }
-    var albumArtists: [RemoteArtist] { browseData(groupCompilationArtists: false).albumArtists }
+    var artists: [RemoteArtist] { browseData(groupCompilationArtists: false, need: .artists).artists ?? [] }
+    var albumArtists: [RemoteArtist] { browseData(groupCompilationArtists: false, need: .albumArtists).albumArtists ?? [] }
 
     func artists(groupCompilationArtists: Bool) -> [RemoteArtist] {
-        browseData(groupCompilationArtists: groupCompilationArtists).artists
+        browseData(groupCompilationArtists: groupCompilationArtists, need: .artists).artists ?? []
     }
 
     func albumArtists(groupCompilationArtists: Bool) -> [RemoteArtist] {
-        browseData(groupCompilationArtists: groupCompilationArtists).albumArtists
+        browseData(groupCompilationArtists: groupCompilationArtists, need: .albumArtists).albumArtists ?? []
     }
 
-    private func browseData(groupCompilationArtists: Bool = false) -> BrowseCache {
+    private func browseData(
+        groupCompilationArtists: Bool = false,
+        need: BrowseNeed
+    ) -> BrowseCache {
         let key = BrowseCacheKey(
             trackRevision: trackRevision,
             searchText: searchText,
             sortDirection: sortDirection.rawValue,
             groupCompilationArtists: groupCompilationArtists
         )
-        if let browseCache, browseCache.key == key { return browseCache }
+
+        if var browseCache, browseCache.key == key {
+            guard !browseCache.contains(need) else { return browseCache }
+            populate(&browseCache, need: need)
+            self.browseCache = browseCache
+            return browseCache
+        }
 
         let input = searchText.isEmpty ? tracks : tracks.filter {
             [$0.title, $0.artist, $0.albumArtist, $0.album]
@@ -328,26 +353,40 @@ final class RemoteLibraryStore: ObservableObject {
             ($1.artist, $1.album, $1.discNumber, $1.trackNumber, $1.title)
         }
         let filtered = sortDirection == .ascending ? sorted : Array(sorted.reversed())
-        let compilationAlbumKeys = groupCompilationArtists
-            ? Self.compilationAlbumKeys(in: tracks)
-            : Set<String>()
-        let cache = BrowseCache(
+        var cache = BrowseCache(
             key: key,
             filteredTracks: filtered,
-            albums: makeAlbums(from: filtered),
-            artists: remoteArtists(
-                usingAlbumArtist: false,
-                from: filtered,
-                compilationAlbumKeys: compilationAlbumKeys
-            ),
-            albumArtists: remoteArtists(
-                usingAlbumArtist: true,
-                from: filtered,
-                compilationAlbumKeys: compilationAlbumKeys
-            )
+            albums: nil,
+            artists: nil,
+            albumArtists: nil
         )
+        populate(&cache, need: need)
         browseCache = cache
         return cache
+    }
+
+    private func populate(_ cache: inout BrowseCache, need: BrowseNeed) {
+        guard !cache.contains(need) else { return }
+        switch need {
+        case .filtered:
+            break
+        case .albums:
+            cache.albums = makeAlbums(from: cache.filteredTracks)
+        case .artists, .albumArtists:
+            let compilationAlbumKeys = cache.key.groupCompilationArtists
+                ? Self.compilationAlbumKeys(in: tracks)
+                : Set<String>()
+            let artists = remoteArtists(
+                usingAlbumArtist: need == .albumArtists,
+                from: cache.filteredTracks,
+                compilationAlbumKeys: compilationAlbumKeys
+            )
+            if need == .artists {
+                cache.artists = artists
+            } else {
+                cache.albumArtists = artists
+            }
+        }
     }
 
     private func makeAlbums(from filteredTracks: [RemoteTrackItem]) -> [RemoteAlbum] {

@@ -458,24 +458,26 @@ private struct SettingsCategory<Content: View>: View {
     let title: String
     let key: String
     @Binding var isExpanded: Bool
-    let content: Content
+    let content: () -> Content
 
     init(
         _ title: String,
         key: String,
         isExpanded: Binding<Bool>,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
         self.key = key
         self._isExpanded = isExpanded
-        self.content = content()
+        self.content = content
     }
 
     var body: some View {
         Section {
             DisclosureGroup(isExpanded: $isExpanded) {
-                content
+                if isExpanded {
+                    content()
+                }
             } label: {
                 Text(title)
                     .font(.headline)

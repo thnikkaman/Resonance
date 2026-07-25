@@ -15,55 +15,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                NavigationStack {
-                    NowPlayingView(openLibrary: { selectedTab = .library })
-                }
-                .resonanceMiniPlayerInsets(
-                    isVisible: false,
-                    dock: miniPlayerDock,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
-                )
-                .tabItem { Label("Playing", systemImage: "music.note") }
-                .tag(AppTab.playing)
-
-                NavigationStack { LibraryView() }
-                    .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab == .library,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
-                    .tabItem { Label("Library", systemImage: "square.stack") }
-                    .tag(AppTab.library)
-
-                NavigationStack {
-                    StreamingLibraryView(
-                        openLibrary: { selectedTab = .library },
-                        openSettings: { selectedTab = .settings }
-                    )
-                }
-                    .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab == .streaming,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
-                    .tabItem { Label("Streaming", systemImage: "network") }
-                    .tag(AppTab.streaming)
-
-                NavigationStack { SettingsView(openLibrary: { selectedTab = .library }) }
-                    .resonanceMiniPlayerInsets(
-                        isVisible: selectedTab == .settings,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
-                    .tabItem { Label("Settings", systemImage: "gearshape") }
-                    .tag(AppTab.settings)
-            }
-            .toolbar(.hidden, for: .tabBar)
+            activeTabContent
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
@@ -110,6 +62,51 @@ struct RootView: View {
                     )
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var activeTabContent: some View {
+        switch selectedTab {
+        case .playing:
+            NavigationStack {
+                NowPlayingView(openLibrary: { selectedTab = .library })
+            }
+            .resonanceMiniPlayerInsets(
+                isVisible: false,
+                dock: miniPlayerDock,
+                openNowPlaying: { selectedTab = .playing },
+                onDock: { miniPlayerDock = $0 }
+            )
+        case .library:
+            NavigationStack { LibraryView() }
+                .resonanceMiniPlayerInsets(
+                    isVisible: true,
+                    dock: miniPlayerDock,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
+        case .streaming:
+            NavigationStack {
+                StreamingLibraryView(
+                    openLibrary: { selectedTab = .library },
+                    openSettings: { selectedTab = .settings }
+                )
+            }
+                .resonanceMiniPlayerInsets(
+                    isVisible: true,
+                    dock: miniPlayerDock,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
+        case .settings:
+            NavigationStack { SettingsView(openLibrary: { selectedTab = .library }) }
+                .resonanceMiniPlayerInsets(
+                    isVisible: true,
+                    dock: miniPlayerDock,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
         }
     }
 }
