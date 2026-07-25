@@ -249,6 +249,7 @@ final class RemoteLibraryStore: ObservableObject {
     private let artworkCache = NSCache<NSURL, NSData>()
     private var pendingSubsonicCache: CachedRemoteCatalog?
     private var lastAutomaticCatalogCheck: Date?
+    private var playbackPreparationGeneration = 0
     private static let cachedTracksURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
@@ -735,14 +736,30 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func play(_ selected: RemoteTrackItem, in context: [RemoteTrackItem], using player: PlayerController) async {
+        let requestGeneration = beginPlaybackPreparation()
         let ordered = context.isEmpty ? [selected] : context
         let prepared = await preparePlaybackTracks(ordered, priority: selected)
+        guard requestGeneration == playbackPreparationGeneration else {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "remote.playback.preparationDiscarded",
+                details: ["operation": "track"]
+            )
+            return
+        }
         guard let target = prepared.first(where: { $0.id == selected.id }) else { return }
         player.play(target, in: prepared)
     }
 
     func playAlbum(_ album: RemoteAlbum, using player: PlayerController, shuffle: Bool = false) async {
+        let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(album.tracks, priority: album.tracks.first)
+        guard requestGeneration == playbackPreparationGeneration else {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "remote.playback.preparationDiscarded",
+                details: ["operation": "album"]
+            )
+            return
+        }
         guard !prepared.isEmpty else { return }
         if shuffle {
             player.shuffleAndPlay(prepared)
@@ -752,8 +769,16 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func playArtist(_ artist: RemoteArtist, using player: PlayerController, shuffle: Bool = false) async {
+        let requestGeneration = beginPlaybackPreparation()
         let ordered = artist.albums.flatMap(\.tracks)
         let prepared = await preparePlaybackTracks(ordered, priority: ordered.first)
+        guard requestGeneration == playbackPreparationGeneration else {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "remote.playback.preparationDiscarded",
+                details: ["operation": "artist"]
+            )
+            return
+        }
         guard !prepared.isEmpty else { return }
         if shuffle {
             player.shuffleAndPlay(prepared)
@@ -763,12 +788,16 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func playNext(_ items: [RemoteTrackItem], using player: PlayerController) async {
+        let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(items, priority: items.first)
+        guard requestGeneration == playbackPreparationGeneration else { return }
         player.playNext(prepared)
     }
 
     func addToQueue(_ items: [RemoteTrackItem], using player: PlayerController) async {
+        let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(items, priority: items.first)
+        guard requestGeneration == playbackPreparationGeneration else { return }
         player.addToQueue(prepared)
     }
 
@@ -946,7 +975,15 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func playPlaylist(_ playlist: RemotePlaylist, using player: PlayerController, shuffle: Bool = false) async {
+        let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(playlist.tracks, priority: playlist.tracks.first)
+        guard requestGeneration == playbackPreparationGeneration else {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "remote.playback.preparationDiscarded",
+                details: ["operation": "playlist"]
+            )
+            return
+        }
         guard !prepared.isEmpty else { return }
         if shuffle {
             player.shuffleAndPlay(prepared)
@@ -1081,18 +1118,22 @@ final class RemoteLibraryStore: ObservableObject {
         priority: RemoteTrackItem?
     ) async -> [Track] {
         var artworkByKey: [String: Data] = [:]
-        let prioritized = priority.map { [$0] } ?? []
-        let uniqueArtworkItems = (prioritized + items).reduce(into: [RemoteTrackItem]()) { result, item in
-            guard artworkByKey[item.albumKey] == nil,
-                  !result.contains(where: { $0.albumKey == item.albumKey }) else { return }
-            if result.count < 24 || item.id == priority?.id { result.append(item) }
+        // Only the selected track's artwork is needed to start playback. The
+        // previous implementation fetched up to 24 album covers serially
+        // before handing the queue to PlayerController. On a large remote
+        // queue, repeated taps could leave several preparation tasks alive
+        // and return a burst of stale player rebuilds after navigation.
+        if let item = priority, let data = await artworkData(for: item) {
+            artworkByKey[item.albumKey] = data
         }
 
-        for item in uniqueArtworkItems {
-            if let data = await artworkData(for: item) { artworkByKey[item.albumKey] = data }
-        }
-
+        if Task.isCancelled { return [] }
         return items.map { item in item.asTrack(artworkData: artworkByKey[item.albumKey]) }
+    }
+
+    private func beginPlaybackPreparation() -> Int {
+        playbackPreparationGeneration &+= 1
+        return playbackPreparationGeneration
     }
 
     private func request(for url: URL) -> URLRequest {

@@ -134,6 +134,7 @@ final class PlayerController: NSObject, ObservableObject {
   private var preloadedTrackID: UUID?
   private var remoteSeekInFlight = false
   private var remoteEndHandledGeneration: Int?
+  private var lastRemoteBufferStatusPublicationDate = Date.distantPast
   private var engineDurations: [UUID: TimeInterval] = [:]
   private var engineChannelCounts: [UUID: AVAudioChannelCount] = [:]
   private var partialPreloadFrames: [UUID: AVAudioFramePosition] = [:]
@@ -746,6 +747,7 @@ final class PlayerController: NSObject, ObservableObject {
     audioFormatStatus = "Stereo output ready"
     downmixRoutingStatus = "Automatic stereo routing"
     networkBufferStatus = "No remote stream active"
+    lastRemoteBufferStatusPublicationDate = .distantPast
     playbackTimerTickCount = 0
 
     if !url.isFileURL {
@@ -1047,7 +1049,9 @@ final class PlayerController: NSObject, ObservableObject {
   private func updateRemoteBufferStatus() {
     guard activeBackend == .remote, let remotePlayer, let item = remotePlayer.currentItem else { return }
     let itemDuration = item.duration.seconds
-    if itemDuration.isFinite, itemDuration > 0 { duration = itemDuration }
+    if itemDuration.isFinite, itemDuration > 0, abs(duration - itemDuration) > 0.01 {
+      duration = itemDuration
+    }
 
     let loadedEnd: Double = item.loadedTimeRanges.compactMap { value in
       let range = value.timeRangeValue
@@ -1061,31 +1065,52 @@ final class PlayerController: NSObject, ObservableObject {
       return min(Double(track.sourceByteSize), (ahead / duration) * Double(track.sourceByteSize)) / 1_048_576
     }()
 
+    let now = Date()
+    let shouldPublishBufferText = now.timeIntervalSince(lastRemoteBufferStatusPublicationDate) >= 0.5
+
     switch item.status {
     case .failed:
-      playbackEngineStatus = "Remote stream failed"
-      networkBufferStatus = item.error?.localizedDescription ?? "The remote player reported an error"
+      if playbackEngineStatus != "Remote stream failed" {
+        playbackEngineStatus = "Remote stream failed"
+      }
+      let failureStatus = item.error?.localizedDescription ?? "The remote player reported an error"
+      if networkBufferStatus != failureStatus {
+        networkBufferStatus = failureStatus
+      }
+      lastRemoteBufferStatusPublicationDate = now
       reportRuntimeError("Remote playback failed: \(networkBufferStatus)")
       isPlaying = false
     case .readyToPlay:
+      let playbackStatus: String
       switch remotePlayer.timeControlStatus {
       case .waitingToPlayAtSpecifiedRate:
-        playbackEngineStatus = "Remote streaming — buffering"
+        playbackStatus = "Remote streaming — buffering"
       case .playing:
-        playbackEngineStatus = "Remote streaming"
+        playbackStatus = "Remote streaming"
       case .paused:
-        playbackEngineStatus = isPlaying ? "Remote stream paused while buffering" : "Remote stream paused"
+        playbackStatus = isPlaying ? "Remote stream paused while buffering" : "Remote stream paused"
       @unknown default:
-        playbackEngineStatus = "Remote streaming"
+        playbackStatus = "Remote streaming"
       }
-      if let approximateMegabytes {
-        networkBufferStatus = String(format: "%.1f MB buffered • %.0f seconds ahead", approximateMegabytes, ahead)
-      } else {
-        networkBufferStatus = String(format: "%.0f seconds buffered ahead", ahead)
+      if playbackEngineStatus != playbackStatus {
+        playbackEngineStatus = playbackStatus
+      }
+      if shouldPublishBufferText {
+        if let approximateMegabytes {
+          networkBufferStatus = String(format: "%.1f MB buffered • %.0f seconds ahead", approximateMegabytes, ahead)
+        } else {
+          networkBufferStatus = String(format: "%.0f seconds buffered ahead", ahead)
+        }
+        lastRemoteBufferStatusPublicationDate = now
       }
     case .unknown:
-      playbackEngineStatus = "Remote streaming — connecting"
-      networkBufferStatus = "Waiting for the server response…"
+      if playbackEngineStatus != "Remote streaming — connecting" {
+        playbackEngineStatus = "Remote streaming — connecting"
+      }
+      if shouldPublishBufferText {
+        networkBufferStatus = "Waiting for the server response…"
+        lastRemoteBufferStatusPublicationDate = now
+      }
     @unknown default:
       break
     }

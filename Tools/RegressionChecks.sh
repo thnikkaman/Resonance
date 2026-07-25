@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 59;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 60;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -134,6 +134,13 @@ assert 'playback.gapless.preload' in player
 assert 'remoteSeekInFlight' in player
 assert 'remote.player.seek.completed' in player
 assert 'remote.player.endFallback' in player
+assert 'lastRemoteBufferStatusPublicationDate' in player
+assert 'shouldPublishBufferText' in player
+assert 'playbackPreparationGeneration' in remote
+assert 'remote.playback.preparationDiscarded' in remote
+assert 'Only the selected track\'s artwork is needed to start playback.' in remote
+assert 'State(initialValue: Self.makeSections' not in streaming
+assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view

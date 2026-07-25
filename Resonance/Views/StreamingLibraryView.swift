@@ -303,17 +303,19 @@ private struct RemoteLibraryOptionsSheet: View {
 
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
-  @EnvironmentObject private var remote: RemoteLibraryStore
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
   private let artistIDs: [String]
-  @State private var sections: [ArtistIndexSection<RemoteArtist>]
+  @State private var sections: [ArtistIndexSection<RemoteArtist>] = []
 
   init(artists: [RemoteArtist], sortDirection: SortDirection) {
     self.artists = artists
     self.sortDirection = sortDirection
     self.artistIDs = artists.map(\.id)
-    _sections = State(initialValue: Self.makeSections(artists, ascending: sortDirection == .ascending))
+  }
+
+  private var sectionInputKey: String {
+    "\(sortDirection.rawValue)|\(artistIDs.joined(separator: ","))"
   }
 
     private var columns: [GridItem] {
@@ -419,10 +421,7 @@ private struct RemoteArtistCollectionView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .onChange(of: sortDirection) { _, direction in
-                sections = Self.makeSections(artists, ascending: direction == .ascending)
-            }
-            .onChange(of: artistIDs) { _, _ in
+            .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
             }
         }
@@ -454,17 +453,19 @@ private struct RemoteArtistTile: View {
 
 private struct RemoteAlbumCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
-  @EnvironmentObject private var remote: RemoteLibraryStore
   let albums: [RemoteAlbum]
   let sortDirection: SortDirection
   private let albumIDs: [String]
-  @State private var sections: [ArtistIndexSection<RemoteAlbum>]
+  @State private var sections: [ArtistIndexSection<RemoteAlbum>] = []
 
   init(albums: [RemoteAlbum], sortDirection: SortDirection) {
     self.albums = albums
     self.sortDirection = sortDirection
     self.albumIDs = albums.map(\.id)
-    _sections = State(initialValue: Self.makeSections(albums, ascending: sortDirection == .ascending))
+  }
+
+  private var sectionInputKey: String {
+    "\(sortDirection.rawValue)|\(albumIDs.joined(separator: ","))"
   }
 
     private var columns: [GridItem] {
@@ -581,10 +582,7 @@ private struct RemoteAlbumCollectionView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .onChange(of: sortDirection) { _, direction in
-                sections = Self.makeSections(albums, ascending: direction == .ascending)
-            }
-            .onChange(of: albumIDs) { _, _ in
+            .task(id: sectionInputKey) {
                 sections = Self.makeSections(albums, ascending: sortDirection == .ascending)
             }
         }
