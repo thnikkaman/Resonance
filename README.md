@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Streaming Layout and Alphabet Routing
 
 Version: **0.3.7.4**  
-Build: **46**
+Build: **47**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -14,6 +14,7 @@ Install directly over Alpha 3.7.3 with the same bundle identifier and signing te
 - The streaming connection header consumed browse space and could visually compete with the active grouping title during pull-down.
 - The native right-side scroll indicator competed with the custom alphabet index.
 - Streaming artist and album alphabet gestures did not always claim the intended touch strip or complete the section jump.
+- The streaming header could disappear visually, cached catalog loading competed with the first browse render, and inconsistent Subsonic display album-artist values split one artist into multiple entries.
 
 ## Playback recovery
 
@@ -54,6 +55,12 @@ streaming navigation title stays inline so “Album Artists” does not overlay 
 - High-frequency playback progress updates are isolated to the mini-player and Now Playing views instead of invalidating the root tab tree.
 - Remote catalog filtering, album grouping, and artist grouping are cached by track revision, search text, and sort direction.
 - Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
+- A cached Subsonic catalog is activated immediately and automatic server checks are deferred until **Check for Remote Changes** is selected in Settings. This keeps the cached browse surface responsive while the server is unavailable or slow.
+- Album-artist values are canonicalized per artist/album when Subsonic exposes display composites such as `Tool • Unknown Artist`; the most common clean track-artist spelling is retained.
+
+## Settings categories
+
+Each top-level Settings category is independently collapsible. Its expanded or collapsed state is stored locally and restored on the next launch, so the page can stay focused on the areas currently being tested.
 
 ## Compilation-only artist grouping
 
@@ -67,7 +74,7 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The companion server passed Python compilation.
 - The final ZIP passed archive-integrity validation.
 
-Alpha 3.7.4 build 46 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
+Alpha 3.7.4 build 47 additionally passed the supplied simulator and generic-device preflight builds with warnings treated as errors, followed by a signed physical-device build.
 
 ## Device diagnostics
 

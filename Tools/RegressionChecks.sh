@@ -30,7 +30,7 @@ plist = (root / 'Resonance/Info.plist').read_text()
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 46;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 47;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -108,6 +108,8 @@ assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
 assert 'alphabet.scrollTo' in streaming
 assert 'streaming.connectionInfo.changed' in streaming
+assert 'isExpanded.toggle()' in streaming
+assert '.accessibilityElement(children: .combine)' in streaming
 assert 'navigationBarTitleDisplayMode(.inline)' in streaming
 assert 'markPlayed(trackID:' in root_view
 
@@ -133,6 +135,12 @@ assert 'playback.timer.tick.begin' in player
 assert 'private nonisolated static func makeNowPlayingArtwork' in player
 assert 'UIImage(data: imageData) ?? UIImage()' in player
 assert 'remote.catalogCheck.cancelled' in remote
+assert 'remote.catalogCheck.deferred' in remote
+assert 'remote.catalogCache.activated' in remote
+assert 'canonicalizeAlbumArtists' in remote
+assert 'Showing cached catalog — remote check available in Settings' in remote
+assert 'Indexing albums' in remote and 'batchSize * 8' in remote
+assert 'song.artist?.nonEmpty' in remote and 'let albumArtist = song.albumArtist?.nonEmpty' in remote
 
 # Alpha 3.6 locally reported compile fixes.
 assert 'nonisolated fileprivate static func uniqueTracks' in remote
@@ -171,6 +179,10 @@ assert 'showLockScreenArtwork' in settings
 assert 'Reported Errors' in settings_view
 assert '.foregroundStyle(.red)' in settings_view
 assert 'AppReportedError' in error_log and 'Copy Errors' in settings_view
+assert 'SettingsCategory' in settings_view
+assert 'settings.category.changed' in settings_view
+assert 'settingsAppearanceExpanded' in settings
+assert 'settingsPrototypeExpanded' in settings
 assert 'return String(' in remote and ').lowercased()' in remote
 
 # Alpha 3.7.4 matrix-failure circuit breaker and deterministic index navigation.
