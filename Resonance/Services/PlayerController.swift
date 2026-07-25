@@ -612,7 +612,7 @@ final class PlayerController: NSObject, ObservableObject {
 
           let actual = activeRemotePlayer.currentTime().seconds
           if actual.isFinite {
-            self.elapsed = max(0, actual)
+            self.elapsed = self.clampedRemoteElapsed(actual)
             self.playbackAnchorElapsed = self.elapsed
             self.playbackAnchorDate = self.isPlaying ? Date() : nil
           }
@@ -1015,7 +1015,7 @@ final class PlayerController: NSObject, ObservableObject {
     currentQueueIndex = targetIndex
     currentTrack = track
     duration = max(0, track.duration)
-    elapsed = safeSeekPosition(startTime, duration: max(duration, startTime + 1))
+    elapsed = safeSeekPosition(startTime, duration: duration)
     playbackAnchorElapsed = elapsed
     playbackAnchorDate = autoPlay ? Date() : nil
     isPlaying = autoPlay
@@ -1249,6 +1249,8 @@ final class PlayerController: NSObject, ObservableObject {
     let itemDuration = item.duration.seconds
     if itemDuration.isFinite, itemDuration > 0, abs(duration - itemDuration) > 0.01 {
       duration = itemDuration
+      elapsed = clampedRemoteElapsed(elapsed)
+      playbackAnchorElapsed = clampedRemoteElapsed(playbackAnchorElapsed)
     }
 
     let loadedEnd: Double = item.loadedTimeRanges.compactMap { value in
@@ -1427,6 +1429,12 @@ final class PlayerController: NSObject, ObservableObject {
     return min(max(0, requested), max(0, endGuard))
   }
 
+  private func clampedRemoteElapsed(_ requested: Double) -> Double {
+    guard requested.isFinite else { return max(0, elapsed) }
+    guard duration.isFinite, duration > 0 else { return max(0, requested) }
+    return min(max(0, requested), duration)
+  }
+
   private func updateElapsedFromClock() {
     switch activeBackend {
     case .gapless:
@@ -1437,7 +1445,7 @@ final class PlayerController: NSObject, ObservableObject {
     case .remote:
       if let activeRemotePlayer, !remoteSeekInFlight {
         let seconds = activeRemotePlayer.currentTime().seconds
-        if seconds.isFinite { elapsed = max(0, seconds) }
+        if seconds.isFinite { elapsed = clampedRemoteElapsed(seconds) }
       }
     case .none:
       break
