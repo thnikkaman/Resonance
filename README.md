@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **57**
+Build: **58**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -94,9 +94,11 @@ Alpha 3.7.4 build 56 is a performance-focused pass. The 120 ms playback clock an
 
 Alpha 3.7.4 build 57 is a second performance pass based on the build-56 screen recording and diagnostics. Root-level catalog/scanner error observation is isolated into a coordinator, cached-catalog automatic checks return before scheduling or logging redundant work, foreground local-file inventory runs at utility priority and is throttled across rapid scene activations, playback-stage diagnostics no longer synchronously write diagnostics/UserDefaults on the main actor, and Lock Screen artwork conversion is prepared off-main and cached per track. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 57. Source commit: `28fe77c`. Runtime performance, FLAC startup, and playback acceptance remain pending.
 
+Alpha 3.7.4 build 58 addresses the remaining common UI blocker identified by the build-57 recording: local `ArtworkView` decoded full-resolution artwork synchronously during SwiftUI body evaluation across album detail, Now Playing, Settings, and mini-player surfaces. Local artwork now uses a bounded ImageIO thumbnail cache and utility-priority preparation, matching the existing remote artwork path; slow thumbnail loads emit privacy-safe `artwork.local.thumbnail` timing records. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 58. Runtime acceptance remains pending.
+
 ## Next major phase
 
-- Perform physical-device performance acceptance for build 57 while audio is stopped and playing: switch repeatedly among Library, Streaming, Settings, and Playing; scroll a large Streaming catalog; open/close album, artist, playlist, search, and settings surfaces; verify the progress bar remains responsive; and retrieve the now-clean diagnostics/resource logs after any slowdown or lockup.
+- Perform physical-device performance acceptance for build 58 while audio is stopped and playing: switch repeatedly among Library, Streaming, Settings, and Playing; open local album detail and Now Playing; scroll a large Streaming catalog; edit Settings/hex fields; verify the progress bar remains responsive; and retrieve the now-clean diagnostics/resource logs after any slowdown or lockup. Inspect `artwork.local.thumbnail` durations if the delay remains.
 - Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
 - Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
 - Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.

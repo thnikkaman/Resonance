@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 57;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 58;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -161,6 +161,11 @@ assert 'Task.detached(priority: .utility)' in library_store
 assert 'if !forceCheck, !tracks.isEmpty { return }' in remote
 assert 'scheduleNowPlayingArtworkPreparation' in player
 assert 'prepareNowPlayingArtwork(data: data)' in player
+artwork = (root / 'Resonance/Views/ArtworkView.swift').read_text()
+assert 'LocalArtworkLoader' in artwork
+assert 'CGImageSourceCreateThumbnailAtIndex' in artwork
+assert 'artwork.local.thumbnail' in artwork
+assert 'UIImage(data: data)' not in artwork
 
 assert 'SecureField("Navidrome / Subsonic password"' in settings_view
 assert 'Backend in use' in settings_view
