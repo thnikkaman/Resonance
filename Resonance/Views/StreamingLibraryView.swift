@@ -22,7 +22,7 @@ struct StreamingLibraryView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    RemoteServerHeader()
+                    RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
                     Group {
                         switch remote.grouping {
                         case .artists:
@@ -53,11 +53,13 @@ struct StreamingLibraryView: View {
                         }
                     }
                 }
+                .clipped()
                 .searchable(text: $remote.searchText, prompt: "Search remote music")
                 .refreshable { await remote.refresh(using: settings) }
             }
         }
-        .navigationTitle(remote.grouping == .artists ? "Streaming Library" : remote.grouping.rawValue)
+        .navigationTitle("Streaming Library")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
@@ -102,6 +104,15 @@ struct StreamingLibraryView: View {
         .task {
             await remote.activateCachedCatalogAndCheckForChanges(using: settings)
         }
+        .onAppear {
+            ResonanceDiagnostics.shared.record(
+                "streaming.view.appeared",
+                details: [
+                    "grouping": remote.grouping.rawValue,
+                    "connectionInfoExpanded": String(settings.streamingConnectionInfoExpanded)
+                ]
+            )
+        }
         .overlay(alignment: .leading) {
             // Keep back navigation confined to the left edge so ordinary
             // vertical drags over artists remain owned by the scroll view.
@@ -124,14 +135,11 @@ struct StreamingLibraryView: View {
 private struct RemoteServerHeader: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
+    @Binding var isExpanded: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: remote.isLoading ? "network.badge.shield.half.filled" : "externaldrive.connected.to.line.below")
-                .font(.title2)
-                .foregroundStyle(settings.accentColor)
+        DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(remote.serverName).font(.headline)
                 Text(settings.streamBackend.shortName)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(settings.accentColor)
@@ -149,12 +157,37 @@ private struct RemoteServerHeader: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Spacer()
-            if remote.isLoading { ProgressView() }
+            .padding(.top, 4)
+        } label: {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: remote.isLoading ? "network.badge.shield.half.filled" : "externaldrive.connected.to.line.below")
+                    .font(.title2)
+                    .foregroundStyle(settings.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(remote.serverName)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(remote.grouping.rawValue)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(settings.accentColor)
+                }
+                Spacer()
+                if remote.isLoading { ProgressView() }
+            }
         }
+        .tint(settings.accentColor)
         .padding(.horizontal)
         .padding(.vertical, 10)
         .background(.bar)
+        .zIndex(1)
+        .accessibilityLabel("Streaming connection information")
+        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+        .onChange(of: isExpanded) { _, expanded in
+            ResonanceDiagnostics.shared.record(
+                "streaming.connectionInfo.changed",
+                details: ["expanded": String(expanded)]
+            )
+        }
     }
 }
 
@@ -226,6 +259,24 @@ private struct RemoteLibraryOptionsSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .onChange(of: remote.grouping) { _, grouping in
+                ResonanceDiagnostics.shared.record(
+                    "streaming.option.grouping.changed",
+                    details: ["grouping": grouping.rawValue]
+                )
+            }
+            .onChange(of: remote.sortDirection) { _, direction in
+                ResonanceDiagnostics.shared.record(
+                    "streaming.option.sort.changed",
+                    details: ["direction": direction.rawValue]
+                )
+            }
+            .onChange(of: settings.albumLayout) { _, layout in
+                ResonanceDiagnostics.shared.record(
+                    "streaming.option.layout.changed",
+                    details: ["layout": layout.rawValue]
+                )
             }
         }
     }
@@ -314,13 +365,28 @@ private struct RemoteArtistCollectionView: View {
                 }
 
                 if sections.count > 1 {
-                    VerticalArtistIndex(keys: sections.map(\.key)) { key in
-                        proxy.scrollTo("remote-artist-section-\(key)", anchor: .top)
+                    VerticalArtistIndex(
+                        keys: sections.map(\.key),
+                        diagnosticSurface: "streaming-artists"
+                    ) { key in
+                        ResonanceDiagnostics.shared.record(
+                            "alphabet.scrollTo",
+                            details: [
+                                "surface": "streaming-artists",
+                                "key": key,
+                                "sectionCount": String(sections.count)
+                            ]
+                        )
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo("remote-artist-section-\(key)", anchor: .top)
+                        }
                     }
+                    .zIndex(2)
                     .padding(.trailing, 1)
                     .padding(.vertical, 4)
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 }
@@ -350,6 +416,7 @@ private struct RemoteArtistTile: View {
 
 private struct RemoteAlbumCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var remote: RemoteLibraryStore
     let albums: [RemoteAlbum]
 
     private var columns: [GridItem] {
@@ -359,58 +426,110 @@ private struct RemoteAlbumCollectionView: View {
         )
     }
 
+    private var sections: [ArtistIndexSection<RemoteAlbum>] {
+        let grouped = Dictionary(grouping: albums) { resonanceArtistIndexKey($0.title) }
+        let order = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: remote.sortDirection == .ascending
+        )
+        return order.compactMap { key in
+            guard let values = grouped[key], !values.isEmpty else { return nil }
+            let sorted = values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            return ArtistIndexSection(
+                key: key,
+                items: remote.sortDirection == .ascending ? sorted : Array(sorted.reversed())
+            )
+        }
+    }
+
     var body: some View {
-        Group {
-            if settings.albumLayout == .grid {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .trailing) {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 18) {
-                        ForEach(albums) { album in
-                            NavigationLink {
-                                RemoteAlbumDetailView(album: album)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    RemoteArtwork(
-                                        url: album.artworkURL,
-                                        base64: album.artworkBase64,
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints
-                                    )
-                                    Text(album.title)
-                                        .font(settings.libraryTextSize.font.weight(.semibold))
-                                        .lineLimit(1)
-                                    Text(album.artist)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
+                    LazyVStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 14 : 0) {
+                        ForEach(sections, id: \.key) { section in
+                            VStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 8 : 0) {
+                                Text(section.key)
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
+                                    .background(.background)
+
+                                if settings.albumLayout == .grid {
+                                    LazyVGrid(columns: columns, spacing: 18) {
+                                        ForEach(section.items) { album in
+                                            NavigationLink {
+                                                RemoteAlbumDetailView(album: album)
+                                            } label: {
+                                                VStack(alignment: .leading, spacing: 6) {
+                                                    RemoteArtwork(
+                                                        url: album.artworkURL,
+                                                        base64: album.artworkBase64,
+                                                        size: settings.libraryThumbnailSize.gridArtworkPoints
+                                                    )
+                                                    Text(album.title)
+                                                        .font(settings.libraryTextSize.font.weight(.semibold))
+                                                        .lineLimit(1)
+                                                    Text(album.artist)
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                } else {
+                                    ForEach(section.items) { album in
+                                        NavigationLink {
+                                            RemoteAlbumDetailView(album: album)
+                                        } label: {
+                                            RemoteCollectionRow(
+                                                title: album.title,
+                                                subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
+                                                artworkURL: album.artworkURL,
+                                                artworkBase64: album.artworkBase64,
+                                                large: settings.albumLayout == .large
+                                            )
+                                            .padding(.vertical, settings.albumLayout == .compact ? 2 : 8)
+                                        }
+                                        .buttonStyle(.plain)
+                                        Divider()
+                                    }
                                 }
                             }
-                            .buttonStyle(.plain)
+                            .id("remote-album-section-\(section.key)")
                         }
                     }
-                    .padding()
+                    .padding(.leading, 16)
+                    .padding(.trailing, 36)
+                    .padding(.vertical)
                 }
-            } else {
-                List(albums) { album in
-                    NavigationLink {
-                        RemoteAlbumDetailView(album: album)
-                    } label: {
-                        RemoteCollectionRow(
-                            title: album.title,
-                            subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
-                            artworkURL: album.artworkURL,
-                            artworkBase64: album.artworkBase64,
-                            large: settings.albumLayout == .large
+
+                if sections.count > 1 {
+                    VerticalArtistIndex(
+                        keys: sections.map(\.key),
+                        diagnosticSurface: "streaming-albums"
+                    ) { key in
+                        ResonanceDiagnostics.shared.record(
+                            "alphabet.scrollTo",
+                            details: [
+                                "surface": "streaming-albums",
+                                "key": key,
+                                "sectionCount": String(sections.count)
+                            ]
                         )
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo("remote-album-section-\(key)", anchor: .top)
+                        }
                     }
-                    .listRowInsets(
-                        EdgeInsets(
-                            top: settings.albumLayout == .compact ? 2 : 8,
-                            leading: 16,
-                            bottom: settings.albumLayout == .compact ? 2 : 8,
-                            trailing: 16
-                        )
-                    )
+                    .zIndex(2)
+                    .padding(.trailing, 1)
+                    .padding(.vertical, 4)
                 }
             }
+            .scrollIndicators(.hidden)
         }
     }
 }
@@ -476,6 +595,7 @@ private struct RemoteTrackCollectionView: View {
                 }
             }
         }
+        .scrollIndicators(.hidden)
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)
         }

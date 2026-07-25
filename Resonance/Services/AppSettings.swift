@@ -27,6 +27,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("libraryThumbnailSize") private var libraryThumbnailSizeRaw = LibraryThumbnailSize.medium.rawValue
     @AppStorage("libraryTextSize") private var libraryTextSizeRaw = LibraryTextSize.standard.rawValue
     @AppStorage("groupCompilationArtists") var groupCompilationArtists = false
+    @AppStorage("streamingConnectionInfoExpanded") var streamingConnectionInfoExpanded = true
     @AppStorage("showArtworkWarning") var showArtworkWarning = true
     @AppStorage("showLockScreenArtwork") var showLockScreenArtwork = true
     @AppStorage("preloadNextTrack") var preloadNextTrack = true

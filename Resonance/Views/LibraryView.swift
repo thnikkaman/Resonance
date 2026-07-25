@@ -211,11 +211,23 @@ func resonanceArtistIndexOrder(for keys: [String], ascending: Bool) -> [String] 
 
 struct VerticalArtistIndex: View {
     let keys: [String]
+    let diagnosticSurface: String
     let onSelect: (String) -> Void
+
+    init(
+        keys: [String],
+        diagnosticSurface: String = "artists",
+        onSelect: @escaping (String) -> Void
+    ) {
+        self.keys = keys
+        self.diagnosticSurface = diagnosticSurface
+        self.onSelect = onSelect
+    }
 
     @State private var selectedKey: String?
     @State private var selectedRow = 0
     @State private var gestureKey: String?
+    @State private var gestureStarted = false
     @State private var hideTask: Task<Void, Never>?
 
     private let indexColumnWidth: CGFloat = 32
@@ -261,10 +273,19 @@ struct VerticalArtistIndex: View {
             .contentShape(Rectangle())
             // Hit-test in the full-height index container. The previous build
             // attached the gesture to a positioned VStack, which made y values
-            // dependent on the transformed child coordinate space.
-            .gesture(
+            // dependent on the transformed child coordinate space. A high
+            // priority gesture keeps the system scroll indicator from claiming
+            // touches in this strip.
+            .highPriorityGesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { value in
+                        if !gestureStarted {
+                            gestureStarted = true
+                            ResonanceDiagnostics.shared.record(
+                                "alphabet.gesture.begin",
+                                details: ["surface": diagnosticSurface]
+                            )
+                        }
                         selectRow(
                             at: value.location.y,
                             topInset: topInset,
@@ -272,6 +293,14 @@ struct VerticalArtistIndex: View {
                         )
                     }
                     .onEnded { _ in
+                        ResonanceDiagnostics.shared.record(
+                            "alphabet.gesture.end",
+                            details: [
+                                "surface": diagnosticSurface,
+                                "selected": selectedKey ?? "none"
+                            ]
+                        )
+                        gestureStarted = false
                         gestureKey = nil
                         scheduleBubbleHide()
                     }
@@ -279,7 +308,7 @@ struct VerticalArtistIndex: View {
         }
         .frame(width: indexColumnWidth)
         .frame(maxHeight: .infinity)
-        .accessibilityLabel("Artist alphabet index")
+        .accessibilityLabel("Alphabet index")
     }
 
     private func selectRow(at y: CGFloat, topInset: CGFloat, rowHeight: CGFloat) {
@@ -295,6 +324,14 @@ struct VerticalArtistIndex: View {
         selectedKey = key
         if gestureKey != key {
             gestureKey = key
+            ResonanceDiagnostics.shared.record(
+                "alphabet.selection",
+                details: [
+                    "surface": diagnosticSurface,
+                    "key": key,
+                    "index": String(index)
+                ]
+            )
             UISelectionFeedbackGenerator().selectionChanged()
             onSelect(key)
         }
