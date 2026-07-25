@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 60;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 61;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -142,6 +142,10 @@ assert 'Only the selected track\'s artwork is needed to start playback.' in remo
 assert 'State(initialValue: Self.makeSections' not in streaming
 assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
+assert '.toolbar(.hidden, for: .tabBar)' in root_view
+assert 'private struct ResonanceTabBar' in root_view
+assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
+assert 'transaction.animation = nil' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view
 assert 'MiniPlayerEdgeHandle' in root_view

@@ -10,7 +10,6 @@ private enum MiniPlayerDock: String {
 }
 
 struct RootView: View {
-    @EnvironmentObject private var settings: AppSettings
   @State private var selectedTab: AppTab = .library
   @State private var miniPlayerDock: MiniPlayerDock = .top
 
@@ -64,6 +63,7 @@ struct RootView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(AppTab.settings)
             }
+            .toolbar(.hidden, for: .tabBar)
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
@@ -95,8 +95,9 @@ struct RootView: View {
                 .padding(.trailing, 2)
             }
         }
-        .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : Color.primary)
-        .tint(settings.accentColor)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            ResonanceTabBar(selection: $selectedTab)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -110,6 +111,56 @@ struct RootView: View {
                 }
             }
         }
+    }
+}
+
+private struct ResonanceTabBar: View {
+    @EnvironmentObject private var settings: AppSettings
+    @Binding var selection: AppTab
+
+    var body: some View {
+        HStack(spacing: 0) {
+            tabButton(.playing, title: "Playing", systemImage: "music.note")
+            tabButton(.library, title: "Library", systemImage: "square.stack")
+            tabButton(.streaming, title: "Streaming", systemImage: "network")
+            tabButton(.settings, title: "Settings", systemImage: "gearshape")
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 7)
+        .padding(.bottom, 7)
+        .background(Color(uiColor: .systemBackground))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.12))
+                .frame(height: 0.5)
+        }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+    }
+
+    private func tabButton(_ tab: AppTab, title: String, systemImage: String) -> some View {
+        Button {
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                selection = tab
+            }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selection == tab ? settings.accentColor : Color.secondary)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selection == tab ? .isSelected : [])
     }
 }
 
