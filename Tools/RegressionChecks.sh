@@ -151,6 +151,8 @@ assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'TabView(selection:' not in root_view
 assert 'private struct ResonanceTabBar' in root_view
+assert '.resonanceThemeTextSurface()' in root_view
+assert 'private struct ResonanceThemeTextSurface' in root_view
 assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
 assert 'transaction.animation = nil' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view

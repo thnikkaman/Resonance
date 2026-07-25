@@ -16,6 +16,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             activeTabContent
+                .resonanceThemeTextSurface()
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
@@ -193,6 +194,10 @@ private struct ErrorReportingCoordinatorView: View {
 }
 
 private extension View {
+    func resonanceThemeTextSurface() -> some View {
+        modifier(ResonanceThemeTextSurface())
+    }
+
     func resonanceMiniPlayerInsets(
         isVisible: Bool,
         dock: MiniPlayerDock,
@@ -207,6 +212,17 @@ private extension View {
                 onDock: onDock
             )
         )
+    }
+}
+
+private struct ResonanceThemeTextSurface: ViewModifier {
+    @EnvironmentObject private var settings: AppSettings
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(
+                settings.applyThemeColorToText ? settings.accentColor : Color.primary
+            )
     }
 }
 
