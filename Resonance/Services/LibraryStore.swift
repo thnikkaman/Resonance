@@ -114,7 +114,10 @@ final class LibraryStore: ObservableObject {
 
         let stored = await database.loadAll()
         tracks = stored.map(applyMetadataOverride)
-        await scanDocuments(forceMetadataRefresh: true)
+        knownModificationDates = await Task.detached(priority: .utility) {
+            Self.modificationDates(for: stored)
+        }.value
+        await scanDocuments(forceMetadataRefresh: false)
 
         if tracks.isEmpty {
             tracks = Self.demoTracks
@@ -487,8 +490,18 @@ final class LibraryStore: ObservableObject {
 
     private func scanDocuments(forceMetadataRefresh: Bool) async {
         guard !isScanning else { return }
-        isScanning = true
-        scanStatus = "Scanning transferred music…"
+        let hadExistingContent = !tracks.isEmpty
+        isScanning = !hadExistingContent
+        scanStatus = hadExistingContent ? "Checking transferred music…" : "Scanning transferred music…"
+        let scanStarted = Date()
+        ResonanceDiagnostics.shared.recordDeferred(
+            "library.scan.begin",
+            details: [
+                "forceMetadataRefresh": String(forceMetadataRefresh),
+                "existingTrackCount": String(tracks.count),
+                "contentVisible": String(hadExistingContent)
+            ]
+        )
         defer { isScanning = false }
 
         let documentsURL = self.documentsURL
@@ -516,9 +529,26 @@ final class LibraryStore: ObservableObject {
         }
         let needsRefresh = forceMetadataRefresh || currentPaths != knownPaths || modificationsChanged
 
+        ResonanceDiagnostics.shared.recordDeferred(
+            "library.scan.inventory",
+            details: [
+                "fileCount": String(urls.count),
+                "needsRefresh": String(needsRefresh),
+                "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
+            ]
+        )
+
         guard needsRefresh else {
             lastSharedFolderScan = Date()
             scanStatus = "Up to date — \(sharedFolderTrackCount) file\(sharedFolderTrackCount == 1 ? "" : "s") in \(Self.sharedMusicFolderName)"
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.scan.complete",
+                details: [
+                    "result": "unchanged",
+                    "trackCount": String(tracks.count),
+                    "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
+                ]
+            )
             return
         }
 
@@ -549,6 +579,26 @@ final class LibraryStore: ObservableObject {
         await database.replaceAll(with: tracks)
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
+        ResonanceDiagnostics.shared.recordDeferred(
+            "library.scan.complete",
+            details: [
+                "result": "indexed",
+                "trackCount": String(tracks.count),
+                "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
+            ]
+        )
+    }
+
+    private nonisolated static func modificationDates(for tracks: [Track]) -> [String: Date] {
+        var result: [String: Date] = [:]
+        result.reserveCapacity(tracks.count)
+        for track in tracks {
+            guard let url = track.fileURL, !track.isRemote else { continue }
+            let path = normalizedPathForInventory(url)
+            result[path] = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? .distantPast
+        }
+        return result
     }
 
     private nonisolated static func collectDocumentInventory(

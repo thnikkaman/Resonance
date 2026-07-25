@@ -9,6 +9,8 @@ struct SettingsView: View {
     @EnvironmentObject private var errorLog: AppErrorLog
     let openLibrary: () -> Void
     @FocusState private var isTextFieldFocused: Bool
+    @State private var accentHexDraft = ""
+    @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
     private let palette = ["A855F7", "3B82F6", "14B8A6", "22C55E", "EAB308", "F97316", "EF4444"]
 
     private var buildDescription: String {
@@ -33,7 +35,7 @@ struct SettingsView: View {
 
                 HStack {
                     ForEach(palette, id: \.self) { hex in
-                        Button { settings.accentHex = hex } label: {
+                        Button { applyAccentHex(hex) } label: {
                             Circle()
                                 .fill(Color(hex: hex) ?? .purple)
                                 .frame(width: 30, height: 30)
@@ -50,7 +52,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Hex Color Code")
                         .font(.subheadline.weight(.semibold))
-                    RGBHexField(hex: $settings.accentHex)
+                    RGBHexField(hex: $accentHexDraft)
                 }
 
                 Toggle("Apply theme color to text", isOn: $settings.applyThemeColorToText)
@@ -404,6 +406,51 @@ struct SettingsView: View {
                 Button(action: openLibrary) { Label("Library", systemImage: "chevron.left") }
             }
         }
+        .onAppear {
+            if accentHexDraft.isEmpty { accentHexDraft = settings.accentHex }
+        }
+        .onChange(of: settings.accentHex) { _, value in
+            if accentHexDraft != value { accentHexDraft = value }
+        }
+        .onChange(of: accentHexDraft) { _, value in
+            guard value.count == 6 else { return }
+            accentHexCommitter.schedule(value) { [weak settings] value in
+                if settings?.accentHex != value { settings?.accentHex = value }
+            }
+        }
+    }
+
+    private func applyAccentHex(_ value: String) {
+        accentHexCommitter.cancel()
+        accentHexDraft = value
+        settings.accentHex = value
+    }
+}
+
+@MainActor
+private final class DebouncedSettingCommitter: ObservableObject {
+    private var task: Task<Void, Never>?
+
+    func schedule(_ value: String, commit: @escaping (String) -> Void) {
+        task?.cancel()
+        task = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 180_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            commit(value)
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+    }
+
+    deinit {
+        task?.cancel()
     }
 }
 

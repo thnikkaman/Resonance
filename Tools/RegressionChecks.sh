@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 61;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 62;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -201,6 +201,12 @@ assert 'Documents/Resonance-Diagnostics.log' in diagnostics
 assert 'playback.timer.tick.begin' in player
 assert 'private nonisolated static func makeNowPlayingArtwork' in player
 assert 'UIImage(data: imageData) ?? UIImage()' in player
+assert 'Self.modificationDates(for: stored)' in library_store
+assert 'library.scan.inventory' in library_store
+assert 'contentVisible' in library_store
+assert 'library.tracks.isEmpty' in library_view
+assert 'DebouncedSettingCommitter' in settings_view
+assert 'accentHexDraft' in settings_view
 assert 'remote.catalogCheck.cancelled' in remote
 assert 'remote.catalogCache.activated' in remote
 assert 'canonicalizeAlbumArtists' in remote

@@ -11,7 +11,7 @@ struct LibraryView: View {
     var body: some View {
         VStack(spacing: 0) {
             Group {
-                if library.isScanning {
+                if library.isScanning && library.tracks.isEmpty {
                     ProgressView("Indexing music…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
