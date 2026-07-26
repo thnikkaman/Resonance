@@ -422,6 +422,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
+        .listRowBackground(Color.clear)
             .background {
                 Color.clear
             }
@@ -746,6 +747,7 @@ private final class DebouncedSettingCommitter: ObservableObject {
 }
 
 private struct SettingsCategory<Content: View>: View {
+    @EnvironmentObject private var settings: AppSettings
     let title: String
     let key: String
     @Binding var isExpanded: Bool
@@ -773,6 +775,14 @@ private struct SettingsCategory<Content: View>: View {
                 Text(title)
                     .font(.headline)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.22), lineWidth: 1)
+            }
+            .listRowBackground(Color.clear)
             .onChange(of: isExpanded) { _, expanded in
                 ResonanceDiagnostics.shared.record(
                     "settings.category.changed",
