@@ -36,6 +36,21 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                Text("Visual style")
+                    .font(.subheadline.weight(.semibold))
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(ResonanceVisualTheme.allCases) { theme in
+                        ThemeChoiceButton(theme: theme) {
+                            settings.visualTheme = theme
+                        }
+                    }
+                }
+
+                Text(settings.visualTheme.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 HStack {
                     ForEach(palette, id: \.self) { hex in
                         Button { applyAccentHex(hex) } label: {
@@ -406,6 +421,8 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .tint(settings.accentColor)
+        .scrollContentBackground(.hidden)
+        .background(settings.themeBackgroundColor.ignoresSafeArea())
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())
@@ -470,6 +487,7 @@ struct SettingsView: View {
     private func applyAccentHex(_ value: String) {
         accentHexCommitter.cancel()
         accentHexDraft = value
+        settings.visualTheme = .custom
         settings.accentHex = value
     }
 }
@@ -1023,10 +1041,72 @@ private struct ThemePreview: View {
                 Image(systemName: "forward.fill")
             }
             .padding(10)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .background(settings.themeSurfaceColor, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(settings.accentColor.opacity(0.35), lineWidth: 1)
+            }
         }
-        .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : Color.primary)
+        .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : settings.themeSecondaryColor)
         .padding(.vertical, 4)
+    }
+}
+
+private struct ThemeChoiceButton: View {
+    @EnvironmentObject private var settings: AppSettings
+    let theme: ResonanceVisualTheme
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(hex: theme.accentHex) ?? .purple,
+                                theme == .custom
+                                    ? Color.secondary.opacity(0.25)
+                                    : (Color(hex: theme.backgroundHex) ?? .black)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 42)
+                    .overlay(alignment: .topTrailing) {
+                        if settings.visualTheme == theme {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white)
+                                .padding(7)
+                        }
+                    }
+
+                Text(theme.title)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                Text(theme.description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(
+                settings.visualTheme == theme
+                    ? settings.accentColor.opacity(0.12)
+                    : Color.secondary.opacity(0.07),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(
+                        settings.visualTheme == theme ? settings.accentColor : .clear,
+                        lineWidth: 1.5
+                    )
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 

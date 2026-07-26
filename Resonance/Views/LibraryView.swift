@@ -51,6 +51,7 @@ struct LibraryView: View {
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
         .searchable(text: $library.searchText)
+        .background(settings.themeBackgroundColor.ignoresSafeArea())
         .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
@@ -644,41 +645,62 @@ struct ArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ArtworkView(
-                    data: liveArtist.artworkData,
-                    embedded: liveArtist.artworkIsEmbedded,
-                    size: 52,
-                    showWarningBorder: false
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 5) {
-                        ScrollableArtistName(liveArtist.name, font: .headline)
-                        if liveArtist.hasMetadataOverride {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.tint)
+            VStack(spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(spacing: 10) {
+                        Button {
+                            if let first = allTracks.first { player.play(first, in: allTracks) }
+                        } label: {
+                            Image(systemName: "play.fill")
+                                .frame(width: 36, height: 36)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(settings.accentColor)
+
+                        Button { player.shuffleAndPlay(allTracks) } label: {
+                            Image(systemName: "shuffle")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    Text("Touch and hold to edit artist metadata")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+
+                    ArtworkView(
+                        data: liveArtist.artworkData,
+                        embedded: liveArtist.artworkIsEmbedded,
+                        size: 158,
+                        showWarningBorder: false
+                    )
+
+                    VStack(spacing: 10) {
+                        Button { artistToEdit = liveArtist } label: {
+                            Image(systemName: "pencil")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button { player.addToQueue(allTracks) } label: {
+                            Image(systemName: "text.append")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 45, coordinateSpace: .local)
-                    .onEnded { value in
-                        guard value.startLocation.y < 120,
-                              value.translation.height > 70,
-                              abs(value.translation.height) > abs(value.translation.width)
-                        else { return }
-                        dismiss()
+                .disabled(allTracks.isEmpty)
+
+                HStack(spacing: 5) {
+                    ScrollableArtistName(liveArtist.name, font: .title3.bold())
+                    if liveArtist.hasMetadataOverride {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.caption)
                     }
-            )
+                }
+                Text("(liveArtist.albums.count) albums • (allTracks.count) tracks")
+                    .font(.caption)
+                    .foregroundStyle(settings.themeSecondaryColor)
+            }
+            .contentShape(Rectangle())
+            .resonanceHeroSurface()
+            .resonanceTopDownDismiss { dismiss() }
             .contextMenu {
                 Button { artistToEdit = liveArtist } label: {
                     Label("Edit Artist Metadata", systemImage: "pencil")
@@ -695,29 +717,6 @@ struct ArtistDetailView: View {
                     Label("Shuffle Artist", systemImage: "shuffle")
                 }
             }
-
-            HStack(spacing: 12) {
-                Button {
-                    if let first = allTracks.first { player.play(first, in: allTracks) }
-                } label: {
-                    Label("Play Artist", systemImage: "play.fill")
-                        .foregroundStyle(settings.contrastingAccentTextColor)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(settings.accentColor)
-
-                Button {
-                    player.shuffleAndPlay(allTracks)
-                } label: {
-                    Label("Shuffle", systemImage: "shuffle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-            .disabled(allTracks.isEmpty)
 
             VStack(spacing: 10) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
@@ -736,7 +735,8 @@ struct ArtistDetailView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
-            .background(.bar)
+            .background(settings.themeSurfaceColor)
+            .resonanceTopDownDismiss { dismiss() }
 
             if settings.artistAlbumLayout == .grid {
                 ScrollView {

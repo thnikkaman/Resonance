@@ -114,6 +114,7 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
+        .background(settings.themeBackgroundColor.ignoresSafeArea())
         .safeAreaInset(edge: .top, spacing: 0) {
             RemoteDownloadOverlay()
         }
@@ -1149,54 +1150,55 @@ private struct RemoteArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 82)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(artist.name).font(.title2.bold())
-                    Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.top)
-            .contentShape(Rectangle())
-            .remoteDetailBackSwipe { dismiss() }
+            VStack(spacing: 10) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(spacing: 10) {
+                        Button {
+                            Task { await remote.playArtist(artist, using: player) }
+                        } label: {
+                            Image(systemName: "play.fill")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(settings.accentColor)
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
-                spacing: 8
-            ) {
-                RemoteArtistActionButton(
-                    title: "Play",
-                    systemImage: "play.fill",
-                    tint: settings.accentColor,
-                    foreground: settings.contrastingAccentTextColor,
-                    isProminent: true
-                ) {
-                    Task { await remote.playArtist(artist, using: player) }
+                        Button {
+                            Task { await remote.playArtist(artist, using: player, shuffle: true) }
+                        } label: {
+                            Image(systemName: "shuffle")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 158)
+
+                    VStack(spacing: 10) {
+                        Button { downloads.requestDownload(allTracks, into: library) } label: {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.teal)
+
+                        Button {
+                            Task { await remote.addToQueue(allTracks, using: player) }
+                        } label: {
+                            Image(systemName: "text.append")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-                RemoteArtistActionButton(
-                    title: "Shuffle",
-                    systemImage: "shuffle",
-                    tint: .indigo,
-                    foreground: .indigo,
-                    isProminent: false
-                ) {
-                    Task { await remote.playArtist(artist, using: player, shuffle: true) }
-                }
-                RemoteArtistActionButton(
-                    title: "Download",
-                    systemImage: "arrow.down.circle.fill",
-                    tint: .teal,
-                    foreground: .teal,
-                    isProminent: false
-                ) {
-                    downloads.requestDownload(allTracks, into: library)
-                }
+                Text(artist.name)
+                    .font(.title3.bold())
+                    .lineLimit(1)
+                Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
+                    .font(.caption)
+                    .foregroundStyle(settings.themeSecondaryColor)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
+            .resonanceHeroSurface()
+            .resonanceTopDownDismiss { dismiss() }
 
             VStack(spacing: 10) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
@@ -1215,7 +1217,8 @@ private struct RemoteArtistDetailView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
-            .background(.bar)
+            .background(settings.themeSurfaceColor)
+            .resonanceTopDownDismiss { dismiss() }
 
             if settings.artistAlbumLayout == .grid {
                 ScrollView {
@@ -1430,83 +1433,106 @@ private struct RemoteAlbumDetailView: View {
     @State private var showingPlaylistPicker = false
     let album: RemoteAlbum
 
-    var body: some View {
-        List {
-            Section {
-                HStack(alignment: .top, spacing: 14) {
-                    RemoteArtwork(url: album.artworkURL, base64: album.artworkBase64, size: 118)
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(album.title).font(.title2.bold())
-                        Text(album.artist).foregroundStyle(.secondary)
-                        if album.releaseYear > 0 { Text(String(album.releaseYear)).foregroundStyle(.secondary) }
-                        Button {
-                            Task { await remote.playAlbum(album, using: player) }
-                        } label: {
-                            Label("Play Album", systemImage: "play.fill")
-                                .foregroundStyle(settings.contrastingAccentTextColor)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(settings.accentColor)
-                        Button {
-                            downloads.requestDownload(album.tracks, into: library)
-                        } label: {
-                            Label("Download Album", systemImage: "arrow.down.circle")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
+    private var albumHero: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(spacing: 10) {
+                    Button {
+                        Task { await remote.playAlbum(album, using: player) }
+                    } label: {
+                        Image(systemName: "play.fill")
+                            .frame(width: 38, height: 38)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(settings.accentColor)
+
+                    Button { downloads.requestDownload(album.tracks, into: library) } label: {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.teal)
                 }
-                .padding(.vertical, 6)
+
+                RemoteArtwork(url: album.artworkURL, base64: album.artworkBase64, size: 176)
+
+                VStack(spacing: 10) {
+                    Button {
+                        Task { await remote.playNext(album.tracks, using: player) }
+                    } label: {
+                        Image(systemName: "text.insert")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        Task { await remote.addToQueue(album.tracks, using: player) }
+                    } label: {
+                        Image(systemName: "text.append")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
 
-            Section("Tracks") {
-                ForEach(album.tracks) { track in
-                    Button {
-                        Task { await remote.play(track, in: album.tracks, using: player) }
-                    } label: {
-                        RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
-                    }
-                    .buttonStyle(.plain)
-                    .remoteTrackSwipeActions(track)
-                    .contextMenu {
-                        Button { Task { await remote.playNext([track], using: player) } } label: {
-                            Label("Play Next", systemImage: "text.insert")
+            Text(album.title)
+                .font(.title3.bold())
+                .lineLimit(1)
+            Text(album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist)
+                .font(.caption)
+                .foregroundStyle(settings.themeSecondaryColor)
+                .lineLimit(1)
+        }
+        .resonanceHeroSurface()
+        .resonanceTopDownDismiss { dismiss() }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            albumHero
+            List {
+                Section("Tracks") {
+                    ForEach(album.tracks) { track in
+                        Button {
+                            Task { await remote.play(track, in: album.tracks, using: player) }
+                        } label: {
+                            RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
                         }
-                        Button { Task { await remote.addToQueue([track], using: player) } } label: {
-                            Label("Add to End of Queue", systemImage: "text.append")
-                        }
-                        Button { downloads.requestDownload([track], into: library) } label: {
-                            Label("Download Track", systemImage: "arrow.down.circle")
-                        }
-                        if settings.streamBackend == .subsonic {
-                            Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
-                                Label(track.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: track.isFavorite ? "heart.slash" : "heart")
+                        .buttonStyle(.plain)
+                        .remoteTrackSwipeActions(track)
+                        .contextMenu {
+                            Button { Task { await remote.playNext([track], using: player) } } label: {
+                                Label("Play Next", systemImage: "text.insert")
                             }
-                            Button {
-                                playlistItems = [track]
-                                showingPlaylistPicker = true
-                            } label: {
-                                Label("Add to Server Playlist", systemImage: "music.note.list")
+                            Button { Task { await remote.addToQueue([track], using: player) } } label: {
+                                Label("Add to End of Queue", systemImage: "text.append")
+                            }
+                            Button { downloads.requestDownload([track], into: library) } label: {
+                                Label("Download Track", systemImage: "arrow.down.circle")
+                            }
+                            if settings.streamBackend == .subsonic {
+                                Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
+                                    Label(track.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: track.isFavorite ? "heart.slash" : "heart")
+                                }
+                                Button {
+                                    playlistItems = [track]
+                                    showingPlaylistPicker = true
+                                } label: {
+                                    Label("Add to Server Playlist", systemImage: "music.note.list")
+                                }
                             }
                         }
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(settings.themeBackgroundColor)
         }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 45)
-                .onEnded { value in
-                    guard value.startLocation.y < 120,
-                          value.translation.height > 70,
-                          abs(value.translation.height) > abs(value.translation.width)
-                    else { return }
-                    dismiss()
-                }
-        )
+        .resonanceTopDownDismiss { dismiss() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

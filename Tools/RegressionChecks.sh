@@ -26,6 +26,7 @@ diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text
 error_log = (root / 'Resonance/Services/AppErrorLog.swift').read_text()
 streaming = (root / 'Resonance/Views/StreamingLibraryView.swift').read_text()
 library_view = (root / 'Resonance/Views/LibraryView.swift').read_text()
+album_detail = (root / 'Resonance/Views/AlbumDetailView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
 now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
@@ -35,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 80;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 81;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -114,8 +115,8 @@ assert 'compilationAlbumKeys' in remote
 assert 'Various Artists' in remote
 assert 'RemotePlaylistCollectionView' in streaming
 assert 'RemotePlaylistPickerSheet' in streaming
-assert 'RemoteArtistActionButton' in streaming
-assert 'foreground: settings.contrastingAccentTextColor' in streaming
+assert 'struct RemoteArtistActionButton' in streaming
+assert 'settings.contrastingAccentTextColor' in streaming
 assert 'Play Album' in streaming and 'Play All Albums' in streaming
 assert 'VerticalArtistIndex' in streaming
 assert 'RemoteAlbumCollectionView' in streaming
@@ -318,9 +319,23 @@ assert 'dragTranslation' in root_view
 assert 'highPriorityGesture' in root_view
 assert 'remoteTrackSwipeActions' in streaming
 assert 'private struct RemoteTrackSwipeActions' in streaming
-assert 'remoteDetailBackSwipe' in streaming
+assert 'resonanceTopDownDismiss' in streaming
+assert 'resonanceTopDownDismiss' in library_view
+assert 'resonanceTopDownDismiss' in album_detail
+assert 'resonanceHeroSurface' in root_view
+assert 'ResonanceVisualTheme' in settings
+assert 'Nocturne Glass' in settings
+assert 'Gallery Light' in settings
+assert 'Color Bloom' in settings
+assert 'var visualTheme' in settings
+assert 'Visual style' in settings_view
+assert 'themeBackgroundColor' in settings_view
+assert 'size: 158' in streaming
+assert 'size: 176' in streaming and 'size: 176' in album_detail
+assert '.scrollContentBackground(.hidden)' in streaming and '.scrollContentBackground(.hidden)' in album_detail
+assert 'onDock: @escaping' in root_view
+assert 'onDock(value.translation.height < 0 ? .top : .bottom)' in root_view
 assert 'browseReady' in streaming
-assert 'startLocation.y < 120' in library_view
 assert 'startLocation.y < 120' in streaming
 assert 'private struct MetadataTextField' in smart
 assert 'Enter track title' in smart

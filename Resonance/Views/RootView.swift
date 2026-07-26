@@ -36,6 +36,8 @@ struct RootView: View {
                     selectedTab = .playing
                 } onUndock: {
                     miniPlayerDock = .top
+                } onDock: { dock in
+                    miniPlayerDock = dock
                 }
                 .padding(.leading, 2)
             }
@@ -46,6 +48,8 @@ struct RootView: View {
                     selectedTab = .playing
                 } onUndock: {
                     miniPlayerDock = .top
+                } onDock: { dock in
+                    miniPlayerDock = dock
                 }
                 .padding(.trailing, 2)
             }
@@ -128,7 +132,7 @@ private struct ResonanceTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 7)
         .padding(.bottom, 7)
-        .background(Color(uiColor: .systemBackground))
+        .background(settings.themeSurfaceColor)
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.primary.opacity(0.12))
@@ -227,6 +231,23 @@ extension View {
             Color.clear.frame(height: 96)
         }
     }
+
+    func resonanceTopDownDismiss(_ action: @escaping () -> Void) -> some View {
+        highPriorityGesture(
+            DragGesture(minimumDistance: 45, coordinateSpace: .local)
+                .onEnded { value in
+                    guard value.startLocation.y < 150,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    action()
+                }
+        )
+    }
+
+    func resonanceHeroSurface() -> some View {
+        modifier(ResonanceHeroSurface())
+    }
 }
 
 private struct ResonanceThemeTextSurface: ViewModifier {
@@ -234,9 +255,32 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .background(settings.themeBackgroundColor.ignoresSafeArea())
+            .tint(settings.accentColor)
             .foregroundStyle(
                 settings.applyThemeColorToText ? settings.accentColor : Color.primary
             )
+    }
+}
+
+private struct ResonanceHeroSurface: ViewModifier {
+    @EnvironmentObject private var settings: AppSettings
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                settings.themeSurfaceColor.opacity(settings.visualTheme == .galleryLight ? 0.96 : 0.9),
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.25), lineWidth: 1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
     }
 }
 
@@ -316,6 +360,7 @@ private struct MiniPlayerEdgeHandle: View {
   let edge: MiniPlayerDock
   let openNowPlaying: () -> Void
   let onUndock: () -> Void
+  let onDock: (MiniPlayerDock) -> Void
 
   var body: some View {
     if isVisible, player.currentTrack != nil {
@@ -345,10 +390,16 @@ private struct MiniPlayerEdgeHandle: View {
             state = value.translation
           }
           .onEnded { value in
+            let horizontal = abs(value.translation.width)
+            let vertical = abs(value.translation.height)
             let returnsInward = edge == .leading
               ? value.translation.width > 35
               : value.translation.width < -35
-            if returnsInward { onUndock() }
+            if vertical > horizontal, vertical > 70 {
+              onDock(value.translation.height < 0 ? .top : .bottom)
+            } else if returnsInward {
+              onUndock()
+            }
           }
       )
       .accessibilityLabel("Show mini player")

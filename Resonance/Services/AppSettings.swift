@@ -15,10 +15,81 @@ enum RemoteLibraryBackend: String, CaseIterable, Identifiable {
     }
 }
 
+enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
+    case nocturne
+    case galleryLight
+    case colorBloom
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .nocturne: "Nocturne Glass"
+        case .galleryLight: "Gallery Light"
+        case .colorBloom: "Color Bloom"
+        case .custom: "Custom Accent"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .nocturne: "Cinematic graphite with violet glass"
+        case .galleryLight: "Warm ivory with editorial terracotta"
+        case .colorBloom: "Deep navy with luminous color"
+        case .custom: "Use your accent color with system surfaces"
+        }
+    }
+
+    var accentHex: String {
+        switch self {
+        case .nocturne: "A78BFA"
+        case .galleryLight: "C55A32"
+        case .colorBloom: "FF89B5"
+        case .custom: "A855F7"
+        }
+    }
+
+    var backgroundHex: String {
+        switch self {
+        case .nocturne: "0B1020"
+        case .galleryLight: "F5F0E8"
+        case .colorBloom: "07142B"
+        case .custom: "000000"
+        }
+    }
+
+    var surfaceHex: String {
+        switch self {
+        case .nocturne: "151A2C"
+        case .galleryLight: "FFFDF8"
+        case .colorBloom: "10254A"
+        case .custom: "000000"
+        }
+    }
+
+    var secondaryHex: String {
+        switch self {
+        case .nocturne: "95A3C6"
+        case .galleryLight: "596477"
+        case .colorBloom: "79D9FF"
+        case .custom: "000000"
+        }
+    }
+
+    var recommendedColorScheme: ColorScheme {
+        switch self {
+        case .galleryLight, .custom: .light
+        case .nocturne, .colorBloom: .dark
+        }
+    }
+}
+
 
 @MainActor
 final class AppSettings: ObservableObject {
     @AppStorage("appearance") private var appearanceRaw = "system"
+    @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
     @AppStorage("accentHex") var accentHex = "A855F7"
     @AppStorage("applyThemeColorToText") var applyThemeColorToText = false
     @AppStorage("albumLayout") private var albumLayoutRaw = AlbumLayout.grid.rawValue
@@ -91,6 +162,11 @@ final class AppSettings: ObservableObject {
         set { appearanceRaw = newValue; objectWillChange.send() }
     }
 
+    var visualTheme: ResonanceVisualTheme {
+        get { ResonanceVisualTheme(rawValue: visualThemeRaw) ?? .nocturne }
+        set { visualThemeRaw = newValue.rawValue; objectWillChange.send() }
+    }
+
     var albumLayout: AlbumLayout {
         get { AlbumLayout(rawValue: albumLayoutRaw) ?? .grid }
         set { albumLayoutRaw = newValue.rawValue; objectWillChange.send() }
@@ -120,7 +196,7 @@ final class AppSettings: ObservableObject {
         switch appearanceRaw {
         case "light": .light
         case "dark": .dark
-        default: nil
+        default: visualTheme.recommendedColorScheme
         }
     }
 
@@ -129,10 +205,28 @@ final class AppSettings: ObservableObject {
         return String(cleaned.prefix(6)).padding(toLength: 6, withPad: "0", startingAt: 0)
     }
 
-    var accentColor: Color { Color(hex: normalizedAccentHex) ?? .purple }
+    var accentColor: Color {
+        Color(hex: visualTheme == .custom ? normalizedAccentHex : visualTheme.accentHex) ?? .purple
+    }
+
+    var themeBackgroundColor: Color {
+        guard visualTheme != .custom else { return Color(uiColor: .systemBackground) }
+        return Color(hex: visualTheme.backgroundHex) ?? Color(uiColor: .systemBackground)
+    }
+
+    var themeSurfaceColor: Color {
+        guard visualTheme != .custom else { return Color(uiColor: .secondarySystemBackground) }
+        return Color(hex: visualTheme.surfaceHex) ?? Color(uiColor: .secondarySystemBackground)
+    }
+
+    var themeSecondaryColor: Color {
+        guard visualTheme != .custom else { return .secondary }
+        return Color(hex: visualTheme.secondaryHex) ?? .secondary
+    }
 
     var contrastingAccentTextColor: Color {
-        guard let value = UInt64(normalizedAccentHex, radix: 16) else { return .white }
+        let source = visualTheme == .custom ? normalizedAccentHex : visualTheme.accentHex
+        guard let value = UInt64(source, radix: 16) else { return .white }
         let r = 255 - Int((value >> 16) & 0xFF)
         let g = 255 - Int((value >> 8) & 0xFF)
         let b = 255 - Int(value & 0xFF)

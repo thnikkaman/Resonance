@@ -33,63 +33,93 @@ struct AlbumDetailView: View {
         )
     }
 
-    var body: some View {
-        List {
-            Section {
-                VStack(spacing: 12) {
-                    ArtworkView(
-                        data: liveAlbum.artworkData,
-                        embedded: liveAlbum.artworkIsEmbedded,
-                        size: 220
-                    )
-                    Text(liveAlbum.title).font(.title2.bold())
-                    Text(liveAlbum.artist).foregroundStyle(.secondary)
-                    if liveAlbum.releaseYear > 0 {
-                        Text(String(liveAlbum.releaseYear))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+    private var albumHero: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(spacing: 10) {
                     Button {
                         if let first = liveAlbum.tracks.first {
                             player.play(first, in: liveAlbum.tracks)
                         }
                     } label: {
-                        Label("Play Album", systemImage: "play.fill")
-                            .foregroundStyle(settings.contrastingAccentTextColor)
-                            .frame(maxWidth: .infinity)
+                        Image(systemName: "play.fill")
+                            .frame(width: 38, height: 38)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(settings.accentColor)
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .contextMenu {
-                    Button { showingMetadataEditor = true } label: {
-                        Label("Edit Album Metadata", systemImage: "pencil")
+
+                    Button { library.toggleFavorite(liveAlbum) } label: {
+                        Image(systemName: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart")
+                            .frame(width: 38, height: 38)
                     }
-                    Divider()
-                    Button { showingRemovalOptions = true } label: {
-                        Label("Remove or Delete Album", systemImage: "trash")
-                    }
+                    .buttonStyle(.bordered)
                 }
-                .listRowBackground(Color.clear)
+
+                ArtworkView(
+                    data: liveAlbum.artworkData,
+                    embedded: liveAlbum.artworkIsEmbedded,
+                    size: 176
+                )
+
+                VStack(spacing: 10) {
+                    Button { player.playNext(liveAlbum.tracks) } label: {
+                        Image(systemName: "text.insert")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button { player.addToQueue(liveAlbum.tracks) } label: {
+                        Image(systemName: "text.append")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
 
-            Section("Tracks") {
-                ForEach(liveAlbum.tracks) { track in
-                    Button { player.play(track, in: liveAlbum.tracks) } label: {
-                        TrackListRow(
-                            track: track,
-                            leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–",
-                            showsArtwork: true,
-                            large: false,
-                            showsAlbum: false
-                        )
+            Text(liveAlbum.title)
+                .font(.title3.bold())
+                .lineLimit(1)
+            Text(liveAlbum.artist)
+                .font(.caption)
+                .foregroundStyle(settings.themeSecondaryColor)
+        }
+        .resonanceHeroSurface()
+        .contentShape(Rectangle())
+        .resonanceTopDownDismiss { dismiss() }
+        .contextMenu {
+            Button { showingMetadataEditor = true } label: {
+                Label("Edit Album Metadata", systemImage: "pencil")
+            }
+            Divider()
+            Button { showingRemovalOptions = true } label: {
+                Label("Remove or Delete Album", systemImage: "trash")
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            albumHero
+            List {
+                Section("Tracks") {
+                    ForEach(liveAlbum.tracks) { track in
+                        Button { player.play(track, in: liveAlbum.tracks) } label: {
+                            TrackListRow(
+                                track: track,
+                                leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–",
+                                showsArtwork: true,
+                                large: false,
+                                showsAlbum: false
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .trackLibraryActions(track)
                     }
-                    .buttonStyle(.plain)
-                    .trackLibraryActions(track)
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(settings.themeBackgroundColor)
         }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
