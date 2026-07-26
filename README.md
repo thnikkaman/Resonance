@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **90**
+Build: **91**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -118,7 +118,7 @@ Alpha 3.7.4 build 84 keeps the download banner stationary while Streaming conten
 
 Alpha 3.7.4 build 85 fixes the runtime issues shown in the 02:11 recording. Streaming artist and album section letters no longer paint opaque full-width bars beside the alphabet index. Artist and album holds now use a high-priority long-press recognizer, provide tactile feedback, and enter the existing inline circular multi-selection mode without navigating. Now Playing renders the same active full-screen theme as Library, Streaming, and Settings. Theme cards have a complete hit target, no longer compete with the Settings keyboard-dismiss tap, and preview image-backed styles more clearly. Electronic and Psychedelic use newly generated, more colorful high-detail circuit-control and liquid-fractal artwork, with stronger but still layered background visibility. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
 
-Alpha 3.7.4 build 90 removes custom image rendering from live navigation backdrops after the latest recording showed the image still covering controls and album artwork. Image previews and theme selection remain in Settings, while Library, Streaming, the mini-player, hero cards, menus, and detail panes use gradient-only live surfaces so no image layer can obscure or intercept the interface. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+Alpha 3.7.4 build 91 adds online artwork lookup to artist, album, and track metadata editors. Search Online Artwork queries Apple iTunes, Deezer, and MusicBrainz Cover Art Archive through public HTTPS APIs, presents themed source-labeled suggestions, and offers Apply to App or Save to Files. Apply to App persists a Resonance artwork override and updates the editor preview; Save to Files writes artwork through the existing direct FLAC/MP3 tag writer and leaves unsupported formats protected by the existing error path. The picker dismisses after a successful selection. Build 90's live gradient-only navigation surfaces remain included.
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 

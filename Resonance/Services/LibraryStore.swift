@@ -351,6 +351,26 @@ final class LibraryStore: ObservableObject {
         metadataOverrides[track.id] != nil
     }
 
+    func applyArtworkToApp(for trackID: UUID, data: Data) {
+        guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        var override = metadataOverrides[trackID] ?? TrackMetadataOverride()
+        override.artworkData = data
+        override.hasArtworkOverride = true
+        metadataOverrides[trackID] = override
+        tracks[index] = override.applying(to: tracks[index])
+        persistMetadataOverrides()
+    }
+
+    func applyArtworkToApp(forAlbumTrackIDs trackIDs: [UUID], data: Data) {
+        for trackID in trackIDs { applyArtworkToApp(for: trackID, data: data) }
+    }
+
+    func applyArtworkToApp(for artist: Artist, data: Data) {
+        let key = artistOverrideKey(name: artist.name, useAlbumArtist: artist.usesAlbumArtist)
+        artistMetadataOverrides[key] = ArtistMetadataOverride(artworkData: data, hasArtworkOverride: true)
+        persistArtistMetadataOverrides()
+    }
+
     func updateTrackMetadata(
         trackID: UUID,
         title: String,

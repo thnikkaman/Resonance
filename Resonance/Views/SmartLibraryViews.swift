@@ -520,6 +520,7 @@ struct TrackMetadataEditorSheet: View {
     @State private var artworkData: Data?
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showingArtworkSearch = false
     @State private var isSaving = false
     @State private var saveError: String?
 
@@ -586,6 +587,12 @@ struct TrackMetadataEditorSheet: View {
 
                     PhotosPicker(selection: $selectedPhoto, matching: .images) {
                         Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
+                    }
+
+                    Button {
+                        showingArtworkSearch = true
+                    } label: {
+                        Label("Search Online Artwork", systemImage: "globe")
                     }
 
                     Button(role: .destructive) {
@@ -658,6 +665,31 @@ struct TrackMetadataEditorSheet: View {
                     replaceArtwork = true
                 }
             }
+            .sheet(isPresented: $showingArtworkSearch) {
+                OnlineArtworkSearchSheet(
+                    artist: artist,
+                    album: album,
+                    onApplyToApp: { data in
+                        artworkData = data
+                        replaceArtwork = true
+                        library.applyArtworkToApp(for: track.id, data: data)
+                    },
+                    onSaveToFiles: { data in
+                        await library.updateTrackMetadata(
+                            trackID: track.id,
+                            title: title,
+                            artist: artist,
+                            albumArtist: albumArtist.isEmpty ? artist : albumArtist,
+                            album: album,
+                            trackNumber: Int(trackNumber) ?? 0,
+                            discNumber: Int(discNumber) ?? 1,
+                            releaseYear: Int(releaseYear) ?? 0,
+                            artworkData: data,
+                            replaceArtwork: true
+                        )
+                    }
+                )
+            }
             .alert("Could Not Save Metadata", isPresented: Binding(
                 get: { saveError != nil },
                 set: { if !$0 { saveError = nil } }
@@ -681,6 +713,7 @@ struct AlbumMetadataEditorSheet: View {
     @State private var artworkData: Data?
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showingArtworkSearch = false
     @State private var isSaving = false
     @State private var saveError: String?
 
@@ -751,6 +784,12 @@ struct AlbumMetadataEditorSheet: View {
                         Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
                     }
 
+                    Button {
+                        showingArtworkSearch = true
+                    } label: {
+                        Label("Search Online Artwork", systemImage: "globe")
+                    }
+
                     Button(role: .destructive) {
                         artworkData = nil
                         replaceArtwork = true
@@ -805,6 +844,27 @@ struct AlbumMetadataEditorSheet: View {
                     replaceArtwork = true
                 }
             }
+            .sheet(isPresented: $showingArtworkSearch) {
+                OnlineArtworkSearchSheet(
+                    artist: albumArtist,
+                    album: albumTitle,
+                    onApplyToApp: { data in
+                        artworkData = data
+                        replaceArtwork = true
+                        library.applyArtworkToApp(forAlbumTrackIDs: album.tracks.map(\.id), data: data)
+                    },
+                    onSaveToFiles: { data in
+                        await library.updateAlbumMetadata(
+                            trackIDs: album.tracks.map(\.id),
+                            album: albumTitle,
+                            albumArtist: albumArtist,
+                            releaseYear: Int(releaseYear) ?? 0,
+                            artworkData: data,
+                            replaceArtwork: true
+                        )
+                    }
+                )
+            }
             .alert("Could Not Save Metadata", isPresented: Binding(
                 get: { saveError != nil },
                 set: { if !$0 { saveError = nil } }
@@ -828,6 +888,7 @@ struct ArtistMetadataEditorSheet: View {
     @State private var replaceArtwork = false
     @State private var clearArtworkOverride = false
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showingArtworkSearch = false
     @State private var isSaving = false
     @State private var saveError: String?
 
@@ -964,6 +1025,12 @@ struct ArtistMetadataEditorSheet: View {
                         Label("Choose Artist Artwork from Photos", systemImage: "person.crop.square.badge.plus")
                     }
 
+                    Button {
+                        showingArtworkSearch = true
+                    } label: {
+                        Label("Search Online Artwork", systemImage: "globe")
+                    }
+
                     Button(role: .destructive) {
                         artworkData = nil
                         replaceArtwork = true
@@ -1024,6 +1091,27 @@ struct ArtistMetadataEditorSheet: View {
                     replaceArtwork = true
                     clearArtworkOverride = false
                 }
+            }
+            .sheet(isPresented: $showingArtworkSearch) {
+                OnlineArtworkSearchSheet(
+                    artist: artistName,
+                    album: nil,
+                    onApplyToApp: { data in
+                        artworkData = data
+                        replaceArtwork = true
+                        clearArtworkOverride = false
+                        library.applyArtworkToApp(for: artist, data: data)
+                    },
+                    onSaveToFiles: { data in
+                        await library.updateArtistMetadata(
+                            artist: artist,
+                            name: artistName,
+                            artworkData: data,
+                            replaceArtwork: true,
+                            clearArtworkOverride: false
+                        )
+                    }
+                )
             }
             .alert("Could Not Save Metadata", isPresented: Binding(
                 get: { saveError != nil },
