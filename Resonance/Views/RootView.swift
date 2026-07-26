@@ -309,7 +309,6 @@ struct ResonanceThemeSurfaceBackdrop: View {
                 Image(imageName)
                     .resizable()
                     .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                     // Keep image themes decorative on content surfaces. Detail
                     // controls and rows must remain readable over high-detail art.
