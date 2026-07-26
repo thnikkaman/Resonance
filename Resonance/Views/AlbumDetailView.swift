@@ -37,22 +37,19 @@ struct AlbumDetailView: View {
         VStack(spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(spacing: 10) {
-                    Button {
+                    ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         if let first = liveAlbum.tracks.first {
                             player.play(first, in: liveAlbum.tracks)
                         }
-                    } label: {
-                        Image(systemName: "play.fill")
-                            .frame(width: 38, height: 38)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.accentColor)
-
-                    Button { library.toggleFavorite(liveAlbum) } label: {
-                        Image(systemName: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart")
-                            .frame(width: 38, height: 38)
+                    ResonanceHeroActionButton(
+                        title: library.isAlbumFavorite(liveAlbum) ? "Unfavorite" : "Favorite",
+                        systemImage: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart",
+                        tint: settings.accentColor,
+                        prominent: false
+                    ) {
+                        library.toggleFavorite(liveAlbum)
                     }
-                    .buttonStyle(.bordered)
                 }
 
                 ArtworkView(
@@ -62,17 +59,12 @@ struct AlbumDetailView: View {
                 )
 
                 VStack(spacing: 10) {
-                    Button { player.playNext(liveAlbum.tracks) } label: {
-                        Image(systemName: "text.insert")
-                            .frame(width: 38, height: 38)
+                    ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
+                        player.playNext(liveAlbum.tracks)
                     }
-                    .buttonStyle(.bordered)
-
-                    Button { player.addToQueue(liveAlbum.tracks) } label: {
-                        Image(systemName: "text.append")
-                            .frame(width: 38, height: 38)
+                    ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                        player.addToQueue(liveAlbum.tracks)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
 

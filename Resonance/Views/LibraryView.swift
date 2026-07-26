@@ -51,46 +51,42 @@ struct LibraryView: View {
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
         .searchable(text: $library.searchText)
-        .background(settings.themeBackgroundColor.ignoresSafeArea())
+        .background(settings.themeBackgroundGradient.ignoresSafeArea())
         .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
-                Button { showingLibraryOptions = true } label: {
-                    Label("Library Options", systemImage: "slider.horizontal.3")
-                        .labelStyle(.titleAndIcon)
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Library view and sort options",
+                    systemImage: "slider.horizontal.3"
+                ) {
+                    showingLibraryOptions = true
                 }
-                .accessibilityLabel("Library view and sort options")
 
                 NavigationLink {
                     PlaylistCollectionView()
                 } label: {
-                    Label("Playlists", systemImage: "music.note.list")
-                        .labelStyle(.titleAndIcon)
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .foregroundStyle(settings.contrastingAccentTextColor)
-                        .background(settings.accentColor, in: Capsule())
+                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
                 }
                 .buttonStyle(.plain)
+                .help("Open playlists")
                 .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Scan Resonance Music folder",
+                    systemImage: "arrow.clockwise"
+                ) {
                     Task { await library.scanSharedMusicFolder(forceMetadataRefresh: true) }
-                } label: {
-                    if library.isScanning {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                    }
                 }
                 .disabled(library.isScanning)
-                .accessibilityLabel("Scan Resonance Music folder")
 
-                Button { importing = true } label: { Image(systemName: "plus") }
-                    .accessibilityLabel("Add music to library")
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Add music to library",
+                    systemImage: "plus"
+                ) {
+                    importing = true
+                }
             }
         }
         .sheet(isPresented: $showingLibraryOptions) {
@@ -648,20 +644,12 @@ struct ArtistDetailView: View {
             VStack(spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(spacing: 10) {
-                        Button {
+                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             if let first = allTracks.first { player.play(first, in: allTracks) }
-                        } label: {
-                            Image(systemName: "play.fill")
-                                .frame(width: 36, height: 36)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(settings.accentColor)
-
-                        Button { player.shuffleAndPlay(allTracks) } label: {
-                            Image(systemName: "shuffle")
-                                .frame(width: 36, height: 36)
+                        ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
+                            player.shuffleAndPlay(allTracks)
                         }
-                        .buttonStyle(.bordered)
                     }
 
                     ArtworkView(
@@ -672,17 +660,12 @@ struct ArtistDetailView: View {
                     )
 
                     VStack(spacing: 10) {
-                        Button { artistToEdit = liveArtist } label: {
-                            Image(systemName: "pencil")
-                                .frame(width: 36, height: 36)
+                        ResonanceHeroActionButton(title: "Edit", systemImage: "pencil", tint: settings.accentColor, prominent: false) {
+                            artistToEdit = liveArtist
                         }
-                        .buttonStyle(.bordered)
-
-                        Button { player.addToQueue(allTracks) } label: {
-                            Image(systemName: "text.append")
-                                .frame(width: 36, height: 36)
+                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                            player.addToQueue(allTracks)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .disabled(allTracks.isEmpty)

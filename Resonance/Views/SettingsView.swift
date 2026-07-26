@@ -422,7 +422,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
-        .background(settings.themeBackgroundColor.ignoresSafeArea())
+            .background(settings.themeBackgroundGradient.ignoresSafeArea())
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())

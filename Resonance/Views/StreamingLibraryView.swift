@@ -68,8 +68,9 @@ struct StreamingLibraryView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
-                    RemoteSearchField(text: $remote.searchText)
+                    if remote.hasConnectionIssue {
+                        RemoteServerHeader()
+                    }
                     if browseReady {
                         Group {
                             switch remote.grouping {
@@ -114,21 +115,24 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
-        .background(settings.themeBackgroundColor.ignoresSafeArea())
+        .background(settings.themeBackgroundGradient.ignoresSafeArea())
         .safeAreaInset(edge: .top, spacing: 0) {
             RemoteDownloadOverlay()
         }
         .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
-                Button(action: openLibrary) {
-                    Image(systemName: "chevron.left")
-                }
-                .accessibilityLabel("Open local library")
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open local library",
+                    systemImage: "chevron.left",
+                    action: openLibrary
+                )
 
-                Button { showingOptions = true } label: {
-                    Label("Library Options", systemImage: "slider.horizontal.3")
-                        .labelStyle(.titleAndIcon)
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Streaming library view and sort options",
+                    systemImage: "slider.horizontal.3"
+                ) {
+                    showingOptions = true
                 }
 
                 Menu {
@@ -138,17 +142,24 @@ struct StreamingLibraryView: View {
                         Label("Playlists", systemImage: "music.note.list")
                     }
                 } label: {
-                    Image(systemName: "music.note.list")
+                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
                 }
                 .disabled(settings.streamBackend != .subsonic)
+                .help("Open playlists")
+                .accessibilityLabel("Open playlists")
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(action: openSettings) { Image(systemName: "server.rack") }
-                Button {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open streaming settings",
+                    systemImage: "server.rack",
+                    action: openSettings
+                )
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Refresh streaming library",
+                    systemImage: "arrow.clockwise"
+                ) {
                     Task { await remote.refresh(using: settings) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
                 }
                 .disabled(remote.isLoading || settings.streamHost.isEmpty)
             }
@@ -171,7 +182,7 @@ struct StreamingLibraryView: View {
                 "streaming.view.appeared",
                 details: [
                     "grouping": remote.grouping.rawValue,
-                    "connectionInfoExpanded": String(settings.streamingConnectionInfoExpanded)
+                    "connectionIssue": String(remote.hasConnectionIssue)
                 ]
             )
         }
@@ -195,6 +206,7 @@ struct StreamingLibraryView: View {
 }
 
 private struct RemoteDownloadOverlay: View {
+    @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var downloads: RemoteDownloadManager
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var library: LibraryStore
@@ -229,7 +241,7 @@ private struct RemoteDownloadOverlay: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(.bar)
+                .background(settings.themeSurfaceGradient)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("A download is ready to resume")
             }
@@ -253,43 +265,8 @@ private struct RemoteDownloadOverlay: View {
     }
 }
 
-private struct RemoteSearchField: View {
-    @EnvironmentObject private var settings: AppSettings
-    @Binding var text: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField("Search remote music", text: $text)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-
-            if !text.isEmpty {
-                Button {
-                    text = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear remote search")
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(minHeight: 42)
-        .background(.bar, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .tint(settings.accentColor)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Search remote music")
-    }
-}
-
 private struct RemoteDownloadBanner: View {
+    @EnvironmentObject private var settings: AppSettings
     let title: String
     let completed: Int
     let total: Int
@@ -377,7 +354,7 @@ private struct RemoteDownloadBanner: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(settings.themeSurfaceGradient)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Download queue, \(completed) of \(total) completed")
     }
@@ -453,72 +430,50 @@ private struct RemoteDownloadQueueRow: View {
 private struct RemoteServerHeader: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
-    @Binding var isExpanded: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                isExpanded.toggle()
-            } label: {
-                HStack(alignment: .center, spacing: 10) {
-                    Image(systemName: remote.isLoading ? "network.badge.shield.half.filled" : "externaldrive.connected.to.line.below")
-                        .font(.title2)
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Streaming connection issue")
+                        .font(.headline)
+                    Text(remote.serverName)
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(settings.accentColor)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(remote.serverName)
-                            .font(.headline)
-                            .lineLimit(1)
-                        Text(remote.grouping.rawValue)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(settings.accentColor)
-                    }
-                    Spacer()
-                    if remote.isLoading { ProgressView() }
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+                Spacer()
             }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(settings.streamBackend.shortName)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(settings.accentColor)
-                    Text(remote.connectionStatus)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    Text(remote.catalogSyncStatus)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(settings.streamBackend.shortName)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(settings.accentColor)
+                Text(remote.connectionStatus)
+                    .font(.caption)
+                    .foregroundStyle(settings.themeSecondaryColor)
+                    .lineLimit(2)
+                Text(remote.catalogSyncStatus)
+                    .font(.caption2)
+                    .foregroundStyle(settings.themeSecondaryColor)
+                    .lineLimit(2)
+                if let lastRefresh = remote.lastRefresh {
+                    Text("Last successful update \(lastRefresh.formatted(date: .abbreviated, time: .shortened))")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    if let lastRefresh = remote.lastRefresh {
-                        Text("Updated \(lastRefresh.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                        .foregroundStyle(settings.themeSecondaryColor)
                 }
-                .padding(.top, 4)
             }
+            .padding(.top, 4)
         }
         .tint(settings.accentColor)
         .padding(.horizontal)
         .padding(.vertical, 10)
-        .background(.bar)
+        .background(settings.themeSurfaceGradient)
         .zIndex(1)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Streaming connection information")
-        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-        .onChange(of: isExpanded) { _, expanded in
-            ResonanceDiagnostics.shared.recordDeferred(
-                "streaming.connectionInfo.changed",
-                details: ["expanded": String(expanded)]
-            )
-        }
+        .accessibilityLabel("Streaming connection issue")
     }
 }
 
@@ -675,12 +630,12 @@ private struct RemoteArtistCollectionView: View {
                     LazyVStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 14 : 0) {
                         ForEach(sections, id: \.key) { section in
                             VStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 8 : 0) {
-                                Text(section.key)
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
-                                    .background(.background)
+                                    Text(section.key)
+                                        .font(.headline)
+                                        .foregroundStyle(settings.themeSecondaryColor)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
+                                        .background(settings.themeBackgroundGradient)
 
                                 if settings.albumLayout == .grid {
                                     LazyVGrid(columns: columns, spacing: 18) {
@@ -736,7 +691,6 @@ private struct RemoteArtistCollectionView: View {
                                                 Label("Select Artists to Download", systemImage: "arrow.down.circle")
                                             }
                                         }
-                                        Divider()
                                     }
                                 }
                             }
@@ -1153,41 +1107,23 @@ private struct RemoteArtistDetailView: View {
             VStack(spacing: 10) {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(spacing: 10) {
-                        Button {
+                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             Task { await remote.playArtist(artist, using: player) }
-                        } label: {
-                            Image(systemName: "play.fill")
-                                .frame(width: 36, height: 36)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(settings.accentColor)
-
-                        Button {
+                        ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
                             Task { await remote.playArtist(artist, using: player, shuffle: true) }
-                        } label: {
-                            Image(systemName: "shuffle")
-                                .frame(width: 36, height: 36)
                         }
-                        .buttonStyle(.bordered)
                     }
 
                     RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 158)
 
                     VStack(spacing: 10) {
-                        Button { downloads.requestDownload(allTracks, into: library) } label: {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .frame(width: 36, height: 36)
+                        ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
+                            downloads.requestDownload(allTracks, into: library)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.teal)
-
-                        Button {
+                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
                             Task { await remote.addToQueue(allTracks, using: player) }
-                        } label: {
-                            Image(systemName: "text.append")
-                                .frame(width: 36, height: 36)
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
                 Text(artist.name)
@@ -1431,47 +1367,30 @@ private struct RemoteAlbumDetailView: View {
     @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
+    @State private var showingAlbumOptions = false
     let album: RemoteAlbum
 
     private var albumHero: some View {
         VStack(spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(spacing: 10) {
-                    Button {
+                    ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         Task { await remote.playAlbum(album, using: player) }
-                    } label: {
-                        Image(systemName: "play.fill")
-                            .frame(width: 38, height: 38)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.accentColor)
-
-                    Button { downloads.requestDownload(album.tracks, into: library) } label: {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .frame(width: 38, height: 38)
+                    ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
+                        downloads.requestDownload(album.tracks, into: library)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.teal)
                 }
 
                 RemoteArtwork(url: album.artworkURL, base64: album.artworkBase64, size: 176)
 
                 VStack(spacing: 10) {
-                    Button {
+                    ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
                         Task { await remote.playNext(album.tracks, using: player) }
-                    } label: {
-                        Image(systemName: "text.insert")
-                            .frame(width: 38, height: 38)
                     }
-                    .buttonStyle(.bordered)
-
-                    Button {
+                    ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
                         Task { await remote.addToQueue(album.tracks, using: player) }
-                    } label: {
-                        Image(systemName: "text.append")
-                            .frame(width: 38, height: 38)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
 
@@ -1527,7 +1446,7 @@ private struct RemoteAlbumDetailView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(settings.themeBackgroundColor)
+            .background(settings.themeBackgroundGradient)
         }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -1535,34 +1454,35 @@ private struct RemoteAlbumDetailView: View {
         .resonanceTopDownDismiss { dismiss() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        Task { await remote.playNext(album.tracks, using: player) }
-                    } label: {
-                        Label("Play Album Next", systemImage: "text.insert")
-                    }
-                    Button {
-                        Task { await remote.addToQueue(album.tracks, using: player) }
-                    } label: {
-                        Label("Add Album to End of Queue", systemImage: "text.append")
-                    }
-                    Button {
-                        downloads.requestDownload(album.tracks, into: library)
-                    } label: {
-                        Label("Download Album", systemImage: "arrow.down.circle")
-                    }
-                    if settings.streamBackend == .subsonic {
-                        Button {
-                            playlistItems = album.tracks
-                            showingPlaylistPicker = true
-                        } label: {
-                            Label("Add Album to Server Playlist", systemImage: "music.note.list")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Album options",
+                    systemImage: "ellipsis.circle"
+                ) {
+                    showingAlbumOptions = true
                 }
             }
+        }
+        .confirmationDialog(
+            "Album Options",
+            isPresented: $showingAlbumOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Play Album Next") {
+                Task { await remote.playNext(album.tracks, using: player) }
+            }
+            Button("Add Album to End of Queue") {
+                Task { await remote.addToQueue(album.tracks, using: player) }
+            }
+            Button("Download Album") {
+                downloads.requestDownload(album.tracks, into: library)
+            }
+            if settings.streamBackend == .subsonic {
+                Button("Add Album to Server Playlist") {
+                    playlistItems = album.tracks
+                    showingPlaylistPicker = true
+                }
+            }
+            Button("Cancel", role: .cancel) { }
         }
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)

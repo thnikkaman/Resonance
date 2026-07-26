@@ -255,11 +255,14 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(settings.themeBackgroundColor.ignoresSafeArea())
+            .background(settings.themeBackgroundGradient.ignoresSafeArea())
             .tint(settings.accentColor)
             .foregroundStyle(
                 settings.applyThemeColorToText ? settings.accentColor : Color.primary
             )
+            .toolbarBackground(settings.themeSurfaceGradient, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(settings.colorScheme, for: .navigationBar)
     }
 }
 
@@ -271,7 +274,7 @@ private struct ResonanceHeroSurface: ViewModifier {
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .background(
-                settings.themeSurfaceColor.opacity(settings.visualTheme == .galleryLight ? 0.96 : 0.9),
+                settings.themeSurfaceGradient,
                 in: RoundedRectangle(cornerRadius: 24, style: .continuous)
             )
             .overlay {
@@ -281,6 +284,89 @@ private struct ResonanceHeroSurface: ViewModifier {
             .padding(.horizontal, 10)
             .padding(.top, 8)
             .padding(.bottom, 8)
+    }
+}
+
+struct ResonanceHeroActionButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let prominent: Bool
+    let action: () -> Void
+
+    private var label: some View {
+        VStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(width: 64, height: 58)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    var body: some View {
+        Group {
+            if prominent {
+                Button(action: action, label: { label })
+                    .buttonStyle(.borderedProminent)
+            } else {
+                Button(action: action, label: { label })
+                    .buttonStyle(.bordered)
+            }
+        }
+        .tint(tint)
+        .help(title)
+        .contextMenu {
+            Label(title, systemImage: systemImage)
+        }
+        .accessibilityLabel(title)
+    }
+}
+
+struct ResonanceToolbarIconButton: View {
+    let accessibilityLabel: String
+    let systemImage: String
+    let action: () -> Void
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+            .frame(width: 32, height: 30)
+            .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+            }
+            .foregroundStyle(settings.accentColor)
+            .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .help(accessibilityLabel)
+            .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+struct ResonanceToolbarIconLabel: View {
+    let systemImage: String
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.caption.weight(.semibold))
+            .frame(width: 32, height: 30)
+            .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+            }
+            .foregroundStyle(settings.accentColor)
     }
 }
 
@@ -354,6 +440,7 @@ private struct MiniPlayerOverlay: View {
 }
 
 private struct MiniPlayerEdgeHandle: View {
+  @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var player: PlayerController
   @GestureState private var dragTranslation = CGSize.zero
   let isVisible: Bool
@@ -377,7 +464,8 @@ private struct MiniPlayerEdgeHandle: View {
             .font(.caption.weight(.bold))
         }
         .padding(5)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(settings.themeSurfaceGradient, in: Capsule())
+        .overlay(Capsule().stroke(settings.accentColor.opacity(0.35), lineWidth: 1))
         .shadow(radius: 4, y: 2)
       }
       .buttonStyle(.plain)

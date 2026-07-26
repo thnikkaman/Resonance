@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 81;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 82;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -109,7 +109,6 @@ assert 'case recentlyAdded' in remote
 assert 'case recentlyPlayed' in remote
 assert 'RemoteLibraryOptionsSheet' in streaming
 assert 'groupCompilationArtists' in settings
-assert 'streamingConnectionInfoExpanded' in settings
 assert 'Group compilation-only artists' in streaming
 assert 'compilationAlbumKeys' in remote
 assert 'Various Artists' in remote
@@ -125,7 +124,7 @@ assert 'scrollIndicators(.hidden)' in streaming
 assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
 assert 'alphabet.scrollTo' in streaming
-assert 'streaming.connectionInfo.changed' in streaming
+assert 'hasConnectionIssue' in remote
 assert 'isExpanded.toggle()' in streaming
 assert '.accessibilityElement(children: .combine)' in streaming
 assert 'navigationBarTitleDisplayMode(.inline)' in streaming
@@ -133,7 +132,8 @@ assert 'commands.nextTrackCommand.isEnabled = true' in player
 assert 'commands.previousTrackCommand.isEnabled = true' in player
 assert 'commands.skipForwardCommand.isEnabled = false' in player
 assert 'commands.skipBackwardCommand.isEnabled = false' in player
-assert 'RemoteSearchField' in streaming
+assert 'RemoteSearchField' not in streaming
+assert 'searchText' not in remote
 assert '.searchable(text: $remote.searchText' not in streaming
 assert '.navigationBarTitleDisplayMode(.large)' in streaming
 assert 'streaming.option.compilationGrouping.changed' in streaming
@@ -327,14 +327,25 @@ assert 'ResonanceVisualTheme' in settings
 assert 'Nocturne Glass' in settings
 assert 'Gallery Light' in settings
 assert 'Color Bloom' in settings
+assert 'Brushed Metal' in settings
+assert 'Classic Wood' in settings
+assert 'Electronic' in settings
+assert 'Psychedelic' in settings
 assert 'var visualTheme' in settings
+assert 'backgroundGradientHex' in settings
+assert 'isBrightAppearance' in settings
 assert 'Visual style' in settings_view
-assert 'themeBackgroundColor' in settings_view
+assert 'themeBackgroundGradient' in settings_view
 assert 'size: 158' in streaming
 assert 'size: 176' in streaming and 'size: 176' in album_detail
 assert '.scrollContentBackground(.hidden)' in streaming and '.scrollContentBackground(.hidden)' in album_detail
 assert 'onDock: @escaping' in root_view
 assert 'onDock(value.translation.height < 0 ? .top : .bottom)' in root_view
+assert 'ResonanceHeroActionButton' in root_view
+assert 'ResonanceToolbarIconButton' in root_view
+assert 'themeSurfaceGradient' in root_view
+assert 'themeSurfaceGradient' in streaming
+assert 'themeSurfaceGradient' in views
 assert 'browseReady' in streaming
 assert 'startLocation.y < 120' in streaming
 assert 'private struct MetadataTextField' in smart

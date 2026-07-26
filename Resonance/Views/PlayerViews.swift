@@ -675,6 +675,7 @@ struct PlaybackQueueView: View {
 }
 
 struct MiniPlayerView: View {
+  @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var player: PlayerController
   let openNowPlaying: () -> Void
 
@@ -729,7 +730,11 @@ struct MiniPlayerView: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
-    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 14))
+    .overlay {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+    }
     .shadow(radius: 5, y: 2)
   }
 }

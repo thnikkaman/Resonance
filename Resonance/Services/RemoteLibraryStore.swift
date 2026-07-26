@@ -237,13 +237,17 @@ final class RemoteLibraryStore: ObservableObject {
     @Published private(set) var playlists: [RemotePlaylist] = []
     @Published private(set) var catalogSyncStatus = "No cached remote catalog"
     @Published private(set) var lastCatalogCheck: Date?
-    @Published var searchText = "" {
-        didSet { browseCache = nil }
-    }
     @Published var playlistSearchText = ""
     @Published var grouping: RemoteBrowseGrouping = .artists
     @Published var sortDirection: SortDirection = .ascending {
         didSet { browseCache = nil }
+    }
+
+    var hasConnectionIssue: Bool {
+        guard !isLoading else { return false }
+        let combined = "\(connectionStatus) \(catalogSyncStatus)".lowercased()
+        return ["not connected", "failed", "error", "offline", "could not", "unable", "invalid", "denied", "no cached"]
+            .contains { combined.contains($0) }
     }
 
     private let artworkCache = NSCache<NSURL, NSData>()
@@ -263,7 +267,6 @@ final class RemoteLibraryStore: ObservableObject {
 
     private struct BrowseCacheKey: Equatable {
         let trackRevision: Int
-        let searchText: String
         let sortDirection: String
         let groupCompilationArtists: Bool
     }
@@ -332,7 +335,6 @@ final class RemoteLibraryStore: ObservableObject {
     ) -> BrowseCache {
         let key = BrowseCacheKey(
             trackRevision: trackRevision,
-            searchText: searchText,
             sortDirection: sortDirection.rawValue,
             groupCompilationArtists: groupCompilationArtists
         )
@@ -344,10 +346,7 @@ final class RemoteLibraryStore: ObservableObject {
             return browseCache
         }
 
-        let input = searchText.isEmpty ? tracks : tracks.filter {
-            [$0.title, $0.artist, $0.albumArtist, $0.album]
-                .contains { $0.localizedCaseInsensitiveContains(searchText) }
-        }
+        let input = tracks
         let sorted = input.sorted {
             ($0.artist, $0.album, $0.discNumber, $0.trackNumber, $0.title) <
             ($1.artist, $1.album, $1.discNumber, $1.trackNumber, $1.title)
