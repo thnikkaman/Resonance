@@ -753,6 +753,9 @@ struct ArtistDetailView: View {
                     }
                     .padding()
                 }
+                .background {
+                    ResonanceThemeSurfaceBackdrop()
+                }
             } else {
                 List {
                     NavigationLink {
@@ -795,6 +798,10 @@ struct ArtistDetailView: View {
                             }
                         }
                     }
+                }
+                .scrollContentBackground(.hidden)
+                .background {
+                    ResonanceThemeSurfaceBackdrop()
                 }
             }
         }

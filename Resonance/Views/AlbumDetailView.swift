@@ -113,7 +113,7 @@ struct AlbumDetailView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background {
-                ResonanceThemeBackdrop()
+                ResonanceThemeSurfaceBackdrop()
             }
         }
         .navigationTitle(liveAlbum.title)

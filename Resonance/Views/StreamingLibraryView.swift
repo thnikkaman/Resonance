@@ -1347,6 +1347,9 @@ private struct RemoteArtistDetailView: View {
                     }
                     .padding()
                 }
+                .background {
+                    ResonanceThemeSurfaceBackdrop()
+                }
             } else {
                 List {
                     NavigationLink {
@@ -1373,6 +1376,10 @@ private struct RemoteArtistDetailView: View {
                             )
                         }
                     }
+                }
+                .scrollContentBackground(.hidden)
+                .background {
+                    ResonanceThemeSurfaceBackdrop()
                 }
             }
         }
@@ -1587,7 +1594,7 @@ private struct RemoteAlbumDetailView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background {
-                ResonanceThemeBackdrop()
+                ResonanceThemeSurfaceBackdrop()
             }
         }
         .navigationTitle(album.title)

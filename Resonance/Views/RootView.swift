@@ -311,9 +311,11 @@ struct ResonanceThemeSurfaceBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.07)
+                    // Keep image themes decorative on content surfaces. Detail
+                    // controls and rows must remain readable over high-detail art.
+                    .opacity(0.025)
                 settings.themeSurfaceGradient
-                    .opacity(0.70)
+                    .opacity(0.90)
             }
         }
         .allowsHitTesting(false)

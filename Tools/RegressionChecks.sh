@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 86;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 87;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -358,7 +358,7 @@ assert 'themeSurfaceGradient' in streaming
 assert 'ResonanceThemeSurfaceBackdrop' in views
 assert 'ResonanceThemeBackdrop()' in now_playing
 assert '.opacity(0.16)' in root_view
-assert '.opacity(0.07)' in root_view
+assert '.opacity(0.025)' in root_view
 assert '.opacity(0.40)' in settings_view
 assert 'textAccentColor' in settings
 assert 'applyThemeColorToTextConfigured' in settings
