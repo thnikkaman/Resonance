@@ -155,9 +155,15 @@ private struct ResonanceTabBar: View {
         // Keep the custom tab bar opaque and above page artwork. The page backdrop
         // intentionally ignores the safe area, so the bar must own its contrast.
         .background {
-            ZStack {
-                settings.themeSurfaceColor
-                settings.themeSurfaceGradient.opacity(0.78)
+            Group {
+                if settings.visualTheme.backgroundImageName == nil {
+                    ZStack {
+                        settings.themeSurfaceColor
+                        settings.themeSurfaceGradient.opacity(0.78)
+                    }
+                } else {
+                    Color.clear
+                }
             }
             .ignoresSafeArea(edges: .bottom)
         }
@@ -289,7 +295,12 @@ private struct ResonanceThemeTextSurface: ViewModifier {
             .foregroundStyle(
                 settings.textAccentColor
             )
-            .toolbarBackground(settings.themeSurfaceGradient, for: .navigationBar)
+            .toolbarBackground(
+                settings.visualTheme.backgroundImageName == nil
+                    ? AnyShapeStyle(settings.themeSurfaceGradient)
+                    : AnyShapeStyle(Color.clear),
+                for: .navigationBar
+            )
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(settings.colorScheme, for: .navigationBar)
     }
@@ -310,7 +321,7 @@ struct ResonanceThemeBackdrop: View {
                     .opacity(0.42)
                 // Keep a readable veil over the artwork without removing its
                 // texture and color from the page background.
-                settings.themeBackgroundGradient.opacity(0.28)
+                settings.themeBackgroundGradient.opacity(0.12)
             }
         }
         // The custom tab bar owns an opaque surface, so the page artwork can
@@ -324,12 +335,16 @@ struct ResonanceThemeSurfaceBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        // Keep reusable surfaces translucent so the page-level artwork remains
-        // visible behind them. The gradient veil preserves contrast for text
-        // and controls without placing a bitmap above their content.
-        settings.themeSurfaceGradient.opacity(
-            settings.visualTheme.backgroundImageName == nil ? 1 : 0.72
-        )
+        // Image themes use genuinely transparent surfaces. Text, artwork, and
+        // controls remain visible while the page artwork shows through every
+        // list, hero, picker, and detail surface.
+        Group {
+            if settings.visualTheme.backgroundImageName == nil {
+                settings.themeSurfaceGradient
+            } else {
+                Color.clear
+            }
+        }
         .allowsHitTesting(false)
     }
 }
