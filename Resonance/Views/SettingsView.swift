@@ -44,7 +44,8 @@ struct SettingsView: View {
                                 .frame(width: 30, height: 30)
                                 .overlay {
                                     if settings.normalizedAccentHex == hex {
-                                        Image(systemName: "checkmark").foregroundStyle(.white)
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(settings.contrastingAccentTextColor)
                                     }
                                 }
                         }

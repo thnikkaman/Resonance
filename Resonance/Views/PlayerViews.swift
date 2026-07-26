@@ -99,7 +99,7 @@ struct NowPlayingView: View {
           if let track = player.currentTrack { library.toggleFavorite(track) }
         } label: {
           Image(systemName: currentTrackIsFavorite ? "heart.fill" : "heart")
-            .foregroundStyle(currentTrackIsFavorite ? settings.accentColor : .secondary)
+            .foregroundStyle(currentTrackIsFavorite ? settings.accentColor : nowPlayingSecondaryColor)
         }
         .disabled(player.currentTrack == nil)
         .accessibilityLabel(currentTrackIsFavorite ? "Remove from favorites" : "Add to favorites")
@@ -109,7 +109,7 @@ struct NowPlayingView: View {
         } label: {
           Image(systemName: player.currentTrackBookmarks.isEmpty ? "bookmark" : "bookmark.fill")
             .foregroundStyle(
-              player.currentTrackBookmarks.isEmpty ? Color.secondary : settings.accentColor
+              player.currentTrackBookmarks.isEmpty ? nowPlayingSecondaryColor : settings.accentColor
             )
             .overlay(alignment: .topTrailing) {
               if !player.currentTrackBookmarks.isEmpty {
@@ -127,13 +127,13 @@ struct NowPlayingView: View {
 
         Button(action: player.toggleShuffle) {
           Image(systemName: "shuffle")
-            .foregroundStyle(player.shuffleEnabled ? settings.accentColor : .secondary)
+            .foregroundStyle(player.shuffleEnabled ? settings.accentColor : nowPlayingSecondaryColor)
         }
         .accessibilityLabel(player.shuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
 
         Button(action: player.cycleRepeatMode) {
           Image(systemName: player.repeatMode.systemImage)
-            .foregroundStyle(player.repeatMode == .off ? Color.secondary : settings.accentColor)
+            .foregroundStyle(player.repeatMode == .off ? nowPlayingSecondaryColor : settings.accentColor)
             .overlay(alignment: .topTrailing) {
               if player.repeatMode == .all {
                 Circle()
@@ -167,7 +167,7 @@ struct NowPlayingView: View {
         } label: {
           Image(systemName: player.sleepTimerOption == .off ? "moon.zzz" : "moon.zzz.fill")
             .foregroundStyle(
-              player.sleepTimerOption == .off ? Color.secondary : settings.accentColor)
+              player.sleepTimerOption == .off ? nowPlayingSecondaryColor : settings.accentColor)
         }
         .accessibilityLabel("Sleep timer: \(player.sleepTimerLabel)")
       }
@@ -188,7 +188,7 @@ struct NowPlayingView: View {
       if player.sleepTimerOption != .off {
         Label("Sleep timer: \(player.sleepTimerLabel)", systemImage: "moon.zzz.fill")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(nowPlayingSecondaryColor)
       }
 
       HStack {
