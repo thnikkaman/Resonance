@@ -1366,11 +1366,16 @@ private struct RemoteArtistDetailView: View {
                         }
                     }
                 }
+                .listStyle(.plain)
+                .listRowBackground(Color.clear)
                 .scrollContentBackground(.hidden)
                 .background {
                     ResonanceThemeSurfaceBackdrop()
                 }
             }
+        }
+        .background {
+            ResonanceThemeBackdrop()
         }
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -1578,7 +1583,9 @@ private struct RemoteAlbumDetailView: View {
                             }
                         }
                     }
+                    .listRowBackground(Color.clear)
                 }
+                .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .listRowBackground(Color.clear)
@@ -1586,6 +1593,9 @@ private struct RemoteAlbumDetailView: View {
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
+        }
+        .background {
+            ResonanceThemeBackdrop()
         }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)

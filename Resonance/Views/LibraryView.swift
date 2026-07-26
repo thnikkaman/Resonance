@@ -454,6 +454,9 @@ struct ArtistCollectionView: View {
                                 .id("artist-section-\(section.key)")
                             }
                         }
+                        .listStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .scrollContentBackground(.hidden)
                     }
                 }
 
@@ -798,11 +801,18 @@ struct ArtistDetailView: View {
                         }
                     }
                 }
+                .listStyle(.plain)
+                .listRowBackground(Color.clear)
                 .scrollContentBackground(.hidden)
                 .background {
                     ResonanceThemeSurfaceBackdrop()
                 }
             }
+        }
+        .background {
+            // This destination owns the page backdrop so the theme remains
+            // visible when an artist is pushed from the library list.
+            ResonanceThemeBackdrop()
         }
         .navigationTitle(liveArtist.name)
         .resonanceDetailBottomSpace()

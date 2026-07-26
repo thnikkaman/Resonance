@@ -108,7 +108,9 @@ struct AlbumDetailView: View {
                         .buttonStyle(.plain)
                         .trackLibraryActions(track)
                     }
+                    .listRowBackground(Color.clear)
                 }
+                .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .listRowBackground(Color.clear)
@@ -259,8 +261,16 @@ struct AllAlbumsTrackListView: View {
                         .buttonStyle(.plain)
                         .trackLibraryActions(track)
                     }
+                    .listRowBackground(Color.clear)
                 }
+                .listRowBackground(Color.clear)
             }
+        }
+        .listStyle(.plain)
+        .listRowBackground(Color.clear)
+        .scrollContentBackground(.hidden)
+        .background {
+            ResonanceThemeBackdrop()
         }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
