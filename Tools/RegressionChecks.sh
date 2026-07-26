@@ -36,14 +36,14 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 94;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 96;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
-assert '.padding(.bottom, 56)' in root_view
+assert '.padding(.bottom, 7)' in root_view
 
 # Previous current-SDK and Swift 6 fixes.
 assert '?? await' not in metadata
@@ -383,6 +383,10 @@ assert 'backgroundImageName' in settings
 assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings
 assert 'ThemeElectronic' in settings
+assert 'case .nocturne, .galleryLight, .colorBloom: nil' in settings
+assert 'case .nocturne: ["0B1020", "1D1636"]' in settings
+assert 'case .galleryLight: ["F5F0E8", "FFFDF8"]' in settings
+assert 'case .colorBloom: ["07142B", "241244"]' in settings
 assert 'ThemePsychedelic' in settings
 assert 'removeProgress' in remote
 assert 'prioritizeDownloadQueue' in remote

@@ -107,14 +107,16 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var recommendedColorScheme: ColorScheme {
         switch self {
-        case .waterfall: .light
-        case .nocturne, .galleryLight, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic: .dark
+        case .galleryLight, .waterfall: .light
+        case .nocturne, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic: .dark
         }
     }
 
     var backgroundGradientHex: [String] {
         switch self {
-        case .nocturne, .galleryLight, .colorBloom: ["030711", "0A1D32", "04101D"]
+        case .nocturne: ["0B1020", "1D1636"]
+        case .galleryLight: ["F5F0E8", "FFFDF8"]
+        case .colorBloom: ["07142B", "241244"]
         case .brushedMetal: ["11161B", "46515A", "1A2026"]
         case .classicWood: ["241109", "5B321B", "2A140B"]
         case .electronic: ["030711", "0A1D32", "04101D"]
@@ -125,7 +127,9 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var surfaceGradientHex: [String] {
         switch self {
-        case .nocturne, .galleryLight, .colorBloom: ["0D1830", "122C4A"]
+        case .nocturne: ["151A2C", "24203D"]
+        case .galleryLight: ["FFFDF8", "F2E9DC"]
+        case .colorBloom: ["10254A", "1C1A50"]
         case .brushedMetal: ["303840", "59656D", "333D45"]
         case .classicWood: ["4A2A18", "6C3D20"]
         case .electronic: ["0D1830", "122C4A"]
@@ -144,7 +148,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "ThemeClassicWood"
         case .electronic: "ThemeElectronic"
         case .psychedelic: "ThemePsychedelic"
-        case .nocturne, .galleryLight, .colorBloom: "ThemeElectronic"
+        case .nocturne, .galleryLight, .colorBloom: nil
         case .waterfall: "ThemeWaterfallMeadow"
         }
     }

@@ -148,9 +148,9 @@ private struct ResonanceTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 7)
         .padding(.bottom, 7)
-        // safeAreaInset places this view against the bottom edge; reserve the
-        // home-indicator area inside the bar so the labels stay above it.
-        .padding(.bottom, 56)
+        // safeAreaInset already accounts for the home-indicator area. Keep the
+        // bar at the same bottom position on every theme and device size.
+        .padding(.bottom, 7)
         // Keep the custom tab bar transparent so every visual theme can remain
         // visible behind its controls and labels.
         .background {
