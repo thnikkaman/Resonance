@@ -480,6 +480,7 @@ struct TrackMetadataEditorSheet: View {
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isSaving = false
+    @State private var saveError: String?
 
     init(track: Track) {
         self.track = track
@@ -541,7 +542,7 @@ struct TrackMetadataEditorSheet: View {
                         Label("Remove Artwork in Resonance", systemImage: "photo.badge.minus")
                     }
 
-                    Text("Custom artwork is stored in Resonance and receives the optional red outline because it is not yet embedded in the audio file.")
+                    Text("For local FLAC and MP3 files, Save writes the edited tags and artwork directly into the audio file. Other formats are not directly writable yet.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -560,7 +561,7 @@ struct TrackMetadataEditorSheet: View {
                 }
 
                 Section {
-                    Text("Resonance stores metadata edits safely in the library database. Direct MP3 and FLAC tag-block writing is not enabled in this phase.")
+                    Text("Direct tag writing currently supports local FLAC and MP3 files. Resonance rereads the file after saving so the local library reflects the actual tags.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -576,7 +577,7 @@ struct TrackMetadataEditorSheet: View {
                     Button(isSaving ? "Saving…" : "Save") {
                         isSaving = true
                         Task {
-                            await library.updateTrackMetadata(
+                            let error = await library.updateTrackMetadata(
                                 trackID: track.id,
                                 title: title,
                                 artist: artist,
@@ -588,7 +589,8 @@ struct TrackMetadataEditorSheet: View {
                                 artworkData: artworkData,
                                 replaceArtwork: replaceArtwork
                             )
-                            dismiss()
+                            isSaving = false
+                            if let error { saveError = error } else { dismiss() }
                         }
                     }
                     .disabled(!canSave || isSaving)
@@ -602,6 +604,14 @@ struct TrackMetadataEditorSheet: View {
                     artworkData = data
                     replaceArtwork = true
                 }
+            }
+            .alert("Could Not Save Metadata", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "The metadata could not be saved.")
             }
         }
     }
@@ -619,6 +629,7 @@ struct AlbumMetadataEditorSheet: View {
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isSaving = false
+    @State private var saveError: String?
 
     init(album: Album) {
         self.album = album
@@ -713,7 +724,7 @@ struct AlbumMetadataEditorSheet: View {
                     Button(isSaving ? "Saving…" : "Save") {
                         isSaving = true
                         Task {
-                            await library.updateAlbumMetadata(
+                            let error = await library.updateAlbumMetadata(
                                 trackIDs: album.tracks.map(\.id),
                                 album: albumTitle,
                                 albumArtist: albumArtist,
@@ -721,7 +732,8 @@ struct AlbumMetadataEditorSheet: View {
                                 artworkData: artworkData,
                                 replaceArtwork: replaceArtwork
                             )
-                            dismiss()
+                            isSaving = false
+                            if let error { saveError = error } else { dismiss() }
                         }
                     }
                     .disabled(!canSave || isSaving)
@@ -735,6 +747,14 @@ struct AlbumMetadataEditorSheet: View {
                     artworkData = data
                     replaceArtwork = true
                 }
+            }
+            .alert("Could Not Save Metadata", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "The album metadata could not be saved.")
             }
         }
     }
@@ -752,6 +772,7 @@ struct ArtistMetadataEditorSheet: View {
     @State private var clearArtworkOverride = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isSaving = false
+    @State private var saveError: String?
 
     init(artist: Artist) {
         self.artist = artist
@@ -919,14 +940,15 @@ struct ArtistMetadataEditorSheet: View {
                     Button(isSaving ? "Saving…" : "Save") {
                         isSaving = true
                         Task {
-                            await library.updateArtistMetadata(
+                            let error = await library.updateArtistMetadata(
                                 artist: artist,
                                 name: artistName,
                                 artworkData: artworkData,
                                 replaceArtwork: replaceArtwork,
                                 clearArtworkOverride: clearArtworkOverride
                             )
-                            dismiss()
+                            isSaving = false
+                            if let error { saveError = error } else { dismiss() }
                         }
                     }
                     .disabled(!canSave || isSaving)
@@ -941,6 +963,14 @@ struct ArtistMetadataEditorSheet: View {
                     replaceArtwork = true
                     clearArtworkOverride = false
                 }
+            }
+            .alert("Could Not Save Metadata", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "The artist metadata could not be saved.")
             }
         }
     }

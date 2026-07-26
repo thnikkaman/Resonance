@@ -7,6 +7,7 @@ struct ResonanceApp: App {
     @StateObject private var player = PlayerController()
     @StateObject private var settings = AppSettings()
     @StateObject private var remoteLibrary = RemoteLibraryStore()
+    @StateObject private var remoteDownloads = RemoteDownloadManager()
     @StateObject private var errorLog = AppErrorLog()
 
     init() {
@@ -21,6 +22,7 @@ struct ResonanceApp: App {
                 .environmentObject(player.progress)
                 .environmentObject(settings)
                 .environmentObject(remoteLibrary)
+                .environmentObject(remoteDownloads)
                 .environmentObject(errorLog)
                 .tint(settings.accentColor)
                 .preferredColorScheme(settings.colorScheme)

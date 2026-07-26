@@ -5,6 +5,8 @@ import ImageIO
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var showingOptions = false
     let openLibrary: () -> Void
     let openSettings: () -> Void
@@ -24,6 +26,13 @@ struct StreamingLibraryView: View {
                 VStack(spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
                     RemoteSearchField(text: $remote.searchText)
+                    if downloads.isDownloading {
+                        RemoteDownloadBanner(
+                            title: downloads.currentTitle,
+                            completed: downloads.completedCount,
+                            total: downloads.totalCount
+                        )
+                    }
 
                     Group {
                         switch remote.grouping {
@@ -166,6 +175,32 @@ private struct RemoteSearchField: View {
         .tint(settings.accentColor)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Search remote music")
+    }
+}
+
+private struct RemoteDownloadBanner: View {
+    let title: String
+    let completed: Int
+    let total: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Downloading (completed) of (total)")
+                    .font(.caption.weight(.semibold))
+                Text(title)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Downloading (title), (completed) of (total)")
     }
 }
 
@@ -630,6 +665,8 @@ private struct RemoteTrackCollectionView: View {
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     let tracks: [RemoteTrackItem]
@@ -668,6 +705,11 @@ private struct RemoteTrackCollectionView: View {
                     } label: {
                         Label("Add to End of Queue", systemImage: "text.append")
                     }
+                    Button {
+                        Task { await downloads.download([track], into: library) }
+                    } label: {
+                        Label("Download Track", systemImage: "arrow.down.circle")
+                    }
                     if settings.streamBackend == .subsonic {
                         Button {
                             Task { await remote.toggleFavorite(track, using: settings) }
@@ -698,6 +740,8 @@ private struct RemoteArtistDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     let artist: RemoteArtist
 
     private var sortedAlbums: [RemoteAlbum] {
@@ -762,6 +806,13 @@ private struct RemoteArtistDetailView: View {
                             Task { await remote.playArtist(artist, using: player, shuffle: true) }
                         } label: {
                             Label("Shuffle", systemImage: "shuffle")
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            Task { await downloads.download(allTracks, into: library) }
+                        } label: {
+                            Label("Download Artist Collection", systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.bordered)
                     }
@@ -878,6 +929,8 @@ private struct RemoteAllAlbumsTrackListView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     let artistName: String
@@ -915,6 +968,9 @@ private struct RemoteAllAlbumsTrackListView: View {
                         Button { Task { await remote.addToQueue([track], using: player) } } label: {
                             Label("Add to End of Queue", systemImage: "text.append")
                         }
+                        Button { Task { await downloads.download([track], into: library) } } label: {
+                            Label("Download Track", systemImage: "arrow.down.circle")
+                        }
                         if settings.streamBackend == .subsonic {
                             Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
                                 Label(track.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: track.isFavorite ? "heart.slash" : "heart")
@@ -942,6 +998,8 @@ private struct RemoteAlbumDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     let album: RemoteAlbum
@@ -964,6 +1022,13 @@ private struct RemoteAlbumDetailView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(settings.accentColor)
+                        Button {
+                            Task { await downloads.download(album.tracks, into: library) }
+                        } label: {
+                            Label("Download Album", systemImage: "arrow.down.circle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
                 .padding(.vertical, 6)
@@ -983,6 +1048,9 @@ private struct RemoteAlbumDetailView: View {
                         }
                         Button { Task { await remote.addToQueue([track], using: player) } } label: {
                             Label("Add to End of Queue", systemImage: "text.append")
+                        }
+                        Button { Task { await downloads.download([track], into: library) } } label: {
+                            Label("Download Track", systemImage: "arrow.down.circle")
                         }
                         if settings.streamBackend == .subsonic {
                             Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
@@ -1013,6 +1081,11 @@ private struct RemoteAlbumDetailView: View {
                         Task { await remote.addToQueue(album.tracks, using: player) }
                     } label: {
                         Label("Add Album to End of Queue", systemImage: "text.append")
+                    }
+                    Button {
+                        Task { await downloads.download(album.tracks, into: library) }
+                    } label: {
+                        Label("Download Album", systemImage: "arrow.down.circle")
                     }
                     if settings.streamBackend == .subsonic {
                         Button {

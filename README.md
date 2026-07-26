@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **71**
+Build: **72**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -94,6 +94,8 @@ The Streaming Library options include **Group compilation-only artists**. When e
 
 Alpha 3.7.4 build 71 removes the experimental 350 ms dual-player overlap that cut off the end of Parabol and consumed the opening of the following track. Experimental remote playback still prepares and prerolls the next HTTP(S) item, but now hands off at the natural item boundary using the warmed player; this avoids truncation while leaving true sample-contiguous streaming gapless pending a decoded PCM/AudioUnit/AVAudioEngine or compatible authored-HLS design. Remote seek display now holds the requested position for only a short 150 ms settle interval and accepts AVPlayer's clock when it is within 0.75 seconds of the target; the scrubber falls back to track metadata during transient player replacement. The live Navidrome catalog was authenticated through a temporary local SSH tunnel: 8,071 tracks loaded, Parabol→Parabola advanced at the boundary, and seek actual/target values agreed within approximately 2 ms. Simulator control-flow validation cannot replace physical-device audible acceptance. Stable local playback, the explicit 5.1 graph, and the responsive tab composition were not changed.
 
+Alpha 3.7.4 build 72 begins the offline-library phase. Experimental streaming gapless is no longer exposed or honored; remote playback always uses the stable single-item AVPlayer path until a post-alpha sample-contiguous design is available. Remote tracks, complete albums, and complete artist collections can be downloaded into the local Resonance Music folder, where they are indexed by the existing library scanner. Local FLAC and MP3 metadata editors now write title, artist, album artist, album, track/disc position, release year, and optional artwork directly into the audio file before rescanning it. Other local formats remain read-only for direct tags in this phase and report that limitation instead of silently creating a Resonance-only edit.
+
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
 Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so screen transitions, Streaming scrolling, and alphabet gestures do not synchronously block the main actor. It also passes the computed compilation-album set into Album Artists browsing and adds privacy-safe synchronous boundary/preload diagnostics for reproducing the reported local and streaming gapless failures. The remote backend remains the deliberately stable single-item `AVPlayer` path pending a separate gapless streaming design decision.
@@ -135,7 +137,9 @@ Alpha 3.7.4 build 69 replaces the experimental remote `AVQueuePlayer` handoff wi
 
 ## Next major phase
 
-- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 71. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed 5.1 gapless behavior.
+- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 72. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed local 5.1 gapless behavior.
+- Build-72 manual acceptance: verify the Streaming settings no longer expose a gapless toggle; download one track, one album, and one artist collection; confirm progress, duplicate-safe behavior, local-library indexing, offline playback, and correct artist/album/track ordering.
+- Build-72 metadata acceptance: edit a local FLAC track, album, and artist; verify the changed tags and artwork survive app relaunch and are visible to another tag reader. Repeat with MP3, and verify an unsupported format presents the direct-write limitation without claiming the file was changed.
 - Perform the remaining physical-device acceptance on build 71: audible stereo Parabol→Parabola boundary behavior, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first. America A–F 5.1 was intentionally deferred for this pass.
 - Retrieve a fresh `Documents/Resonance-Diagnostics.log` after the physical runtime test and correlate `remote.player.queueConfigured`, `remote.player.finished`, `remote.player.boundary.end`, `remote.player.endFallback`, and seek `target`/`actual` details with the recording. Do not launch Resonance automatically or commit the copied diagnostics file.
 - If physical evidence exposes a new defect, make the next build narrowly targeted; the controlled fixture run did not justify changing `PlayerController.swift` or `GaplessAudioEngine.swift`.

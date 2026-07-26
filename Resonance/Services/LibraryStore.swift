@@ -328,24 +328,34 @@ final class LibraryStore: ObservableObject {
         releaseYear: Int,
         artworkData: Data?,
         replaceArtwork: Bool
-    ) async {
-        guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
-        var override = metadataOverrides[trackID] ?? TrackMetadataOverride()
-        override.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        override.artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
-        override.albumArtist = albumArtist.trimmingCharacters(in: .whitespacesAndNewlines)
-        override.album = album.trimmingCharacters(in: .whitespacesAndNewlines)
-        override.trackNumber = max(0, trackNumber)
-        override.discNumber = max(1, discNumber)
-        override.releaseYear = max(0, releaseYear)
-        if replaceArtwork {
-            override.artworkData = artworkData
-            override.hasArtworkOverride = true
+    ) async -> String? {
+        guard let index = tracks.firstIndex(where: { $0.id == trackID }) else {
+            return "The selected track is no longer in the local library."
         }
-        metadataOverrides[trackID] = override
-        tracks[index] = override.applying(to: tracks[index])
+        let track = tracks[index]
+        guard let url = track.fileURL, !track.isRemote else {
+            return "Metadata tags can only be edited on local files."
+        }
+
+        let values = MetadataTagValues(
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            artist: artist.trimmingCharacters(in: .whitespacesAndNewlines),
+            albumArtist: albumArtist.trimmingCharacters(in: .whitespacesAndNewlines),
+            album: album.trimmingCharacters(in: .whitespacesAndNewlines),
+            trackNumber: max(0, trackNumber),
+            discNumber: max(1, discNumber),
+            releaseYear: max(0, releaseYear)
+        )
+        do {
+            try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
+        } catch {
+            return error.localizedDescription
+        }
+
+        metadataOverrides.removeValue(forKey: trackID)
         persistMetadataOverrides()
-        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        await scanDocuments(forceMetadataRefresh: true)
+        return nil
     }
 
     func refreshedArtist(_ artist: Artist) -> Artist {
@@ -362,47 +372,52 @@ final class LibraryStore: ObservableObject {
         artworkData: Data?,
         replaceArtwork: Bool,
         clearArtworkOverride: Bool
-    ) async {
+    ) async -> String? {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanedName.isEmpty else { return }
+        guard !cleanedName.isEmpty else { return "Enter an artist name." }
 
         let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else { return "The selected artist has no tracks." }
         let oldName = artist.name
+        var writableIDs = Set<UUID>()
+        var failures: [String] = []
 
         for track in tracks where ids.contains(track.id) {
-            var override = metadataOverrides[track.id] ?? TrackMetadataOverride()
-            if artist.usesAlbumArtist {
-                override.albumArtist = cleanedName
-            } else {
-                override.artist = cleanedName
-                if track.albumArtist.localizedCaseInsensitiveCompare(oldName) == .orderedSame {
-                    override.albumArtist = cleanedName
-                }
+            guard let url = track.fileURL, !track.isRemote else { continue }
+            let updatedArtist = artist.usesAlbumArtist ? track.artist : cleanedName
+            let updatedAlbumArtist = artist.usesAlbumArtist
+                ? cleanedName
+                : (track.albumArtist.localizedCaseInsensitiveCompare(oldName) == .orderedSame ? cleanedName : track.albumArtist)
+            let values = MetadataTagValues(
+                title: track.title,
+                artist: updatedArtist,
+                albumArtist: updatedAlbumArtist,
+                album: track.album,
+                trackNumber: track.trackNumber,
+                discNumber: track.discNumber,
+                releaseYear: track.releaseYear
+            )
+            do {
+                try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork || clearArtworkOverride)
+                writableIDs.insert(track.id)
+            } catch {
+                failures.append(error.localizedDescription)
             }
-            metadataOverrides[track.id] = override
-        }
-
-        tracks = tracks.map { track in
-            guard ids.contains(track.id), let override = metadataOverrides[track.id] else { return track }
-            return override.applying(to: track)
         }
 
         let oldKey = artistOverrideKey(name: oldName, useAlbumArtist: artist.usesAlbumArtist)
         let newKey = artistOverrideKey(name: cleanedName, useAlbumArtist: artist.usesAlbumArtist)
-        var artistOverride = artistMetadataOverrides.removeValue(forKey: oldKey)
+        // Artist edits are written into every writable local track. Remove
+        // any older Resonance-only artist artwork/name override so the view
+        // reflects the actual file tags after the rescan.
+        artistMetadataOverrides.removeValue(forKey: oldKey)
+        artistMetadataOverrides.removeValue(forKey: newKey)
 
-        if clearArtworkOverride {
-            artistOverride = nil
-        } else if replaceArtwork {
-            artistOverride = ArtistMetadataOverride(artworkData: artworkData, hasArtworkOverride: true)
-        }
-
-        if let artistOverride { artistMetadataOverrides[newKey] = artistOverride }
-
+        for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
         persistArtistMetadataOverrides()
-        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        await scanDocuments(forceMetadataRefresh: true)
+        return failures.isEmpty ? nil : failures.first
     }
 
     func updateAlbumMetadata(
@@ -412,26 +427,49 @@ final class LibraryStore: ObservableObject {
         releaseYear: Int,
         artworkData: Data?,
         replaceArtwork: Bool
-    ) async {
+    ) async -> String? {
         let ids = Set(trackIDs)
-        guard !ids.isEmpty else { return }
-        for id in ids {
-            var override = metadataOverrides[id] ?? TrackMetadataOverride()
-            override.album = album.trimmingCharacters(in: .whitespacesAndNewlines)
-            override.albumArtist = albumArtist.trimmingCharacters(in: .whitespacesAndNewlines)
-            override.releaseYear = max(0, releaseYear)
-            if replaceArtwork {
-                override.artworkData = artworkData
-                override.hasArtworkOverride = true
+        guard !ids.isEmpty else { return "The selected album has no tracks." }
+        var writableIDs = Set<UUID>()
+        var failures: [String] = []
+        for track in tracks where ids.contains(track.id) {
+            guard let url = track.fileURL, !track.isRemote else { continue }
+            let values = MetadataTagValues(
+                title: track.title,
+                artist: track.artist,
+                albumArtist: albumArtist.trimmingCharacters(in: .whitespacesAndNewlines),
+                album: album.trimmingCharacters(in: .whitespacesAndNewlines),
+                trackNumber: track.trackNumber,
+                discNumber: track.discNumber,
+                releaseYear: max(0, releaseYear)
+            )
+            do {
+                try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
+                writableIDs.insert(track.id)
+            } catch {
+                failures.append(error.localizedDescription)
             }
-            metadataOverrides[id] = override
         }
-        tracks = tracks.map { track in
-            guard ids.contains(track.id), let override = metadataOverrides[track.id] else { return track }
-            return override.applying(to: track)
-        }
+        for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
-        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        await scanDocuments(forceMetadataRefresh: true)
+        return failures.isEmpty ? nil : failures.first
+    }
+
+    private func writeTags(
+        to url: URL,
+        values: MetadataTagValues,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) async throws {
+        try await Task.detached(priority: .utility) {
+            try MetadataTagWriter.write(
+                to: url,
+                values: values,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
+        }.value
     }
 
     func resetMetadataOverrides(for trackIDs: [UUID]) async {

@@ -266,3 +266,320 @@ private struct FLACMetadata {
         return value
     }
 }
+
+struct MetadataTagValues: Sendable {
+    let title: String
+    let artist: String
+    let albumArtist: String
+    let album: String
+    let trackNumber: Int
+    let discNumber: Int
+    let releaseYear: Int
+}
+
+enum MetadataTagWriterError: LocalizedError {
+    case unsupportedFormat(String)
+    case invalidFile
+    case invalidMetadata
+    case writeFailed
+
+    var errorDescription: String? {
+        switch self {
+        case let .unsupportedFormat(extensionName):
+            return "Direct tag writing currently supports FLAC and MP3 files, not .\(extensionName)."
+        case .invalidFile:
+            return "The local audio file is not a valid FLAC or MP3 file."
+        case .invalidMetadata:
+            return "The metadata values could not be encoded safely."
+        case .writeFailed:
+            return "The audio file could not be updated."
+        }
+    }
+}
+
+enum MetadataTagWriter {
+    static let directlyWritableExtensions: Set<String> = ["flac", "mp3"]
+
+    static func write(
+        to url: URL,
+        values: MetadataTagValues,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) throws {
+        let extensionName = url.pathExtension.lowercased()
+        switch extensionName {
+        case "flac":
+            try writeFLAC(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
+        case "mp3":
+            try writeMP3(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
+        default:
+            throw MetadataTagWriterError.unsupportedFormat(extensionName.isEmpty ? "audio" : extensionName)
+        }
+    }
+
+    private struct FLACBlock {
+        var type: UInt8
+        var data: Data
+    }
+
+    private static func writeFLAC(
+        to url: URL,
+        values: MetadataTagValues,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) throws {
+        let original = try Data(contentsOf: url)
+        guard original.count >= 8, original.prefix(4) == Data("fLaC".utf8) else {
+            throw MetadataTagWriterError.invalidFile
+        }
+
+        var offset = 4
+        var blocks: [FLACBlock] = []
+        var isLast = false
+        while !isLast {
+            guard offset + 4 <= original.count else { throw MetadataTagWriterError.invalidFile }
+            let header = original[offset]
+            isLast = (header & 0x80) != 0
+            let type = header & 0x7F
+            let length = Int(original[offset + 1]) << 16 |
+                Int(original[offset + 2]) << 8 |
+                Int(original[offset + 3])
+            offset += 4
+            guard length <= 0xFFFFFF, offset + length <= original.count else {
+                throw MetadataTagWriterError.invalidFile
+            }
+            blocks.append(FLACBlock(type: type, data: original.subdata(in: offset..<(offset + length))))
+            offset += length
+        }
+
+        var commentIndex: Int?
+        var rewritten: [FLACBlock] = []
+        for block in blocks {
+            if block.type == 4 {
+                if commentIndex == nil {
+                    commentIndex = rewritten.count
+                    rewritten.append(FLACBlock(type: 4, data: makeVorbisComments(from: block.data, values: values)))
+                }
+            } else if replaceArtwork && block.type == 6 {
+                continue
+            } else {
+                rewritten.append(block)
+            }
+        }
+        if commentIndex == nil {
+            let index = rewritten.firstIndex(where: { $0.type == 0 }).map { $0 + 1 } ?? rewritten.count
+            rewritten.insert(
+                FLACBlock(type: 4, data: makeVorbisComments(from: nil, values: values)),
+                at: index
+            )
+        }
+        if replaceArtwork, let artworkData, !artworkData.isEmpty {
+            rewritten.append(FLACBlock(type: 6, data: makePictureBlock(artworkData)))
+        }
+
+        var output = Data("fLaC".utf8)
+        for (index, block) in rewritten.enumerated() {
+            guard block.data.count <= 0xFFFFFF else { throw MetadataTagWriterError.invalidMetadata }
+            output.append(block.type | (index == rewritten.count - 1 ? 0x80 : 0))
+            output.append(UInt8((block.data.count >> 16) & 0xFF))
+            output.append(UInt8((block.data.count >> 8) & 0xFF))
+            output.append(UInt8(block.data.count & 0xFF))
+            output.append(block.data)
+        }
+        output.append(original.subdata(in: offset..<original.count))
+        try atomicallyReplace(url, with: output)
+    }
+
+    private static func makeVorbisComments(from block: Data?, values: MetadataTagValues) -> Data {
+        var comments: [(String, String)] = []
+        if let block {
+            var cursor = 0
+            if let vendorLength = readLE32(block, &cursor), cursor + vendorLength <= block.count {
+                cursor += vendorLength
+                if let count = readLE32(block, &cursor) {
+                    for _ in 0..<min(count, 100_000) {
+                        guard let length = readLE32(block, &cursor), cursor + length <= block.count else { break }
+                        let raw = block.subdata(in: cursor..<(cursor + length))
+                        cursor += length
+                        guard let text = String(data: raw, encoding: .utf8), let separator = text.firstIndex(of: "=") else { continue }
+                        comments.append((String(text[..<separator]).uppercased(), String(text[text.index(after: separator)...])))
+                    }
+                }
+            }
+        }
+        let replacedKeys: Set<String> = ["TITLE", "ARTIST", "ALBUMARTIST", "ALBUM ARTIST", "ALBUM", "TRACKNUMBER", "DISCNUMBER", "DATE", "YEAR", "ORIGINALDATE", "METADATA_BLOCK_PICTURE"]
+        comments.removeAll { replacedKeys.contains($0.0) }
+        let newValues: [(String, String)] = [
+            ("TITLE", values.title),
+            ("ARTIST", values.artist),
+            ("ALBUMARTIST", values.albumArtist),
+            ("ALBUM", values.album),
+            ("TRACKNUMBER", values.trackNumber > 0 ? String(values.trackNumber) : ""),
+            ("DISCNUMBER", values.discNumber > 0 ? String(values.discNumber) : ""),
+            ("DATE", values.releaseYear > 0 ? String(values.releaseYear) : "")
+        ]
+        comments.append(contentsOf: newValues.filter { !$0.1.isEmpty })
+
+        var result = Data()
+        appendLE32(9, to: &result)
+        result.append(Data("Resonance".utf8))
+        appendLE32(comments.count, to: &result)
+        for (key, value) in comments {
+            let encoded = Data("\(key)=\(value)".utf8)
+            appendLE32(encoded.count, to: &result)
+            result.append(encoded)
+        }
+        return result
+    }
+
+    private static func makePictureBlock(_ image: Data) -> Data {
+        let mime = image.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "image/png" : "image/jpeg"
+        var result = Data()
+        appendBE32(3, to: &result)
+        appendBE32(mime.utf8.count, to: &result)
+        result.append(Data(mime.utf8))
+        appendBE32(0, to: &result)
+        appendBE32(0, to: &result)
+        appendBE32(0, to: &result)
+        appendBE32(0, to: &result)
+        appendBE32(0, to: &result)
+        appendBE32(image.count, to: &result)
+        result.append(image)
+        return result
+    }
+
+    private struct ID3Frame {
+        let id: String
+        let raw: Data
+    }
+
+    private static func writeMP3(
+        to url: URL,
+        values: MetadataTagValues,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) throws {
+        let original = try Data(contentsOf: url)
+        var audioOffset = 0
+        var existingFrames: [ID3Frame] = []
+        if original.count >= 10, String(data: original.subdata(in: 0..<3), encoding: .ascii) == "ID3" {
+            let version = original[3]
+            let tagSize = syncSafeInt(original.subdata(in: 6..<10))
+            let end = min(original.count, 10 + tagSize)
+            audioOffset = end
+            var cursor = 10
+            while cursor + 10 <= end {
+                let idData = original.subdata(in: cursor..<(cursor + 4))
+                guard let id = String(data: idData, encoding: .ascii), id.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) }), id != "\0\0\0\0" else { break }
+                let rawSize = original.subdata(in: (cursor + 4)..<(cursor + 8))
+                let frameSize = version >= 4 ? syncSafeInt(rawSize) : bigEndianInt(rawSize)
+                guard frameSize > 0, cursor + 10 + frameSize <= end else { break }
+                existingFrames.append(ID3Frame(id: id, raw: original.subdata(in: cursor..<(cursor + 10 + frameSize))))
+                cursor += 10 + frameSize
+            }
+        }
+
+        let replacedIDs: Set<String> = ["TIT2", "TPE1", "TPE2", "TALB", "TRCK", "TPOS", "TDRC"]
+        var frames = existingFrames.filter { frame in
+            !replacedIDs.contains(frame.id) && (replaceArtwork ? frame.id != "APIC" : true)
+        }.map(\.raw)
+        frames.insert(textFrame("TIT2", values.title), at: 0)
+        frames.insert(textFrame("TPE1", values.artist), at: 1)
+        frames.insert(textFrame("TPE2", values.albumArtist), at: 2)
+        frames.insert(textFrame("TALB", values.album), at: 3)
+        if values.trackNumber > 0 { frames.append(textFrame("TRCK", String(values.trackNumber))) }
+        if values.discNumber > 0 { frames.append(textFrame("TPOS", String(values.discNumber))) }
+        if values.releaseYear > 0 { frames.append(textFrame("TDRC", String(values.releaseYear))) }
+        if replaceArtwork, let artworkData, !artworkData.isEmpty {
+            frames.append(artworkFrame(artworkData))
+        }
+
+        var tagBody = Data()
+        for frame in frames { tagBody.append(frame) }
+        guard tagBody.count <= 0x0FFFFFFF else { throw MetadataTagWriterError.invalidMetadata }
+        var output = Data([0x49, 0x44, 0x33, 0x03, 0x00, 0x00])
+        output.append(syncSafeData(tagBody.count))
+        output.append(tagBody)
+        output.append(original.subdata(in: audioOffset..<original.count))
+        try atomicallyReplace(url, with: output)
+    }
+
+    private static func textFrame(_ id: String, _ value: String) -> Data {
+        var body = Data([1, 0xFF, 0xFE])
+        body.append(value.data(using: .utf16LittleEndian) ?? Data())
+        body.append(contentsOf: [0, 0])
+        return frame(id, body: body)
+    }
+
+    private static func artworkFrame(_ image: Data) -> Data {
+        let mime = image.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "image/png" : "image/jpeg"
+        var body = Data([1])
+        body.append(Data(mime.utf8))
+        body.append(0)
+        body.append(3)
+        body.append(contentsOf: [1, 0xFF, 0xFE, 0, 0])
+        body.append(image)
+        return frame("APIC", body: body)
+    }
+
+    private static func frame(_ id: String, body: Data) -> Data {
+        var result = Data(id.utf8.prefix(4))
+        result.append(UInt8((body.count >> 24) & 0xFF))
+        result.append(UInt8((body.count >> 16) & 0xFF))
+        result.append(UInt8((body.count >> 8) & 0xFF))
+        result.append(UInt8(body.count & 0xFF))
+        result.append(contentsOf: [0, 0])
+        result.append(body)
+        return result
+    }
+
+    private static func atomicallyReplace(_ url: URL, with data: Data) throws {
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            throw MetadataTagWriterError.writeFailed
+        }
+    }
+
+    private static func appendLE32(_ value: Int, to data: inout Data) {
+        let value = UInt32(clamping: value)
+        data.append(UInt8(value & 0xFF))
+        data.append(UInt8((value >> 8) & 0xFF))
+        data.append(UInt8((value >> 16) & 0xFF))
+        data.append(UInt8((value >> 24) & 0xFF))
+    }
+
+    private static func appendBE32(_ value: Int, to data: inout Data) {
+        let value = UInt32(clamping: value)
+        data.append(UInt8((value >> 24) & 0xFF))
+        data.append(UInt8((value >> 16) & 0xFF))
+        data.append(UInt8((value >> 8) & 0xFF))
+        data.append(UInt8(value & 0xFF))
+    }
+
+    private static func readLE32(_ data: Data, _ offset: inout Int) -> Int? {
+        guard offset + 4 <= data.count else { return nil }
+        let value = Int(data[offset]) | Int(data[offset + 1]) << 8 | Int(data[offset + 2]) << 16 | Int(data[offset + 3]) << 24
+        offset += 4
+        return value
+    }
+
+    private static func syncSafeInt(_ data: Data) -> Int {
+        guard data.count == 4 else { return 0 }
+        return Int(data[0] & 0x7F) << 21 | Int(data[1] & 0x7F) << 14 | Int(data[2] & 0x7F) << 7 | Int(data[3] & 0x7F)
+    }
+
+    private static func bigEndianInt(_ data: Data) -> Int {
+        guard data.count == 4 else { return 0 }
+        return Int(data[0]) << 24 | Int(data[1]) << 16 | Int(data[2]) << 8 | Int(data[3])
+    }
+
+    private static func syncSafeData(_ value: Int) -> Data {
+        Data([
+            UInt8((value >> 21) & 0x7F),
+            UInt8((value >> 14) & 0x7F),
+            UInt8((value >> 7) & 0x7F),
+            UInt8(value & 0x7F)
+        ])
+    }
+}

@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 71;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 72;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -288,6 +288,10 @@ assert 'resonancePreparedNowPlayingImage' in player
 assert 'resonanceAspectFit' not in player
 assert 'showLockScreenArtwork' in settings
 assert 'streamingGaplessExperimental' in settings
+assert 'Streaming gapless playback is disabled during alpha testing.' in settings_view
+assert 'return false' in player
+assert 'RemoteDownloadManager' in remote
+assert 'MetadataTagWriter' in metadata
 assert 'Reported Errors' in settings_view
 assert '.foregroundStyle(.red)' in settings_view
 assert 'AppReportedError' in error_log and 'Copy Errors' in settings_view

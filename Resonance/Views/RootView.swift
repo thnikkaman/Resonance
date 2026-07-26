@@ -363,9 +363,6 @@ private struct PlaybackCoordinatorView: View {
             .onChange(of: settings.networkBufferMB) { _, _ in
                 player.refreshPlaybackConfiguration()
             }
-            .onChange(of: settings.streamingGaplessExperimental) { _, _ in
-                player.refreshRemoteGaplessConfiguration()
-            }
             .onChange(of: settings.showLockScreenArtwork) { _, _ in
                 player.refreshNowPlayingMetadata()
             }

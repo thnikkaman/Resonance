@@ -164,7 +164,10 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private var remoteGaplessExperimentalEnabled: Bool {
-    UserDefaults.standard.bool(forKey: "streamingGaplessExperimental")
+    // Streaming gapless is intentionally unavailable during alpha. Keep the
+    // old preference key readable for upgrades, but always use the stable
+    // single-item AVPlayer path until a sample-contiguous decoder is ready.
+    false
   }
 
   private func makeGaplessEngine() -> GaplessAudioEngine {
