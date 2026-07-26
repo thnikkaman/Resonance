@@ -366,7 +366,7 @@ assert 'ResonanceThemeSurfaceBackdrop' in root_view
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {', 1)[1].split('private struct ResonanceHeroSurface', 1)[0]
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
-assert 'backgroundImageName' in surface_backdrop
+assert 'Color.clear' in surface_backdrop
 assert 'Color.clear' in surface_backdrop
 assert 'Color.clear' in now_playing
 assert '.opacity(0.42)' in root_view

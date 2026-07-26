@@ -23,7 +23,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
     case classicWood
     case electronic
     case psychedelic
-    case custom
+    case waterfall
 
     var id: String { rawValue }
 
@@ -36,7 +36,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "Classic Wood"
         case .electronic: "Electronic"
         case .psychedelic: "Psychedelic"
-        case .custom: "Custom Accent"
+        case .waterfall: "Waterfall Meadow"
         }
     }
 
@@ -49,7 +49,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "Warm walnut with brass highlights"
         case .electronic: "Midnight circuitry with electric cyan"
         case .psychedelic: "Ultraviolet color with acid-lime energy"
-        case .custom: "Use your accent color with system surfaces"
+        case .waterfall: "Mountain waterfall with purple and orange flowers"
         }
     }
 
@@ -62,7 +62,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "D68A36"
         case .electronic: "00E5FF"
         case .psychedelic: "F533FF"
-        case .custom: "A855F7"
+        case .waterfall: "7B4DCC"
         }
     }
 
@@ -75,7 +75,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "2A170E"
         case .electronic: "050914"
         case .psychedelic: "18042D"
-        case .custom: "000000"
+        case .waterfall: "123B2A"
         }
     }
 
@@ -88,7 +88,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "4A2A18"
         case .electronic: "0D1830"
         case .psychedelic: "351050"
-        case .custom: "000000"
+        case .waterfall: "214F38"
         }
     }
 
@@ -101,40 +101,36 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "F1D0A3"
         case .electronic: "75F0FF"
         case .psychedelic: "7CFF7A"
-        case .custom: "000000"
+        case .waterfall: "B7E4C7"
         }
     }
 
     var recommendedColorScheme: ColorScheme {
         switch self {
-        case .galleryLight, .custom: .light
-        case .nocturne, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic: .dark
+        case .waterfall: .light
+        case .nocturne, .galleryLight, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic: .dark
         }
     }
 
     var backgroundGradientHex: [String] {
         switch self {
-        case .nocturne: ["0B1020", "1D1636"]
-        case .galleryLight: ["F5F0E8", "FFFDF8"]
-        case .colorBloom: ["07142B", "241244"]
+        case .nocturne, .galleryLight, .colorBloom: ["030711", "0A1D32", "04101D"]
         case .brushedMetal: ["11161B", "46515A", "1A2026"]
         case .classicWood: ["241109", "5B321B", "2A140B"]
         case .electronic: ["030711", "0A1D32", "04101D"]
         case .psychedelic: ["120022", "3A0A52", "13062E"]
-        case .custom: ["000000", "000000"]
+        case .waterfall: ["123B2A", "2E6B4A"]
         }
     }
 
     var surfaceGradientHex: [String] {
         switch self {
-        case .nocturne: ["151A2C", "24203D"]
-        case .galleryLight: ["FFFDF8", "F2E9DC"]
-        case .colorBloom: ["10254A", "1C1A50"]
+        case .nocturne, .galleryLight, .colorBloom: ["0D1830", "122C4A"]
         case .brushedMetal: ["303840", "59656D", "333D45"]
         case .classicWood: ["4A2A18", "6C3D20"]
         case .electronic: ["0D1830", "122C4A"]
         case .psychedelic: ["351050", "59105F"]
-        case .custom: ["000000", "000000"]
+        case .waterfall: ["214F38", "3E7A57"]
         }
     }
 
@@ -148,7 +144,8 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "ThemeClassicWood"
         case .electronic: "ThemeElectronic"
         case .psychedelic: "ThemePsychedelic"
-        case .nocturne, .galleryLight, .colorBloom, .custom: nil
+        case .nocturne, .galleryLight, .colorBloom: "ThemeElectronic"
+        case .waterfall: "ThemeWaterfallMeadow"
         }
     }
 }
@@ -198,7 +195,7 @@ final class AppSettings: ObservableObject {
         // once so themed text is the default; a custom visual theme remains the
         // signal that the user previously chose their own accent.
         if !applyThemeColorToTextConfigured {
-            applyThemeColorToText = visualTheme != .custom
+            applyThemeColorToText = true
             applyThemeColorToTextConfigured = true
         }
 
@@ -239,7 +236,12 @@ final class AppSettings: ObservableObject {
     }
 
     var visualTheme: ResonanceVisualTheme {
-        get { ResonanceVisualTheme(rawValue: visualThemeRaw) ?? .nocturne }
+        get {
+            // Replace the removed Custom Accent theme without resetting an
+            // existing user's selected visual theme.
+            if visualThemeRaw == "custom" { return .waterfall }
+            return ResonanceVisualTheme(rawValue: visualThemeRaw) ?? .nocturne
+        }
         set {
             visualThemeRaw = newValue.rawValue
             if newValue.isBrightAppearance, appearanceRaw == "dark" {
@@ -288,7 +290,7 @@ final class AppSettings: ObservableObject {
     }
 
     var accentColor: Color {
-        Color(hex: visualTheme == .custom ? normalizedAccentHex : visualTheme.accentHex) ?? .purple
+            Color(hex: visualTheme.accentHex) ?? .purple
     }
 
     var textAccentColor: Color {
@@ -315,22 +317,19 @@ final class AppSettings: ObservableObject {
     }
 
     var themeBackgroundColor: Color {
-        guard visualTheme != .custom else { return Color(uiColor: .systemBackground) }
         return Color(hex: visualTheme.backgroundHex) ?? Color(uiColor: .systemBackground)
     }
 
     var themeSurfaceColor: Color {
-        guard visualTheme != .custom else { return Color(uiColor: .secondarySystemBackground) }
         return Color(hex: visualTheme.surfaceHex) ?? Color(uiColor: .secondarySystemBackground)
     }
 
     var themeSecondaryColor: Color {
-        guard visualTheme != .custom else { return .secondary }
         return Color(hex: visualTheme.secondaryHex) ?? .secondary
     }
 
     var contrastingAccentTextColor: Color {
-        let source = visualTheme == .custom ? normalizedAccentHex : visualTheme.accentHex
+        let source = visualTheme.accentHex
         guard let value = UInt64(source, radix: 16) else { return .white }
         let r = 255 - Int((value >> 16) & 0xFF)
         let g = 255 - Int((value >> 8) & 0xFF)

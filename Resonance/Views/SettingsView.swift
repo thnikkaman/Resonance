@@ -1071,9 +1071,7 @@ private struct ThemeChoiceButton: View {
                             LinearGradient(
                                 colors: [
                                     Color(hex: theme.accentHex) ?? .purple,
-                                    theme == .custom
-                                        ? Color.secondary.opacity(0.25)
-                                        : (Color(hex: theme.backgroundHex) ?? .black)
+                                    Color(hex: theme.backgroundHex) ?? .black
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing

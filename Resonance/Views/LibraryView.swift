@@ -50,7 +50,10 @@ struct LibraryView: View {
             }
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
-        .searchable(text: $library.searchText)
+        .searchable(
+            text: $library.searchText,
+            placement: .navigationBarDrawer(displayMode: .always)
+        )
         .background {
             Color.clear
         }

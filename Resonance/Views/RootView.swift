@@ -152,19 +152,10 @@ private struct ResonanceTabBar: View {
         // safeAreaInset places this view against the bottom edge; reserve the
         // home-indicator area inside the bar so the labels stay above it.
         .padding(.bottom, 56)
-        // Keep the custom tab bar opaque and above page artwork. The page backdrop
-        // intentionally ignores the safe area, so the bar must own its contrast.
+        // Keep the custom tab bar transparent so every visual theme can remain
+        // visible behind its controls and labels.
         .background {
-            Group {
-                if settings.visualTheme.backgroundImageName == nil {
-                    ZStack {
-                        settings.themeSurfaceColor
-                        settings.themeSurfaceGradient.opacity(0.78)
-                    }
-                } else {
-                    Color.clear
-                }
-            }
+            Color.clear
             .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
@@ -296,9 +287,7 @@ private struct ResonanceThemeTextSurface: ViewModifier {
                 settings.textAccentColor
             )
             .toolbarBackground(
-                settings.visualTheme.backgroundImageName == nil
-                    ? AnyShapeStyle(settings.themeSurfaceGradient)
-                    : AnyShapeStyle(Color.clear),
+                AnyShapeStyle(Color.clear),
                 for: .navigationBar
             )
             .toolbarBackground(.visible, for: .navigationBar)
@@ -335,16 +324,10 @@ struct ResonanceThemeSurfaceBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        // Image themes use genuinely transparent surfaces. Text, artwork, and
-        // controls remain visible while the page artwork shows through every
-        // list, hero, picker, and detail surface.
-        Group {
-            if settings.visualTheme.backgroundImageName == nil {
-                settings.themeSurfaceGradient
-            } else {
-                Color.clear
-            }
-        }
+        // Every theme uses genuinely transparent surfaces. The selected
+        // gradient or image is the page backdrop; text, artwork, and controls
+        // remain visible above it.
+        Color.clear
         .allowsHitTesting(false)
     }
 }
