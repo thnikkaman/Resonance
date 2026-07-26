@@ -39,5 +39,7 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Resonance connects to your private Tailscale or home music server to browse and stream your library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Resonance uses the camera to scan a QR code containing your music server address.</string>
 </dict>
 </plist>

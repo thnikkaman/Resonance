@@ -475,14 +475,20 @@ struct ArtistCollectionView: View {
             )
         ) {
             Button("Cancel", role: .cancel) { artistToRemove = nil }
-            Button("Remove", role: .destructive) {
+            Button("Remove from Library") {
                 if let artist = artistToRemove {
-                    Task { await library.removeArtist(artist) }
+                    Task { await library.removeArtist(artist, deletingFiles: false) }
+                }
+                artistToRemove = nil
+            }
+            Button("Delete from iPhone", role: .destructive) {
+                if let artist = artistToRemove {
+                    Task { await library.removeArtist(artist, deletingFiles: true) }
                 }
                 artistToRemove = nil
             }
         } message: {
-            Text("This removes the artist’s imported audio files from Resonance’s local library.")
+            Text("Remove from Library keeps the audio files on your iPhone but hides them from Resonance. Delete from iPhone removes the files permanently.")
         }
         .sheet(item: $artistToEdit) { artist in
             ArtistMetadataEditorSheet(artist: artist)
@@ -810,7 +816,9 @@ private struct AllAlbumsTile: View {
 
 struct AlbumCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var library: LibraryStore
     @State private var albumToEdit: Album?
+    @State private var albumToRemove: Album?
     let albums: [Album]
 
     private var columns: [GridItem] {
@@ -833,6 +841,10 @@ struct AlbumCollectionView: View {
                             .contextMenu {
                                 Button { albumToEdit = album } label: {
                                     Label("Edit Album Metadata", systemImage: "pencil")
+                                }
+                                Divider()
+                                Button { albumToRemove = album } label: {
+                                    Label("Remove or Delete Album", systemImage: "trash")
                                 }
                             }
                         }
@@ -877,6 +889,10 @@ struct AlbumCollectionView: View {
                         Button { albumToEdit = album } label: {
                             Label("Edit Album Metadata", systemImage: "pencil")
                         }
+                        Divider()
+                        Button { albumToRemove = album } label: {
+                            Label("Remove or Delete Album", systemImage: "trash")
+                        }
                     }
                     .listRowInsets(
                         EdgeInsets(
@@ -891,6 +907,30 @@ struct AlbumCollectionView: View {
         }
         .sheet(item: $albumToEdit) { album in
             AlbumMetadataEditorSheet(album: album)
+        }
+        .confirmationDialog(
+            "Remove \(albumToRemove?.title ?? "album")?",
+            isPresented: Binding(
+                get: { albumToRemove != nil },
+                set: { if !$0 { albumToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove from Library") {
+                if let albumToRemove {
+                    Task { await library.removeTracks(albumToRemove.tracks, deletingFiles: false) }
+                }
+                albumToRemove = nil
+            }
+            Button("Delete from iPhone", role: .destructive) {
+                if let albumToRemove {
+                    Task { await library.removeTracks(albumToRemove.tracks, deletingFiles: true) }
+                }
+                albumToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { albumToRemove = nil }
+        } message: {
+            Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album)

@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **72**
+Build: **73**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -96,6 +96,8 @@ Alpha 3.7.4 build 71 removes the experimental 350 ms dual-player overlap that cu
 
 Alpha 3.7.4 build 72 begins the offline-library phase. Experimental streaming gapless is no longer exposed or honored; remote playback always uses the stable single-item AVPlayer path until a post-alpha sample-contiguous design is available. Remote tracks, complete albums, and complete artist collections can be downloaded into the local Resonance Music folder, where they are indexed by the existing library scanner. Local FLAC and MP3 metadata editors now write title, artist, album artist, album, track/disc position, release year, and optional artwork directly into the audio file before rescanning it. Other local formats remain read-only for direct tags in this phase and report that limitation instead of silently creating a Resonance-only edit.
 
+Alpha 3.7.4 build 73 completes the first offline-library download workflow. Downloads now use a disk-backed byte stream with per-file byte progress, a visible cancellation control, cancellation cleanup, and a library rescan after every newly completed track so tracks appear incrementally. Existing destination names trigger an explicit Replace Existing or Keep Existing choice; completed downloads remain duplicate-safe. Streaming artists now support a touch-and-hold Select Artists to Download action that opens a multi-select sheet for downloading several collections together. Local track, album, and artist removal now distinguishes Remove from Library—which preserves the file and persists an exclusion from automatic rescans—from Delete from iPhone, which removes the audio file. Settings adds a QR-camera icon beside the server address field; it accepts a plain URL/host and common JSON address payloads, and requires camera permission only while scanning. The direct FLAC/MP3 tag-writing and stable single-item streaming playback paths are unchanged.
+
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
 Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so screen transitions, Streaming scrolling, and alphabet gestures do not synchronously block the main actor. It also passes the computed compilation-album set into Album Artists browsing and adds privacy-safe synchronous boundary/preload diagnostics for reproducing the reported local and streaming gapless failures. The remote backend remains the deliberately stable single-item `AVPlayer` path pending a separate gapless streaming design decision.
@@ -137,6 +139,12 @@ Alpha 3.7.4 build 69 replaces the experimental remote `AVQueuePlayer` handoff wi
 
 ## Next major phase
 
+- Preserve build 63 (0.3.7.4, source commit c3c1ebc) as the stability and rollback reference while testing build 73. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed local 5.1 gapless behavior.
+- Build-73 download acceptance: start a multi-track artist or multi-artist download, confirm the current file shows byte progress and the Cancel button, cancel mid-file, and verify no partial .part file is indexed. Start again and confirm the local library refreshes after each completed track rather than waiting for the whole batch.
+- Build-73 replacement acceptance: download a track twice, verify the second attempt asks whether to replace the same-named file, choose Keep Existing and then Replace Existing, and confirm the library contains one track rather than duplicates.
+- Build-73 removal acceptance: for a track, album, and artist use Remove from Library and confirm the files remain in Files/Finder but stay absent after a manual or relaunch scan; repeat with Delete from iPhone and confirm the files are removed.
+- Build-73 multi-artist acceptance: touch and hold an artist in Streaming, select several artists, start the combined download, and confirm deduplication, progress, incremental local indexing, and cancellation.
+- Build-73 QR acceptance: open Settings → Streaming Library, tap the QR icon, scan a plain HTTPS server URL and a host with a port, confirm the host/port/HTTPS fields populate, and verify a denied camera permission produces an actionable message. Do not put credentials in the QR payload or diagnostics.
 - Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 72. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed local 5.1 gapless behavior.
 - Build-72 manual acceptance: verify the Streaming settings no longer expose a gapless toggle; download one track, one album, and one artist collection; confirm progress, duplicate-safe behavior, local-library indexing, offline playback, and correct artist/album/track ordering.
 - Build-72 metadata acceptance: edit a local FLAC track, album, and artist; verify the changed tags and artwork survive app relaunch and are visible to another tag reader. Repeat with MP3, and verify an unsupported format presents the direct-write limitation without claiming the file was changed.

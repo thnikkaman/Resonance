@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
@@ -10,6 +11,8 @@ struct SettingsView: View {
     let openLibrary: () -> Void
     @FocusState private var isTextFieldFocused: Bool
     @State private var accentHexDraft = ""
+    @State private var showingServerQRCodeScanner = false
+    @State private var serverQRCodeError: String?
     @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
     private let palette = ["A855F7", "3B82F6", "14B8A6", "22C55E", "EAB308", "F97316", "EF4444"]
 
@@ -188,11 +191,22 @@ struct SettingsView: View {
                     settings.applyStreamingDefaults(for: backend)
                 }
 
-                TextField("Server URL or Tailscale host", text: $settings.streamHost)
-                    .focused($isTextFieldFocused)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
+                HStack(spacing: 10) {
+                    TextField("Server URL or Tailscale host", text: $settings.streamHost)
+                        .focused($isTextFieldFocused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    Button {
+                        isTextFieldFocused = false
+                        showingServerQRCodeScanner = true
+                    } label: {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Scan server address QR code")
+                }
 
                 TextField(
                     settings.streamBackend == .subsonic
@@ -370,7 +384,9 @@ struct SettingsView: View {
                 StatusRow(title: "Remote playback crash shield", detail: "Stable single-item AVPlayer path", icon: "checkmark.circle.fill")
                 StatusRow(title: "Preloaded gapless audio engine", detail: "Beta — local files", icon: "checkmark.circle.fill")
                 StatusRow(title: "Library metadata and custom artwork editing", detail: "Track, album, and artist edits", icon: "checkmark.circle.fill")
-                StatusRow(title: "Direct audio-file tag writing", detail: "Planned", icon: "clock")
+                StatusRow(title: "Direct audio-file tag writing", detail: "FLAC and MP3", icon: "checkmark.circle.fill")
+                StatusRow(title: "Remote downloads", detail: "Progress, cancellation, replacement, and local indexing", icon: "checkmark.circle.fill")
+                StatusRow(title: "QR server setup", detail: "Camera scan", icon: "checkmark.circle.fill")
                 StatusRow(title: "Online artwork search", detail: "Planned", icon: "clock")
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -412,6 +428,28 @@ struct SettingsView: View {
         .onAppear {
             if accentHexDraft.isEmpty { accentHexDraft = settings.accentHex }
         }
+        .sheet(isPresented: $showingServerQRCodeScanner) {
+            ServerQRCodeScannerView { value in
+                showingServerQRCodeScanner = false
+                do {
+                    try ServerQRCodeConfiguration.apply(value, to: settings)
+                } catch {
+                    serverQRCodeError = error.localizedDescription
+                }
+            }
+            .ignoresSafeArea()
+        }
+        .alert(
+            "Could Not Read Server QR Code",
+            isPresented: Binding(
+                get: { serverQRCodeError != nil },
+                set: { if !$0 { serverQRCodeError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { serverQRCodeError = nil }
+        } message: {
+            Text(serverQRCodeError ?? "The QR code did not contain a usable server address.")
+        }
         .onChange(of: settings.accentHex) { _, value in
             if accentHexDraft != value { accentHexDraft = value }
         }
@@ -427,6 +465,227 @@ struct SettingsView: View {
         accentHexCommitter.cancel()
         accentHexDraft = value
         settings.accentHex = value
+    }
+}
+
+private enum ServerQRCodeError: LocalizedError {
+    case empty
+    case missingHost
+    case unsupported
+
+    var errorDescription: String? {
+        switch self {
+        case .empty:
+            "The QR code was empty."
+        case .missingHost:
+            "The QR code did not contain a server host or URL."
+        case .unsupported:
+            "Use a server URL, hostname, or a JSON object containing a url or host value."
+        }
+    }
+}
+
+private struct ServerQRCodeJSONPayload: Decodable {
+    let url: String?
+    let server: String?
+    let host: String?
+    let port: String?
+    let https: Bool?
+    let backend: String?
+    let path: String?
+}
+
+@MainActor
+private enum ServerQRCodeConfiguration {
+    static func apply(_ rawValue: String, to settings: AppSettings) throws {
+        let raw = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { throw ServerQRCodeError.empty }
+
+        var address = raw
+        var jsonPort: String?
+        var jsonHTTPS: Bool?
+        var jsonBackend: String?
+        var jsonPath: String?
+        if let data = raw.data(using: .utf8),
+           let payload = try? JSONDecoder().decode(ServerQRCodeJSONPayload.self, from: data) {
+            address = payload.url ?? payload.server ?? payload.host ?? ""
+            jsonPort = payload.port
+            jsonHTTPS = payload.https
+            jsonBackend = payload.backend
+            jsonPath = payload.path
+        }
+        guard !address.isEmpty else { throw ServerQRCodeError.missingHost }
+
+        let candidate = address.contains("://") ? address : "http://\(address)"
+        guard var components = URLComponents(string: candidate),
+              let host = components.host,
+              !host.isEmpty
+        else {
+            throw ServerQRCodeError.unsupported
+        }
+
+        settings.streamHost = host
+        settings.streamPort = components.port.map(String.init) ?? jsonPort ?? ""
+        settings.streamUseHTTPS = jsonHTTPS ?? (components.scheme?.lowercased() == "https")
+
+        let path = jsonPath ?? components.path
+        if let jsonBackend {
+            let normalized = jsonBackend.lowercased()
+            settings.streamBackend = normalized.contains("manifest")
+                ? .resonanceManifest
+                : .subsonic
+        } else if path.localizedCaseInsensitiveContains("resonance/library.json") {
+            settings.streamBackend = .resonanceManifest
+        }
+        if !path.isEmpty, path != "/" {
+            settings.streamManifestPath = path
+        }
+        if settings.streamBackend == .resonanceManifest,
+           settings.streamManifestPath == "/rest" {
+            settings.streamManifestPath = "/resonance/library.json"
+        }
+        components = URLComponents()
+    }
+}
+
+private struct ServerQRCodeScannerView: View {
+    @Environment(\.dismiss) private var dismiss
+    let onCode: (String) -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ServerQRCodeScannerRepresentable(onCode: onCode)
+            Button("Done") { dismiss() }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 18)
+                .padding(.trailing, 16)
+        }
+        .background(Color.black)
+    }
+}
+
+private struct ServerQRCodeScannerRepresentable: UIViewControllerRepresentable {
+    let onCode: (String) -> Void
+
+    func makeUIViewController(context: Context) -> ServerQRCodeScannerController {
+        ServerQRCodeScannerController(onCode: onCode)
+    }
+
+    func updateUIViewController(_ controller: ServerQRCodeScannerController, context: Context) { }
+}
+
+@MainActor
+private final class ServerQRCodeScannerController: UIViewController, @preconcurrency AVCaptureMetadataOutputObjectsDelegate {
+    private let onCode: (String) -> Void
+    private let session = AVCaptureSession()
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var didEmitCode = false
+
+    init(onCode: @escaping (String) -> Void) {
+        self.onCode = onCode
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        requestCameraIfNeeded()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        previewLayer?.frame = view.bounds
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        if !session.isRunning, previewLayer != nil {
+            session.startRunning()
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if session.isRunning { session.stopRunning() }
+    }
+
+    private func requestCameraIfNeeded() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            configureCaptureSession()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if granted {
+                        self.configureCaptureSession()
+                    } else {
+                        self.showMessage("Camera access is required to scan a server QR code.")
+                    }
+                }
+            }
+        default:
+            showMessage("Allow camera access in Settings to scan a server QR code.")
+        }
+    }
+
+    private func configureCaptureSession() {
+        guard previewLayer == nil,
+              let device = AVCaptureDevice.default(for: .video),
+              let input = try? AVCaptureDeviceInput(device: device)
+        else { return }
+
+        guard session.canAddInput(input) else {
+            showMessage("The camera could not be configured.")
+            return
+        }
+        session.addInput(input)
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else {
+            showMessage("The camera could not scan QR codes.")
+            return
+        }
+        session.addOutput(output)
+        output.setMetadataObjectsDelegate(self, queue: .main)
+        output.metadataObjectTypes = [.qr]
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        view.layer.insertSublayer(layer, at: 0)
+        previewLayer = layer
+        session.startRunning()
+    }
+
+    private func showMessage(_ message: String) {
+        let label = UILabel()
+        label.text = message
+        label.textColor = .white
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
+        guard !didEmitCode,
+              let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let value = object.stringValue
+        else { return }
+        didEmitCode = true
+        session.stopRunning()
+        onCode(value)
     }
 }
 

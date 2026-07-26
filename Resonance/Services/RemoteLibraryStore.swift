@@ -1758,10 +1758,11 @@ struct RemoteDownloadProgress: Identifiable, Sendable {
         case completed
         case skipped
         case failed
+        case cancelled
     }
 
     var fraction: Double {
-        guard total > 0 else { return state == .completed ? 1 : 0 }
+        guard total > 0 else { return state == .completed || state == .skipped ? 1 : 0 }
         return min(1, max(0, Double(completed) / Double(total)))
     }
 }
@@ -1790,18 +1791,90 @@ final class RemoteDownloadManager: ObservableObject {
     @Published private(set) var currentTitle = ""
     @Published private(set) var completedCount = 0
     @Published private(set) var totalCount = 0
+    @Published private(set) var currentCompletedBytes: Int64 = 0
+    @Published private(set) var currentTotalBytes: Int64 = 0
     @Published private(set) var lastMessage = ""
     @Published private(set) var itemProgress: [UUID: RemoteDownloadProgress] = [:]
+    @Published private(set) var pendingReplacementCount = 0
+    @Published private(set) var pendingReplacementDescription = ""
 
-    func download(_ remoteTracks: [RemoteTrackItem], into library: LibraryStore) async {
+    private var downloadTask: Task<Void, Never>?
+    private var pendingTracks: [RemoteTrackItem] = []
+    private weak var pendingLibrary: LibraryStore?
+
+    func requestDownload(_ remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
         let tracks = remoteTracks.reduce(into: [RemoteTrackItem]()) { result, track in
             if !result.contains(where: { $0.id == track.id }) { result.append(track) }
         }
-        guard !tracks.isEmpty else { return }
+        guard !tracks.isEmpty, !isDownloading else {
+            if isDownloading { lastMessage = "A download is already in progress" }
+            return
+        }
 
+        let duplicates = tracks.filter {
+            FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+        }
+        if !duplicates.isEmpty {
+            pendingTracks = tracks
+            pendingLibrary = library
+            pendingReplacementCount = duplicates.count
+            pendingReplacementDescription = duplicates.count == 1
+                ? "A local file with the same name already exists. Replace it?"
+                : "\(duplicates.count) local files with the same names already exist. Replace them?"
+            return
+        }
+
+        startDownload(tracks, into: library, replacingExisting: false)
+    }
+
+    func confirmReplacement() {
+        guard !pendingTracks.isEmpty, let library = pendingLibrary else {
+            cancelPendingReplacement()
+            return
+        }
+        let tracks = pendingTracks
+        cancelPendingReplacement()
+        startDownload(tracks, into: library, replacingExisting: true)
+    }
+
+    func cancelPendingReplacement() {
+        pendingTracks = []
+        pendingLibrary = nil
+        pendingReplacementCount = 0
+        pendingReplacementDescription = ""
+    }
+
+    func cancel() {
+        guard isDownloading else { return }
+        downloadTask?.cancel()
+        lastMessage = "Cancelling download…"
+    }
+
+    private func startDownload(
+        _ tracks: [RemoteTrackItem],
+        into library: LibraryStore,
+        replacingExisting: Bool
+    ) {
+        downloadTask?.cancel()
+        downloadTask = Task { [weak self] in
+            await self?.performDownload(
+                tracks,
+                into: library,
+                replacingExisting: replacingExisting
+            )
+        }
+    }
+
+    private func performDownload(
+        _ tracks: [RemoteTrackItem],
+        into library: LibraryStore,
+        replacingExisting: Bool
+    ) async {
         isDownloading = true
         completedCount = 0
         totalCount = tracks.count
+        currentCompletedBytes = 0
+        currentTotalBytes = 0
         lastMessage = "Preparing \(tracks.count) download\(tracks.count == 1 ? "" : "s")…"
         itemProgress = Dictionary(uniqueKeysWithValues: tracks.map {
             ($0.id, RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .downloading))
@@ -1809,20 +1882,73 @@ final class RemoteDownloadManager: ObservableObject {
         defer {
             isDownloading = false
             currentTitle = ""
+            currentCompletedBytes = 0
+            currentTotalBytes = 0
+            downloadTask = nil
         }
 
         for track in tracks {
-            currentTitle = track.title
-            do {
-                let result = try await downloadOne(track, into: library.sharedMusicFolderURL)
-                completedCount += 1
+            if Task.isCancelled {
                 itemProgress[track.id] = RemoteDownloadProgress(
                     id: track.id,
                     title: track.title,
-                    completed: result.bytes,
-                    total: result.bytes,
+                    completed: Int(min(Int64(Int.max), currentCompletedBytes)),
+                    total: Int(min(Int64(Int.max), currentTotalBytes)),
+                    state: .cancelled
+                )
+                break
+            }
+            currentTitle = track.title
+            currentCompletedBytes = 0
+            currentTotalBytes = max(0, track.fileSizeBytes)
+            do {
+                let progressStream = AsyncStream<DownloadByteProgress>.makeStream()
+                let destinationRoot = library.sharedMusicFolderURL
+                let worker = Task.detached(priority: .utility) {
+                    defer { progressStream.continuation.finish() }
+                    return try await Self.downloadOne(
+                        track,
+                        into: destinationRoot,
+                        replacingExisting: replacingExisting
+                    ) { completed, total in
+                        progressStream.continuation.yield(DownloadByteProgress(completed: completed, total: total))
+                    }
+                }
+                await withTaskCancellationHandler(operation: {
+                    for await progress in progressStream.stream {
+                        currentCompletedBytes = progress.completed
+                        currentTotalBytes = progress.total
+                        itemProgress[track.id] = RemoteDownloadProgress(
+                            id: track.id,
+                            title: track.title,
+                            completed: Int(min(Int64(Int.max), progress.completed)),
+                            total: Int(min(Int64(Int.max), progress.total)),
+                            state: .downloading
+                        )
+                    }
+                }, onCancel: {
+                    worker.cancel()
+                })
+                let result = try await worker.value
+                completedCount += 1
+                itemProgress[track.id] = RemoteDownloadProgress(
+                    id: track.id,
+                    title: track.title, completed: Int(min(Int64(Int.max), result.bytes)),
+                    total: Int(min(Int64(Int.max), result.bytes)),
                     state: result.skipped ? .skipped : .completed
                 )
+                if !result.skipped {
+                    await library.scanSharedMusicFolder(forceMetadataRefresh: true)
+                }
+            } catch is CancellationError {
+                itemProgress[track.id] = RemoteDownloadProgress(
+                    id: track.id,
+                    title: track.title,
+                    completed: Int(min(Int64(Int.max), currentCompletedBytes)),
+                    total: Int(min(Int64(Int.max), currentTotalBytes)),
+                    state: .cancelled
+                )
+                break
             } catch {
                 completedCount += 1
                 itemProgress[track.id] = RemoteDownloadProgress(
@@ -1836,72 +1962,107 @@ final class RemoteDownloadManager: ObservableObject {
             }
         }
 
-        await library.scanSharedMusicFolder(forceMetadataRefresh: true)
         let succeeded = itemProgress.values.filter { $0.state == .completed || $0.state == .skipped }.count
-        lastMessage = succeeded == tracks.count
+        if Task.isCancelled || itemProgress.values.contains(where: { $0.state == .cancelled }) {
+            lastMessage = "Download cancelled after \(succeeded) track\(succeeded == 1 ? "" : "s")"
+        } else {
+            lastMessage = succeeded == tracks.count
             ? "Downloaded \(succeeded) track\(succeeded == 1 ? "" : "s") to the local library"
             : "Downloaded \(succeeded) of \(tracks.count) tracks; review failed items"
+        }
+    }
+
+    private struct DownloadByteProgress: Sendable {
+        let completed: Int64
+        let total: Int64
     }
 
     private struct DownloadResult: Sendable {
-        let bytes: Int
+        let bytes: Int64
         let skipped: Bool
     }
 
-    private func downloadOne(_ track: RemoteTrackItem, into root: URL) async throws -> DownloadResult {
+    private nonisolated static func downloadOne(
+        _ track: RemoteTrackItem,
+        into root: URL,
+        replacingExisting: Bool,
+        progress: @escaping @Sendable (Int64, Int64) -> Void
+    ) async throws -> DownloadResult {
         guard let scheme = track.streamURL.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
             throw RemoteDownloadError.invalidURL
         }
 
-        let response: URLResponse
-        let temporaryDownloadURL: URL
-        (temporaryDownloadURL, response) = try await URLSession.shared.download(from: track.streamURL)
+        let (bytes, response) = try await URLSession.shared.bytes(from: track.streamURL)
         guard let http = response as? HTTPURLResponse else { throw RemoteDownloadError.invalidResponse }
         guard (200..<300).contains(http.statusCode) else { throw RemoteDownloadError.httpStatus(http.statusCode) }
-        let downloadedBytes = (try? temporaryDownloadURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        guard downloadedBytes > 0 else {
-            try? FileManager.default.removeItem(at: temporaryDownloadURL)
-            throw RemoteDownloadError.emptyResponse
-        }
 
         let extensionName = Self.fileExtension(for: response, fallback: track.streamURL.pathExtension)
+        let destination = Self.destinationURL(for: track, in: root, extensionName: extensionName)
+        let directory = destination.deletingLastPathComponent()
+        let temporaryURL = directory.appendingPathComponent(".resonance-\(UUID().uuidString).part")
+        let expectedBytes = max(0, max(response.expectedContentLength, track.fileSizeBytes))
+        var completedBytes: Int64 = 0
+
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: temporaryURL.path, contents: nil)
+            let handle = try FileHandle(forWritingTo: temporaryURL)
+            defer { try? handle.close() }
+
+            var buffer = Data()
+            buffer.reserveCapacity(64 * 1024)
+            for try await byte in bytes {
+                try Task.checkCancellation()
+                buffer.append(byte)
+                if buffer.count >= 64 * 1024 {
+                    try handle.write(contentsOf: buffer)
+                    completedBytes += Int64(buffer.count)
+                    buffer.removeAll(keepingCapacity: true)
+                    progress(completedBytes, expectedBytes)
+                }
+            }
+            if !buffer.isEmpty {
+                try handle.write(contentsOf: buffer)
+                completedBytes += Int64(buffer.count)
+                progress(completedBytes, expectedBytes)
+            }
+            guard completedBytes > 0 else { throw RemoteDownloadError.emptyResponse }
+            try handle.close()
+
+            if FileManager.default.fileExists(atPath: destination.path) {
+                guard replacingExisting else {
+                    try? FileManager.default.removeItem(at: temporaryURL)
+                    return DownloadResult(bytes: completedBytes, skipped: true)
+                }
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: temporaryURL, to: destination)
+            return DownloadResult(bytes: completedBytes, skipped: false)
+        } catch {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw error
+        }
+    }
+
+    private nonisolated static func destinationURL(
+        for track: RemoteTrackItem,
+        in root: URL,
+        extensionName: String? = nil
+    ) -> URL {
         let artistFolder = Self.safeComponent(track.albumArtist.isEmpty ? track.artist : track.albumArtist)
         let albumFolder = Self.safeComponent(track.album.isEmpty ? "Unknown Album" : track.album)
         let trackNumber = track.trackNumber > 0 ? String(format: "%02d", track.trackNumber) : "00"
         let discPrefix = track.discNumber > 1 ? "D\(track.discNumber)-" : ""
-        let fileName = Self.safeComponent("\(discPrefix)\(trackNumber) - \(track.title)") + ".\(extensionName)"
-        let destination = root
+        let ext = extensionName ?? Self.fileExtension(for: nil, fallback: track.streamURL.pathExtension)
+        let fileName = Self.safeComponent("\(discPrefix)\(trackNumber) - \(track.title)") + ".\(ext)"
+        return root
             .appendingPathComponent(artistFolder, isDirectory: true)
             .appendingPathComponent(albumFolder, isDirectory: true)
             .appendingPathComponent(fileName)
-
-        if FileManager.default.fileExists(atPath: destination.path) {
-            try? FileManager.default.removeItem(at: temporaryDownloadURL)
-            return DownloadResult(bytes: (try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? downloadedBytes, skipped: true)
-        }
-
-        let directory = destination.deletingLastPathComponent()
-        let writeResult = await Task.detached(priority: .utility) {
-            do {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                do {
-                    try FileManager.default.moveItem(at: temporaryDownloadURL, to: destination)
-                } catch {
-                    try FileManager.default.copyItem(at: temporaryDownloadURL, to: destination)
-                    try FileManager.default.removeItem(at: temporaryDownloadURL)
-                }
-                return true
-            } catch {
-                try? FileManager.default.removeItem(at: temporaryDownloadURL)
-                return false
-            }
-        }.value
-        guard writeResult else { throw RemoteDownloadError.fileWriteFailed }
-        return DownloadResult(bytes: downloadedBytes, skipped: false)
     }
 
-    private static func fileExtension(for response: URLResponse, fallback: String) -> String {
-        let mime = response.mimeType?.lowercased() ?? ""
+    private nonisolated static func fileExtension(for response: URLResponse?, fallback: String) -> String {
+        let mime = response?.mimeType?.lowercased() ?? ""
         let mapped: String
         switch mime {
         case "audio/flac", "audio/x-flac": mapped = "flac"
@@ -1917,7 +2078,7 @@ final class RemoteDownloadManager: ObservableObject {
         return MetadataReader.supportedExtensions.contains(candidate) ? candidate : "mp3"
     }
 
-    private static func safeComponent(_ value: String) -> String {
+    private nonisolated static func safeComponent(_ value: String) -> String {
         let forbidden = CharacterSet(charactersIn: "/\\:?%*|\"<>\n\r")
         let cleaned = value.unicodeScalars.map { forbidden.contains($0) ? "_" : String($0) }.joined()
         let trimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)

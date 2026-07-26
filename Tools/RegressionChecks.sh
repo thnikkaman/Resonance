@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 72;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 73;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -291,6 +291,16 @@ assert 'streamingGaplessExperimental' in settings
 assert 'Streaming gapless playback is disabled during alpha testing.' in settings_view
 assert 'return false' in player
 assert 'RemoteDownloadManager' in remote
+assert 'currentCompletedBytes' in remote
+assert 'requestDownload' in remote
+assert 'confirmReplacement' in remote
+assert 'scanSharedMusicFolder(forceMetadataRefresh: true)' in remote
+assert 'case cancelled' in remote
+assert 'ignoredLocalPaths' in library_store
+assert 'deletingFiles: Bool' in library_store
+assert 'Select Artists to Download' in streaming
+assert 'ServerQRCodeScannerView' in settings_view
+assert 'qrcode.viewfinder' in settings_view
 assert 'MetadataTagWriter' in metadata
 assert 'Reported Errors' in settings_view
 assert '.foregroundStyle(.red)' in settings_view

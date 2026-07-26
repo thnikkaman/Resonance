@@ -30,7 +30,10 @@ struct StreamingLibraryView: View {
                         RemoteDownloadBanner(
                             title: downloads.currentTitle,
                             completed: downloads.completedCount,
-                            total: downloads.totalCount
+                            total: downloads.totalCount,
+                            completedBytes: downloads.currentCompletedBytes,
+                            totalBytes: downloads.currentTotalBytes,
+                            cancel: downloads.cancel
                         )
                     }
 
@@ -73,6 +76,22 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
+        .alert(
+            "File Already Exists",
+            isPresented: Binding(
+                get: { downloads.pendingReplacementCount > 0 },
+                set: { if !$0 { downloads.cancelPendingReplacement() } }
+            )
+        ) {
+            Button("Replace Existing", role: .destructive) {
+                downloads.confirmReplacement()
+            }
+            Button("Keep Existing", role: .cancel) {
+                downloads.cancelPendingReplacement()
+            }
+        } message: {
+            Text(downloads.pendingReplacementDescription)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
@@ -182,25 +201,45 @@ private struct RemoteDownloadBanner: View {
     let title: String
     let completed: Int
     let total: Int
+    let completedBytes: Int64
+    let totalBytes: Int64
+    let cancel: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            ProgressView()
+            Group {
+                if totalBytes > 0 {
+                    ProgressView(
+                        value: Double(completedBytes),
+                        total: Double(totalBytes)
+                    )
+                } else {
+                    ProgressView()
+                }
+            }
+            .frame(width: 52)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Downloading (completed) of (total)")
+                Text("Downloading \(completed + 1) of \(total)")
                     .font(.caption.weight(.semibold))
                 Text(title)
                     .font(.caption2)
                     .lineLimit(1)
                     .foregroundStyle(.secondary)
+                if totalBytes > 0 {
+                    Text("\(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)) of \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
+            Button("Cancel", role: .cancel, action: cancel)
+                .font(.caption.weight(.semibold))
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(.bar)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Downloading (title), (completed) of (total)")
+        .accessibilityLabel("Downloading \(title), track \(completed + 1) of \(total)")
     }
 }
 
@@ -379,6 +418,8 @@ private struct RemoteArtistCollectionView: View {
   let sortDirection: SortDirection
   private let artistIDs: [String]
   @State private var sections: [ArtistIndexSection<RemoteArtist>] = []
+  @State private var showingDownloadSelection = false
+  @State private var initialDownloadArtistID: String?
 
   init(artists: [RemoteArtist], sortDirection: SortDirection) {
     self.artists = artists
@@ -441,6 +482,14 @@ private struct RemoteArtistCollectionView: View {
                                                 RemoteArtistTile(artist: artist)
                                             }
                                             .buttonStyle(.plain)
+                                            .contextMenu {
+                                                Button {
+                                                    initialDownloadArtistID = artist.id
+                                                    showingDownloadSelection = true
+                                                } label: {
+                                                    Label("Select Artists to Download", systemImage: "arrow.down.circle")
+                                                }
+                                            }
                                         }
                                     }
                                 } else {
@@ -458,6 +507,14 @@ private struct RemoteArtistCollectionView: View {
                                             .padding(.vertical, settings.albumLayout == .compact ? 3 : 8)
                                         }
                                         .buttonStyle(.plain)
+                                        .contextMenu {
+                                            Button {
+                                                initialDownloadArtistID = artist.id
+                                                showingDownloadSelection = true
+                                            } label: {
+                                                Label("Select Artists to Download", systemImage: "arrow.down.circle")
+                                            }
+                                        }
                                         Divider()
                                     }
                                 }
@@ -495,6 +552,91 @@ private struct RemoteArtistCollectionView: View {
             .scrollIndicators(.hidden)
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
+            }
+            .sheet(isPresented: $showingDownloadSelection) {
+                RemoteArtistDownloadSelectionSheet(
+                    artists: artists,
+                    initialArtistID: initialDownloadArtistID
+                )
+            }
+        }
+    }
+}
+
+private struct RemoteArtistDownloadSelectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+    let artists: [RemoteArtist]
+    let initialArtistID: String?
+    @State private var selectedIDs: Set<String>
+
+    init(artists: [RemoteArtist], initialArtistID: String?) {
+        self.artists = artists
+        self.initialArtistID = initialArtistID
+        _selectedIDs = State(initialValue: initialArtistID.map { [$0] } ?? [])
+    }
+
+    private var selectedArtists: [RemoteArtist] {
+        artists.filter { selectedIDs.contains($0.id) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("Touch and hold an artist in Streaming to open this multi-select download list.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Artists") {
+                    ForEach(artists) { artist in
+                        Button {
+                            if selectedIDs.contains(artist.id) {
+                                selectedIDs.remove(artist.id)
+                            } else {
+                                selectedIDs.insert(artist.id)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 48)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(artist.name)
+                                    Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: selectedIDs.contains(artist.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(
+                                        selectedIDs.contains(artist.id) ? Color.accentColor : Color.secondary
+                                    )
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Download Artists")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Download \(selectedArtists.count)") {
+                        let tracks = selectedArtists
+                            .flatMap(\.tracks)
+                            .reduce(into: [RemoteTrackItem]()) { result, track in
+                                if !result.contains(where: { $0.id == track.id }) { result.append(track) }
+                            }
+                        downloads.requestDownload(tracks, into: library)
+                        dismiss()
+                    }
+                    .disabled(selectedArtists.isEmpty)
+                }
             }
         }
     }
@@ -706,7 +848,7 @@ private struct RemoteTrackCollectionView: View {
                         Label("Add to End of Queue", systemImage: "text.append")
                     }
                     Button {
-                        Task { await downloads.download([track], into: library) }
+                        downloads.requestDownload([track], into: library)
                     } label: {
                         Label("Download Track", systemImage: "arrow.down.circle")
                     }
@@ -810,7 +952,7 @@ private struct RemoteArtistDetailView: View {
                         .buttonStyle(.bordered)
 
                         Button {
-                            Task { await downloads.download(allTracks, into: library) }
+                            downloads.requestDownload(allTracks, into: library)
                         } label: {
                             Label("Download Artist Collection", systemImage: "arrow.down.circle")
                         }
@@ -968,7 +1110,7 @@ private struct RemoteAllAlbumsTrackListView: View {
                         Button { Task { await remote.addToQueue([track], using: player) } } label: {
                             Label("Add to End of Queue", systemImage: "text.append")
                         }
-                        Button { Task { await downloads.download([track], into: library) } } label: {
+                        Button { downloads.requestDownload([track], into: library) } label: {
                             Label("Download Track", systemImage: "arrow.down.circle")
                         }
                         if settings.streamBackend == .subsonic {
@@ -1023,7 +1165,7 @@ private struct RemoteAlbumDetailView: View {
                         .buttonStyle(.borderedProminent)
                         .tint(settings.accentColor)
                         Button {
-                            Task { await downloads.download(album.tracks, into: library) }
+                            downloads.requestDownload(album.tracks, into: library)
                         } label: {
                             Label("Download Album", systemImage: "arrow.down.circle")
                                 .frame(maxWidth: .infinity)
@@ -1049,7 +1191,7 @@ private struct RemoteAlbumDetailView: View {
                         Button { Task { await remote.addToQueue([track], using: player) } } label: {
                             Label("Add to End of Queue", systemImage: "text.append")
                         }
-                        Button { Task { await downloads.download([track], into: library) } } label: {
+                        Button { downloads.requestDownload([track], into: library) } label: {
                             Label("Download Track", systemImage: "arrow.down.circle")
                         }
                         if settings.streamBackend == .subsonic {
@@ -1083,7 +1225,7 @@ private struct RemoteAlbumDetailView: View {
                         Label("Add Album to End of Queue", systemImage: "text.append")
                     }
                     Button {
-                        Task { await downloads.download(album.tracks, into: library) }
+                        downloads.requestDownload(album.tracks, into: library)
                     } label: {
                         Label("Download Album", systemImage: "arrow.down.circle")
                     }

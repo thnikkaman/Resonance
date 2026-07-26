@@ -28,6 +28,7 @@ final class LibraryStore: ObservableObject {
 
     private let database = LibraryDatabase()
     private let reader = MetadataReader()
+    private var ignoredLocalPaths: Set<String> = []
     private var knownModificationDates: [String: Date] = [:]
     private var didBootstrap = false
     private var lastActiveRefresh: Date?
@@ -36,6 +37,7 @@ final class LibraryStore: ObservableObject {
         static let favorites = "resonance.favoriteTrackIDs"
         static let recentPlays = "resonance.recentPlayDates"
         static let playlists = "resonance.playlists"
+        static let ignoredLocalPaths = "resonance.ignoredLocalPaths"
     }
 
     init() {
@@ -44,6 +46,7 @@ final class LibraryStore: ObservableObject {
         playlists = Self.loadPlaylists()
         metadataOverrides = Self.loadMetadataOverrides()
         artistMetadataOverrides = Self.loadArtistMetadataOverrides()
+        ignoredLocalPaths = Self.loadIgnoredLocalPaths()
     }
 
     var filteredTracks: [Track] {
@@ -112,7 +115,10 @@ final class LibraryStore: ObservableObject {
         didBootstrap = true
         ensureSharedMusicFolder()
 
-        let stored = await database.loadAll()
+        let stored = await database.loadAll().filter { track in
+            guard let url = track.fileURL else { return true }
+            return !ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
+        }
         tracks = stored.map(applyMetadataOverride)
         knownModificationDates = await Task.detached(priority: .utility) {
             Self.modificationDates(for: stored)
@@ -172,6 +178,7 @@ final class LibraryStore: ObservableObject {
                         at: target.deletingLastPathComponent(),
                         withIntermediateDirectories: true
                     )
+                    ignoredLocalPaths.remove(normalizedPath(target))
                     if !FileManager.default.fileExists(atPath: target.path) {
                         try FileManager.default.copyItem(at: source, to: target)
                     }
@@ -182,6 +189,7 @@ final class LibraryStore: ObservableObject {
         }
 
         isScanning = false
+        persistIgnoredLocalPaths()
         await scanDocuments(forceMetadataRefresh: false)
     }
 
@@ -479,16 +487,22 @@ final class LibraryStore: ObservableObject {
         await scanDocuments(forceMetadataRefresh: true)
     }
 
-    func removeArtist(_ artist: Artist) async {
+    func removeArtist(_ artist: Artist, deletingFiles: Bool) async {
         let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
+        await removeTracks(tracks.filter { ids.contains($0.id) }, deletingFiles: deletingFiles)
+        artistMetadataOverrides.removeValue(
+            forKey: artistOverrideKey(name: artist.name, useAlbumArtist: artist.usesAlbumArtist)
+        )
+        persistArtistMetadataOverrides()
+    }
+
+    func removeTracks(_ tracksToRemove: [Track], deletingFiles: Bool) async {
+        let ids = Set(tracksToRemove.map(\.id))
         let removed = tracks.filter { ids.contains($0.id) }
         tracks.removeAll { ids.contains($0.id) }
         favoriteTrackIDs.subtract(ids)
         recentPlayDates = recentPlayDates.filter { !ids.contains($0.key) }
         metadataOverrides = metadataOverrides.filter { !ids.contains($0.key) }
-        artistMetadataOverrides.removeValue(
-            forKey: artistOverrideKey(name: artist.name, useAlbumArtist: artist.usesAlbumArtist)
-        )
         for index in playlists.indices {
             playlists[index].trackIDs.removeAll { ids.contains($0) }
         }
@@ -496,10 +510,17 @@ final class LibraryStore: ObservableObject {
         persistRecentPlays()
         persistPlaylists()
         persistMetadataOverrides()
-        persistArtistMetadataOverrides()
         for track in removed {
-            if let url = track.fileURL { try? FileManager.default.removeItem(at: url) }
+            guard let url = track.fileURL else { continue }
+            let path = normalizedPath(url)
+            if deletingFiles {
+                ignoredLocalPaths.remove(path)
+                try? FileManager.default.removeItem(at: url)
+            } else {
+                ignoredLocalPaths.insert(path)
+            }
         }
+        persistIgnoredLocalPaths()
         await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
         await scanDocuments(forceMetadataRefresh: false)
     }
@@ -544,10 +565,12 @@ final class LibraryStore: ObservableObject {
 
         let documentsURL = self.documentsURL
         let sharedRootPath = sharedMusicFolderURL.standardizedFileURL.path + "/"
+        let ignoredPaths = ignoredLocalPaths
         let inventory = await Task.detached(priority: .utility) {
             Self.collectDocumentInventory(
                 documentsURL: documentsURL,
-                sharedFolderPath: sharedRootPath
+                sharedFolderPath: sharedRootPath,
+                ignoredPaths: ignoredPaths
             )
         }.value
         let urls = inventory.urls
@@ -641,7 +664,8 @@ final class LibraryStore: ObservableObject {
 
     private nonisolated static func collectDocumentInventory(
         documentsURL: URL,
-        sharedFolderPath: String
+        sharedFolderPath: String,
+        ignoredPaths: Set<String>
     ) -> LibraryDocumentInventory {
         let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey]
         let enumerator = FileManager.default.enumerator(
@@ -654,6 +678,7 @@ final class LibraryStore: ObservableObject {
                 guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else {
                     return false
                 }
+                guard !ignoredPaths.contains(normalizedPathForInventory(url)) else { return false }
                 return (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
             }
             .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
@@ -864,6 +889,14 @@ final class LibraryStore: ObservableObject {
         guard let data = try? Data(contentsOf: artistMetadataOverridesURL),
               let stored = try? JSONDecoder().decode([String: ArtistMetadataOverride].self, from: data) else { return [:] }
         return stored
+    }
+
+    private func persistIgnoredLocalPaths() {
+        UserDefaults.standard.set(Array(ignoredLocalPaths).sorted(), forKey: PersistenceKey.ignoredLocalPaths)
+    }
+
+    private static func loadIgnoredLocalPaths() -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: PersistenceKey.ignoredLocalPaths) ?? [])
     }
 
     private static func loadFavoriteIDs() -> Set<UUID> {

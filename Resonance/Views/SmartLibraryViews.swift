@@ -385,6 +385,7 @@ private struct TrackLibraryActionsModifier: ViewModifier {
     @EnvironmentObject private var player: PlayerController
     @State private var showingPlaylistPicker = false
     @State private var showingMetadataEditor = false
+    @State private var showingRemovalOptions = false
     let track: Track
 
     func body(content: Content) -> some View {
@@ -446,6 +447,12 @@ private struct TrackLibraryActionsModifier: ViewModifier {
                 } label: {
                     Label("Edit Track Metadata", systemImage: "pencil")
                 }
+                Divider()
+                Button {
+                    showingRemovalOptions = true
+                } label: {
+                    Label("Remove or Delete Track", systemImage: "trash")
+                }
             }
             .sheet(isPresented: $showingPlaylistPicker) {
                 PlaylistPickerSheet(tracks: [track])
@@ -453,6 +460,21 @@ private struct TrackLibraryActionsModifier: ViewModifier {
             }
             .sheet(isPresented: $showingMetadataEditor) {
                 TrackMetadataEditorSheet(track: track)
+            }
+            .confirmationDialog(
+                "Remove \(track.title)?",
+                isPresented: $showingRemovalOptions,
+                titleVisibility: .visible
+            ) {
+                Button("Remove from Library") {
+                    Task { await library.removeTracks([track], deletingFiles: false) }
+                }
+                Button("Delete from iPhone", role: .destructive) {
+                    Task { await library.removeTracks([track], deletingFiles: true) }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Remove from Library keeps the audio file on your iPhone. Delete from iPhone permanently removes it.")
             }
     }
 }
