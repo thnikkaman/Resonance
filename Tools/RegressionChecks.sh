@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 88;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 90;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -322,7 +322,7 @@ assert streaming.count('UIImpactFeedbackGenerator(style: .medium).impactOccurred
 assert '.background(settings.themeBackgroundGradient)' not in streaming
 assert '.background(.background)' not in streaming
 assert '.overlay(alignment: .top)' in streaming
-assert 'backgroundImageName' in root_view
+assert 'backgroundImageName' not in root_view
 assert 'resonanceTabBottomSpace' in root_view
 assert 'resonanceDetailBottomSpace' in root_view
 assert 'dragTranslation' in root_view
@@ -359,9 +359,10 @@ assert 'ResonanceThemeSurfaceBackdrop' in views
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {', 1)[1].split('private struct ResonanceHeroSurface', 1)[0]
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
+assert 'backgroundImageName' not in surface_backdrop
 assert 'ResonanceThemeBackdrop()' in now_playing
-assert '.opacity(0.16)' in root_view
-assert '.opacity(0.025)' in root_view
+assert '.opacity(0.16)' not in root_view
+assert '.opacity(0.025)' not in root_view
 assert '.opacity(0.40)' in settings_view
 assert 'textAccentColor' in settings
 assert 'applyThemeColorToTextConfigured' in settings

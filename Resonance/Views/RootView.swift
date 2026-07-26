@@ -276,24 +276,10 @@ struct ResonanceThemeBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        ZStack {
-            settings.themeBackgroundGradient
-            if let imageName = settings.visualTheme.backgroundImageName {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .opacity(0.16)
-                LinearGradient(
-                    colors: [.black.opacity(0.14), .black.opacity(0.42)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                settings.themeBackgroundGradient
-                    .opacity(0.34)
-            }
-        }
+        // Live navigation surfaces stay gradient-only. Image previews remain
+        // available in Settings, but artwork is never allowed to cover an
+        // interactive control or album/artist content.
+        settings.themeBackgroundGradient
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }
@@ -303,20 +289,9 @@ struct ResonanceThemeSurfaceBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        ZStack {
-            settings.themeSurfaceGradient
-            if let imageName = settings.visualTheme.backgroundImageName {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-                    .clipped()
-                    // Keep image themes decorative on content surfaces. Detail
-                    // controls and rows must remain readable over high-detail art.
-                    .opacity(0.025)
-                settings.themeSurfaceGradient
-                    .opacity(0.90)
-            }
-        }
+        // Keep reusable controls and cards gradient-only so artwork cannot
+        // expand or obscure their layout, especially inside the mini-player.
+        settings.themeSurfaceGradient
         .allowsHitTesting(false)
     }
 }
