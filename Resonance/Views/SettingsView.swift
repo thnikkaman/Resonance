@@ -423,6 +423,11 @@ struct SettingsView: View {
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
         .listRowBackground(Color.clear)
+        // Keep the final categories and Prototype Status above the custom tab
+        // bar so they can be scrolled fully into view on every theme.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: 112)
+        }
             .background {
                 Color.clear
             }
