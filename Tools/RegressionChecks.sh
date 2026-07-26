@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 70;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 71;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -43,6 +43,8 @@ assert '?? await' not in metadata
 assert '?? try await' not in metadata
 assert 'content:' in smart and 'header:' in smart
 assert 'track.flatMap { player.artworkData(for: $0) }' in views
+assert 'private var effectiveDuration: Double' in views
+assert 'player.currentTrack?.duration' in views
 assert 'Timer(timeInterval:' not in player
 assert 'deinit { sqlite3_close(db) }' not in database
 assert 'appendPreloaded' in gapless and 'appendRemainder' in gapless
@@ -145,16 +147,15 @@ assert 'remoteSeekInFlight' in player
 assert 'remote.player.seek.completed' in player
 assert 'remote.player.endFallback' in player
 assert 'private func clampedRemoteElapsed' in player
-assert 'self.elapsed = self.clampedRemoteElapsed(clamped)' in player
+assert 'self.clampedRemoteElapsed(clamped)' in player
 assert 'self.remoteSeekRequestID == requestID' in player
 assert 'pendingRemoteSeekPosition' in player
 assert 'resumeRemotePlaybackAfterSeek' in player
 assert 'remote.player.seek.resume' in player
-assert 'private var remoteGaplessHandoffTask: Task<Void, Never>?' in player
-assert 'private func scheduleRemoteGaplessHandoffIfNeeded' in player
-assert 'private func commitRemoteGaplessHandoff' in player
-assert 'remote.player.boundary.begin' in player
-assert '"handoff": "overlap"' in player
+assert 'remoteGaplessHandoffTask' not in player
+assert 'remote.player.boundary.begin' not in player
+assert 'actualIsNearTarget' in player
+assert 'abs(actual - clamped) <= 0.75' in player
 assert 'private func clearRemoteClockHold' in player
 assert 'remoteClockHoldDuration' in player
 assert 'newPlayer.playImmediately(atRate: 1)' in player

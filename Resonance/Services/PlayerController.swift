@@ -124,7 +124,6 @@ final class PlayerController: NSObject, ObservableObject {
   private var remotePreloadTrack: Track?
   private var remotePreloadReady = false
   private var remotePreloadTask: Task<Void, Never>?
-  private var remoteGaplessHandoffTask: Task<Void, Never>?
   private var remoteExperimentalSession = false
   private lazy var remoteObserver = RemotePlayerObserver(owner: self)
   private var playbackTimerTask: Task<Void, Never>?
@@ -155,11 +154,10 @@ final class PlayerController: NSObject, ObservableObject {
   private lazy var gaplessEngine = makeGaplessEngine()
   private var gaplessDisabledForSession = false
 
-  // AVPlayer cannot make two independent network decoders sample-contiguous.
-  // Start the warmed next player slightly before the old item ends and ramp
-  // between the two outputs so decoder/startup latency cannot become silence.
-  private let remoteGaplessHandoffDuration: TimeInterval = 0.35
-  private let remoteClockHoldDuration: TimeInterval = 0.8
+  // A short post-seek hold prevents AVPlayer's transient pre-seek clock from
+  // replacing the requested position. Keep it shorter than a timer interval:
+  // the actual player clock should resume authority on the next tick.
+  private let remoteClockHoldDuration: TimeInterval = 0.15
 
   private var activeRemotePlayer: AVPlayer? {
     remotePlayer
@@ -662,14 +660,17 @@ final class PlayerController: NSObject, ObservableObject {
 
           let actual = activeRemotePlayer.currentTime().seconds
           // AVPlayer can report its pre-seek clock briefly after a successful
-          // completion. The requested position is authoritative for the UI;
-          // retain the raw clock only for diagnostics.
-          self.elapsed = self.clampedRemoteElapsed(clamped)
+          // completion. Prefer the raw clock when it has reached the target;
+          // otherwise hold the requested position for one short UI interval.
+          let actualIsNearTarget = actual.isFinite && abs(actual - clamped) <= 0.75
+          self.elapsed = actualIsNearTarget
+            ? self.clampedRemoteElapsed(actual)
+            : self.clampedRemoteElapsed(clamped)
           self.playbackAnchorElapsed = self.elapsed
           self.playbackAnchorDate = self.isPlaying ? Date() : nil
           self.remoteClockHoldPosition = self.elapsed
           self.remoteClockHoldStartedAt = Date()
-          self.remoteClockHoldWasPlaying = wasPlaying
+          self.remoteClockHoldWasPlaying = false
           self.resumeRemotePlaybackAfterSeek(
             activeRemotePlayer,
             wasPlaying: wasPlaying
@@ -787,8 +788,6 @@ final class PlayerController: NSObject, ObservableObject {
       audioPlayer?.stop()
       audioPlayer = nil
     case .remote:
-      remoteGaplessHandoffTask?.cancel()
-      remoteGaplessHandoffTask = nil
       remoteObserver.stop()
       remotePreloadTask?.cancel()
       remotePreloadTask = nil
@@ -869,8 +868,6 @@ final class PlayerController: NSObject, ObservableObject {
     networkBufferStatus = "No remote stream active"
     lastRemoteBufferStatusPublicationDate = .distantPast
     playbackTimerTickCount = 0
-    remoteGaplessHandoffTask?.cancel()
-    remoteGaplessHandoffTask = nil
     clearRemoteClockHold()
 
     if !url.isFileURL {
@@ -1280,149 +1277,11 @@ final class PlayerController: NSObject, ObservableObject {
     }.max() ?? 0
   }
 
-  private func scheduleRemoteGaplessHandoffIfNeeded() {
-    guard remoteExperimentalSession,
-      remoteGaplessExperimentalEnabled,
-      remoteGaplessHandoffTask == nil,
-      let currentTrack,
-      let oldPlayer = remotePlayer,
-      oldPlayer.currentItem != nil,
-      duration.isFinite,
-      duration > 0,
-      elapsed >= max(0, duration - remoteGaplessHandoffDuration),
-      remoteEndHandledTrackID != currentTrack.id,
-      let targetIndex = nextQueueIndex(after: currentQueueIndex),
-      queue.indices.contains(targetIndex)
-    else { return }
-
-    let target = queue[targetIndex]
-    guard remotePreloadTrack?.id == target.id,
-      remotePreloadReady,
-      let targetPlayer = remotePreloadPlayer,
-      let targetItem = remotePreloadItem
-    else { return }
-
-    let generation = playbackGeneration
-    let finishedTrackID = currentTrack.id
-    let oldVolume = Float(min(max(volume, 0), 1))
-    remoteEndHandledTrackID = finishedTrackID
-    targetPlayer.volume = 0
-    targetPlayer.playImmediately(atRate: 1)
-    ResonanceDiagnostics.shared.recordDeferred(
-      "remote.player.boundary.begin",
-      details: [
-        "generation": String(generation),
-        "queueIndex": String(targetIndex),
-        "preloadedTarget": "true",
-        "preloadReady": "true",
-        "handoffDuration": String(format: "%.3f", remoteGaplessHandoffDuration)
-      ]
-    )
-
-    remoteGaplessHandoffTask = Task { @MainActor [weak self] in
-      let steps = 7
-      for step in 1...steps {
-        try? await Task.sleep(for: .milliseconds(50))
-        guard !Task.isCancelled,
-          let self,
-          self.playbackGeneration == generation,
-          self.remoteGaplessHandoffTask != nil,
-          self.remotePlayer === oldPlayer,
-          self.remotePreloadPlayer === targetPlayer,
-          self.remotePreloadItem === targetItem,
-          self.currentTrack?.id == finishedTrackID
-        else {
-          self?.remoteGaplessHandoffTask = nil
-          return
-        }
-
-        let fraction = Float(step) / Float(steps)
-        oldPlayer.volume = oldVolume * (1 - fraction)
-        targetPlayer.volume = oldVolume * fraction
-      }
-
-      self?.commitRemoteGaplessHandoff(
-        finishedTrackID: finishedTrackID,
-        target: target,
-        targetIndex: targetIndex,
-        oldPlayer: oldPlayer,
-        targetPlayer: targetPlayer,
-        targetItem: targetItem,
-        generation: generation
-      )
-    }
-  }
-
-  private func commitRemoteGaplessHandoff(
-    finishedTrackID: UUID,
-    target: Track,
-    targetIndex: Int,
-    oldPlayer: AVPlayer,
-    targetPlayer: AVPlayer,
-    targetItem: AVPlayerItem,
-    generation: Int
-  ) {
-    guard playbackGeneration == generation,
-      activeBackend == .remote,
-      remotePlayer === oldPlayer,
-      remotePreloadPlayer === targetPlayer,
-      remotePreloadItem === targetItem,
-      currentTrack?.id == finishedTrackID
-    else {
-      remoteGaplessHandoffTask = nil
-      return
-    }
-
-    remoteGaplessHandoffTask = nil
-    remotePreloadTask?.cancel()
-    remotePreloadTask = nil
-    remotePlayer = targetPlayer
-    remotePreloadPlayer = nil
-    remotePreloadItem = nil
-    remotePreloadTrack = nil
-    remotePreloadReady = false
-    remoteObserver.observe(targetItem)
-    oldPlayer.pause()
-    oldPlayer.cancelPendingPrerolls()
-    oldPlayer.replaceCurrentItem(with: nil)
-    targetPlayer.volume = Float(min(max(volume, 0), 1))
-
-    currentQueueIndex = targetIndex
-    currentTrack = target
-    duration = max(0, target.duration)
-    let targetElapsed = targetPlayer.currentTime().seconds
-    elapsed = targetElapsed.isFinite ? clampedRemoteElapsed(targetElapsed) : 0
-    playbackAnchorElapsed = elapsed
-    playbackAnchorDate = Date()
-    clearRemoteClockHold()
-    isPlaying = true
-    remoteEndHandledTrackID = finishedTrackID
-    networkBufferStatus = "Connecting to remote stream…"
-    playbackEngineStatus = "Remote gapless — ready"
-    onTrackStarted?(target)
-    refreshRemotePreloadAfterQueueChange()
-    updateNowPlaying()
-    ResonanceDiagnostics.shared.recordDeferred(
-      "remote.player.boundary.end",
-      details: [
-        "result": "advanced",
-        "queueIndex": String(targetIndex),
-        "preloadedTarget": "true",
-        "preloadReady": "true",
-        "handoff": "overlap"
-      ]
-    )
-  }
-
   fileprivate func handleRemotePlaybackFinished(_ item: AVPlayerItem) {
     guard activeBackend == .remote,
       let finishedTrack = remoteItemTracks[ObjectIdentifier(item)]
     else { return }
     guard remoteEndHandledTrackID != finishedTrack.id else { return }
-    if remoteExperimentalSession, currentTrack?.id == finishedTrack.id {
-      scheduleRemoteGaplessHandoffIfNeeded()
-      if remoteGaplessHandoffTask != nil { return }
-    }
     remoteEndHandledTrackID = finishedTrack.id
     ResonanceDiagnostics.shared.record(
       "remote.player.finished",
@@ -1504,8 +1363,6 @@ final class PlayerController: NSObject, ObservableObject {
       return
     }
 
-    remoteGaplessHandoffTask?.cancel()
-    remoteGaplessHandoffTask = nil
     let oldPlayer = remotePlayer
     remotePreloadTask?.cancel()
     remotePreloadTask = nil
@@ -1673,7 +1530,6 @@ final class PlayerController: NSObject, ObservableObject {
     if item.status == .readyToPlay,
       isPlaying,
       !remoteSeekInFlight,
-      remoteGaplessHandoffTask == nil,
       activeRemotePlayer.timeControlStatus == .paused,
       duration > 0,
       elapsed >= max(0, duration - 0.35)
@@ -2071,7 +1927,6 @@ final class PlayerController: NSObject, ObservableObject {
       if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.legacy.end") }
     case .remote:
       if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.remoteBuffer.begin") }
-      scheduleRemoteGaplessHandoffIfNeeded()
       updateRemoteBufferStatus()
       if shouldLogTick { ResonanceDiagnostics.shared.recordDeferred("playback.timer.remoteBuffer.end") }
       meterLevel = isPlaying ? 0.24 + (sin(elapsed * 3.7) + 1) * 0.12 : 0.08

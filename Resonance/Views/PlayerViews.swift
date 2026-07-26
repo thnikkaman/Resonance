@@ -400,10 +400,18 @@ private struct TrackScrubber: View {
   @State private var previewTime: Double?
   @State private var fingerX: CGFloat = 0
 
+  private var effectiveDuration: Double {
+    let controllerDuration = player.duration
+    guard !controllerDuration.isFinite || controllerDuration <= 0 else {
+      return controllerDuration
+    }
+    return max(0, player.currentTrack?.duration ?? 0)
+  }
+
   private var displayedTime: Double {
     let raw = previewTime ?? playbackProgress.elapsed
-    guard player.duration.isFinite, player.duration > 0 else { return max(0, raw) }
-    return min(max(0, raw), player.duration)
+    guard effectiveDuration.isFinite, effectiveDuration > 0 else { return max(0, raw) }
+    return min(max(0, raw), effectiveDuration)
   }
   private var isScrubbing: Bool { previewTime != nil }
 
@@ -411,7 +419,7 @@ private struct TrackScrubber: View {
     VStack(spacing: 8) {
       GeometryReader { proxy in
         let width = max(proxy.size.width, 1)
-        let duration = max(player.duration, 1)
+        let duration = max(effectiveDuration, 1)
         let ratio = min(max(displayedTime / duration, 0), 1)
         let thumbX = width * ratio
         let bubbleWidth: CGFloat = 66
@@ -483,7 +491,7 @@ private struct TrackScrubber: View {
       HStack {
         Text(format(displayedTime))
         Spacer()
-        Text("−\(formatRemainingTime(player.duration - displayedTime))")
+        Text("−\(formatRemainingTime(effectiveDuration - displayedTime))")
       }
       .font(.caption.monospacedDigit())
       .foregroundStyle(.secondary)
