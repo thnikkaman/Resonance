@@ -730,7 +730,10 @@ struct MiniPlayerView: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
-    .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 14))
+    .background {
+      ResonanceThemeSurfaceBackdrop()
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
     .overlay {
       RoundedRectangle(cornerRadius: 14, style: .continuous)
         .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)

@@ -255,7 +255,9 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(settings.themeBackgroundGradient.ignoresSafeArea())
+            .background {
+                ResonanceThemeBackdrop()
+            }
             .tint(settings.accentColor)
             .foregroundStyle(
                 settings.applyThemeColorToText ? settings.accentColor : Color.primary
@@ -266,6 +268,47 @@ private struct ResonanceThemeTextSurface: ViewModifier {
     }
 }
 
+struct ResonanceThemeBackdrop: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        ZStack {
+            settings.themeBackgroundGradient
+            if let imageName = settings.visualTheme.backgroundImageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.38)
+                LinearGradient(
+                    colors: [.black.opacity(0.16), .black.opacity(0.56)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
+struct ResonanceThemeSurfaceBackdrop: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        ZStack {
+            settings.themeSurfaceGradient
+            if let imageName = settings.visualTheme.backgroundImageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.20)
+                Color.black.opacity(0.10)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
 private struct ResonanceHeroSurface: ViewModifier {
     @EnvironmentObject private var settings: AppSettings
 
@@ -273,10 +316,10 @@ private struct ResonanceHeroSurface: ViewModifier {
         content
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
-            .background(
-                settings.themeSurfaceGradient,
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-            )
+            .background {
+                ResonanceThemeSurfaceBackdrop()
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(settings.accentColor.opacity(0.25), lineWidth: 1)
@@ -293,6 +336,7 @@ struct ResonanceHeroActionButton: View {
     let tint: Color
     let prominent: Bool
     let action: () -> Void
+    @EnvironmentObject private var settings: AppSettings
 
     private var label: some View {
         VStack(spacing: 4) {
@@ -313,9 +357,15 @@ struct ResonanceHeroActionButton: View {
             if prominent {
                 Button(action: action, label: { label })
                     .buttonStyle(.borderedProminent)
+                    .foregroundStyle(settings.contrastingAccentTextColor)
             } else {
                 Button(action: action, label: { label })
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(tint)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(tint.opacity(0.55), lineWidth: 1)
+                    }
             }
         }
         .tint(tint)
@@ -340,7 +390,10 @@ struct ResonanceToolbarIconButton: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
             .frame(width: 32, height: 30)
-            .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background {
+                ResonanceThemeSurfaceBackdrop()
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
@@ -361,7 +414,10 @@ struct ResonanceToolbarIconLabel: View {
         Image(systemName: systemImage)
             .font(.caption.weight(.semibold))
             .frame(width: 32, height: 30)
-            .background(settings.themeSurfaceGradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .background {
+                ResonanceThemeSurfaceBackdrop()
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)

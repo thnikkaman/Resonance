@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 82;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 83;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -345,7 +345,15 @@ assert 'ResonanceHeroActionButton' in root_view
 assert 'ResonanceToolbarIconButton' in root_view
 assert 'themeSurfaceGradient' in root_view
 assert 'themeSurfaceGradient' in streaming
-assert 'themeSurfaceGradient' in views
+assert 'ResonanceThemeSurfaceBackdrop' in views
+assert 'backgroundImageName' in settings
+assert 'ThemeBrushedMetal' in settings
+assert 'ThemeClassicWood' in settings
+assert 'ThemeElectronic' in settings
+assert 'ThemePsychedelic' in settings
+assert 'removeProgress' in remote
+assert 'prioritizeDownloadQueue' in remote
+assert 'showingAlbumOptions' in album_detail
 assert 'browseReady' in streaming
 assert 'startLocation.y < 120' in streaming
 assert 'private struct MetadataTextField' in smart

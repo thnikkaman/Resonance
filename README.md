@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **82**
+Build: **83**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -111,6 +111,8 @@ Alpha 3.7.4 build 80 makes Streaming artist-detail swipe-back navigation claim t
 Alpha 3.7.4 build 81 adds three persisted visual styles in Settings—Nocturne Glass, Gallery Light, and Color Bloom—with a Custom Accent compatibility option. The selected style drives the app's accent, surfaces, background, secondary text, and recommended system appearance while preserving the existing explicit Light/Dark override. Local and Streaming artist/album detail screens now share a fixed, large centered-art hero with playback and queue/download controls arranged around it and an independent scrolling content pane below. Top-down hierarchy dismissal is available from the fixed detail surface, and the mini-player's side bubble can now dock at the bottom as well as the top. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
 
 Alpha 3.7.4 build 82 removes the global Streaming Library search and shows Navidrome connection details only when a connection or catalog error is present. Bright Gallery Light selection clears a previously forced dark appearance so text remains readable; Brushed Metal, Classic Wood, Electronic, and Psychedelic styles add additional themed gradients. The Library and Streaming top controls now use one compact themed icon-button treatment, artist indexes no longer draw explicit dark separators across Streaming, album overflow actions use a stable confirmation dialog, and local/remote artwork heroes use titled controls with accessibility, help, and long-press hints. Mini-player surfaces and side handles now use the active theme gradient. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 83 gives Library and Streaming album actions the same themed overflow button and confirmation dialog, fixes prominent album Play controls with explicit contrast, removes completed downloads from the live queue while keeping the active track at the top, and adds generated Brushed Metal, Classic Wood, Electronic, and Psychedelic background artwork to the corresponding selectable themes. Shared toolbar, hero-action, surface, and backdrop components keep the two browsing tabs visually congruent. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 

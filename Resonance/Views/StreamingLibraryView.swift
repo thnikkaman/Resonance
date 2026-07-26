@@ -1153,7 +1153,9 @@ private struct RemoteArtistDetailView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
-            .background(settings.themeSurfaceColor)
+            .background {
+                ResonanceThemeSurfaceBackdrop()
+            }
             .resonanceTopDownDismiss { dismiss() }
 
             if settings.artistAlbumLayout == .grid {

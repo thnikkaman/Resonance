@@ -1061,18 +1061,27 @@ private struct ThemeChoiceButton: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 7) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(hex: theme.accentHex) ?? .purple,
-                                theme == .custom
-                                    ? Color.secondary.opacity(0.25)
-                                    : (Color(hex: theme.backgroundHex) ?? .black)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.clear)
+                    .background {
+                        ZStack {
+                            LinearGradient(
+                                colors: [
+                                    Color(hex: theme.accentHex) ?? .purple,
+                                    theme == .custom
+                                        ? Color.secondary.opacity(0.25)
+                                        : (Color(hex: theme.backgroundHex) ?? .black)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            if let imageName = theme.backgroundImageName {
+                                Image(imageName)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .opacity(0.55)
+                            }
+                        }
+                    }
                     .frame(height: 42)
                     .overlay(alignment: .topTrailing) {
                         if settings.visualTheme == theme {

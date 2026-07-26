@@ -141,6 +141,16 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
     var isBrightAppearance: Bool {
         self == .galleryLight
     }
+
+    var backgroundImageName: String? {
+        switch self {
+        case .brushedMetal: "ThemeBrushedMetal"
+        case .classicWood: "ThemeClassicWood"
+        case .electronic: "ThemeElectronic"
+        case .psychedelic: "ThemePsychedelic"
+        case .nocturne, .galleryLight, .colorBloom, .custom: nil
+        }
+    }
 }
 
 

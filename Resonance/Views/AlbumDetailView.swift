@@ -8,6 +8,7 @@ struct AlbumDetailView: View {
     @State private var showingPlaylistPicker = false
     @State private var showingMetadataEditor = false
     @State private var showingRemovalOptions = false
+    @State private var showingAlbumOptions = false
     let album: Album
 
     private var liveTracks: [Track] {
@@ -111,7 +112,9 @@ struct AlbumDetailView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(settings.themeBackgroundColor)
+            .background {
+                ResonanceThemeBackdrop()
+            }
         }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -123,21 +126,12 @@ struct AlbumDetailView: View {
                 }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        player.playNext(liveAlbum.tracks)
-                    } label: {
-                        Label("Play Album Next", systemImage: "text.line.first.and.arrowtriangle.forward")
-                    }
-                    Button {
-                        player.addToQueue(liveAlbum.tracks)
-                    } label: {
-                        Label("Add Album to End of Queue", systemImage: "text.badge.plus")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Album options",
+                    systemImage: "ellipsis.circle"
+                ) {
+                    showingAlbumOptions = true
                 }
-                .accessibilityLabel("Album playback actions")
 
                 Button { showingMetadataEditor = true } label: {
                     Image(systemName: "pencil")
@@ -168,6 +162,28 @@ struct AlbumDetailView: View {
         }
         .sheet(isPresented: $showingMetadataEditor) {
             AlbumMetadataEditorSheet(album: liveAlbum)
+        }
+        .confirmationDialog(
+            "Album Options",
+            isPresented: $showingAlbumOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Play Album Next") {
+                player.playNext(liveAlbum.tracks)
+            }
+            Button("Add Album to End of Queue") {
+                player.addToQueue(liveAlbum.tracks)
+            }
+            Button("Edit Album Metadata") {
+                showingMetadataEditor = true
+            }
+            Button(library.isAlbumFavorite(liveAlbum) ? "Remove from Favorites" : "Add to Favorites") {
+                library.toggleFavorite(liveAlbum)
+            }
+            Button("Remove or Delete Album", role: .destructive) {
+                showingRemovalOptions = true
+            }
+            Button("Cancel", role: .cancel) { }
         }
         .confirmationDialog(
             "Remove \(liveAlbum.title)?",

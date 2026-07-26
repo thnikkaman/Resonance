@@ -2060,14 +2060,7 @@ final class RemoteDownloadManager: ObservableObject {
                 activeWorker = nil
                 activeTrackID = nil
                 completedCount += 1
-                setProgress(
-                    RemoteDownloadProgress(
-                        id: track.id,
-                        title: track.title, completed: Int(min(Int64(Int.max), result.bytes)),
-                        total: Int(min(Int64(Int.max), result.bytes)),
-                        state: result.skipped ? .skipped : .completed
-                    )
-                )
+                removeProgress(track.id)
                 await library.refreshDownloadedTrack(at: result.destination)
                 removePersistedTrack(track.id)
                 ResonanceDiagnostics.shared.recordDeferred(
@@ -2107,7 +2100,7 @@ final class RemoteDownloadManager: ObservableObject {
             }
         }
 
-        let succeeded = downloadQueue.filter { $0.state == .completed || $0.state == .skipped }.count
+        let succeeded = completedCount - itemProgress.values.filter { $0.state == .failed || $0.state == .cancelled }.count
         if Task.isCancelled || itemProgress.values.contains(where: { $0.state == .cancelled }) {
             lastMessage = "Download cancelled after \(succeeded) track\(succeeded == 1 ? "" : "s")"
         } else {
@@ -2155,6 +2148,24 @@ final class RemoteDownloadManager: ObservableObject {
             downloadQueue[index] = progress
         } else {
             downloadQueue.append(progress)
+        }
+        prioritizeDownloadQueue()
+    }
+
+    private func removeProgress(_ id: UUID) {
+        itemProgress.removeValue(forKey: id)
+        downloadQueue.removeAll { $0.id == id }
+    }
+
+    private func prioritizeDownloadQueue() {
+        downloadQueue.sort { lhs, rhs in
+            let lhsActive = lhs.state == .downloading
+            let rhsActive = rhs.state == .downloading
+            if lhsActive != rhsActive { return lhsActive }
+            let lhsQueued = lhs.state == .queued
+            let rhsQueued = rhs.state == .queued
+            if lhsQueued != rhsQueued { return lhsQueued }
+            return false
         }
     }
 
