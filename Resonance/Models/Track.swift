@@ -216,6 +216,7 @@ struct TrackMetadataOverride: Codable, Sendable {
     var discNumber: Int?
     var releaseYear: Int?
     var artworkData: Data?
+    var artworkFileName: String?
     var hasArtworkOverride = false
 
     func applying(to track: Track) -> Track {
@@ -237,5 +238,6 @@ struct TrackMetadataOverride: Codable, Sendable {
 
 struct ArtistMetadataOverride: Codable, Sendable {
     var artworkData: Data?
+    var artworkFileName: String?
     var hasArtworkOverride = false
 }

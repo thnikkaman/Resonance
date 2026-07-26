@@ -20,11 +20,18 @@ struct OnlineArtworkSearchSheet: View {
                     ProgressView("Searching album art…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if suggestions.isEmpty {
-                    ContentUnavailableView(
-                        "No Artwork Found",
-                        systemImage: "photo.on.rectangle.angled",
-                        description: Text("Try editing the artist or album name, then search again.")
-                    )
+                    VStack(spacing: 14) {
+                        ContentUnavailableView(
+                            "No Artwork Found",
+                            systemImage: "photo.on.rectangle.angled",
+                            description: Text("The repositories returned no matching covers.")
+                        )
+                        Button("Try Again") {
+                            Task { await search() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {

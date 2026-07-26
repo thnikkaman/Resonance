@@ -15,6 +15,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
+            ResonanceThemeBackdrop()
             activeTabContent
                 .resonanceThemeTextSurface()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -259,9 +260,7 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background {
-                ResonanceThemeBackdrop()
-            }
+            .background(Color.clear)
             .tint(settings.accentColor)
             .foregroundStyle(
                 settings.textAccentColor
@@ -276,10 +275,18 @@ struct ResonanceThemeBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        // Live navigation surfaces stay gradient-only. Image previews remain
-        // available in Settings, but artwork is never allowed to cover an
-        // interactive control or album/artist content.
-        settings.themeBackgroundGradient
+        ZStack {
+            settings.themeBackgroundGradient
+            if let imageName = settings.visualTheme.backgroundImageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .opacity(0.16)
+                settings.themeBackgroundGradient.opacity(0.34)
+            }
+        }
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }

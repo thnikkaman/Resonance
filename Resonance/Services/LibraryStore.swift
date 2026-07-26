@@ -362,7 +362,15 @@ final class LibraryStore: ObservableObject {
     }
 
     func applyArtworkToApp(forAlbumTrackIDs trackIDs: [UUID], data: Data) {
-        for trackID in trackIDs { applyArtworkToApp(for: trackID, data: data) }
+        for trackID in trackIDs {
+            guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { continue }
+            var override = metadataOverrides[trackID] ?? TrackMetadataOverride()
+            override.artworkData = data
+            override.hasArtworkOverride = true
+            metadataOverrides[trackID] = override
+            tracks[index] = override.applying(to: tracks[index])
+        }
+        persistMetadataOverrides()
     }
 
     func applyArtworkToApp(for artist: Artist, data: Data) {
@@ -899,16 +907,35 @@ final class LibraryStore: ObservableObject {
         }
     }
 
-    private static var metadataOverridesURL: URL {
+    private nonisolated static var metadataOverridesURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("metadata-overrides.json")
     }
 
+    private nonisolated static var artworkOverridesDirectoryURL: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let directory = base.appendingPathComponent("ArtworkOverrides", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
     private func persistMetadataOverrides() {
-        let stored = Dictionary(uniqueKeysWithValues: metadataOverrides.map { ($0.key.uuidString, $0.value) })
-        guard let data = try? JSONEncoder().encode(stored) else { return }
-        try? data.write(to: Self.metadataOverridesURL, options: .atomic)
+        let snapshot = metadataOverrides
+        Task.detached(priority: .utility) {
+            var stored: [String: TrackMetadataOverride] = [:]
+            for (id, var override) in snapshot {
+                if let artworkData = override.artworkData {
+                    let fileName = "track-\(id.uuidString).jpg"
+                    try? artworkData.write(to: Self.artworkOverridesDirectoryURL.appendingPathComponent(fileName), options: .atomic)
+                    override.artworkData = nil
+                    override.artworkFileName = fileName
+                }
+                stored[id.uuidString] = override
+            }
+            guard let data = try? JSONEncoder().encode(stored) else { return }
+            try? data.write(to: Self.metadataOverridesURL, options: .atomic)
+        }
     }
 
     private static func loadMetadataOverrides() -> [UUID: TrackMetadataOverride] {
@@ -917,26 +944,52 @@ final class LibraryStore: ObservableObject {
         var result: [UUID: TrackMetadataOverride] = [:]
         for (key, value) in stored {
             guard let id = UUID(uuidString: key) else { continue }
-            result[id] = value
+            var restored = value
+            if let fileName = value.artworkFileName {
+                restored.artworkData = try? Data(contentsOf: artworkOverridesDirectoryURL.appendingPathComponent(fileName))
+            }
+            result[id] = restored
         }
         return result
     }
 
-    private static var artistMetadataOverridesURL: URL {
+    private nonisolated static var artistMetadataOverridesURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("artist-metadata-overrides.json")
     }
 
     private func persistArtistMetadataOverrides() {
-        guard let data = try? JSONEncoder().encode(artistMetadataOverrides) else { return }
-        try? data.write(to: Self.artistMetadataOverridesURL, options: .atomic)
+        let snapshot = artistMetadataOverrides
+        Task.detached(priority: .utility) {
+            var stored = snapshot
+            for (key, var override) in snapshot {
+                guard let artworkData = override.artworkData else { continue }
+                let fileName = "artist-\(Self.stableArtworkFileName(for: key)).jpg"
+                try? artworkData.write(to: Self.artworkOverridesDirectoryURL.appendingPathComponent(fileName), options: .atomic)
+                override.artworkData = nil
+                override.artworkFileName = fileName
+                stored[key] = override
+            }
+            guard let data = try? JSONEncoder().encode(stored) else { return }
+            try? data.write(to: Self.artistMetadataOverridesURL, options: .atomic)
+        }
     }
 
     private static func loadArtistMetadataOverrides() -> [String: ArtistMetadataOverride] {
         guard let data = try? Data(contentsOf: artistMetadataOverridesURL),
               let stored = try? JSONDecoder().decode([String: ArtistMetadataOverride].self, from: data) else { return [:] }
-        return stored
+        return stored.mapValues { value in
+            var restored = value
+            if let fileName = value.artworkFileName {
+                restored.artworkData = try? Data(contentsOf: artworkOverridesDirectoryURL.appendingPathComponent(fileName))
+            }
+            return restored
+        }
+    }
+
+    private nonisolated static func stableArtworkFileName(for value: String) -> String {
+        value.utf8.map { String(format: "%02x", $0) }.joined()
     }
 
     private func persistIgnoredLocalPaths() {

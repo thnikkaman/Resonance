@@ -15,9 +15,11 @@ enum ArtworkSearchService {
         guard !cleanArtist.isEmpty || !(cleanAlbum?.isEmpty ?? true) else { return [] }
 
         return try await withThrowingTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
-            group.addTask { try await searchITunes(artist: cleanArtist, album: cleanAlbum) }
-            group.addTask { try await searchDeezer(artist: cleanArtist, album: cleanAlbum) }
-            group.addTask { try await searchCoverArtArchive(artist: cleanArtist, album: cleanAlbum) }
+            // A repository outage or rate limit must not hide results returned
+            // by the other providers.
+            group.addTask { (try? await searchITunes(artist: cleanArtist, album: cleanAlbum)) ?? [] }
+            group.addTask { (try? await searchDeezer(artist: cleanArtist, album: cleanAlbum)) ?? [] }
+            group.addTask { (try? await searchCoverArtArchive(artist: cleanArtist, album: cleanAlbum)) ?? [] }
 
             var combined: [ArtworkSearchSuggestion] = []
             for try await suggestions in group { combined.append(contentsOf: suggestions) }
@@ -48,7 +50,11 @@ enum ArtworkSearchService {
             URLQueryItem(name: "limit", value: "20"),
             URLQueryItem(name: "country", value: "US")
         ]
-        let payload: ITunesResponse = try await decode(components.url!)
+        var payload: ITunesResponse = try await decode(components.url!)
+        if payload.results.isEmpty, let album, !album.isEmpty {
+            components.queryItems?[0] = URLQueryItem(name: "term", value: album)
+            payload = try await decode(components.url!)
+        }
         return payload.results.compactMap { result in
             guard let rawURL = result.artworkUrl100, let imageURL = URL(string: rawURL.replacingOccurrences(of: "100x100", with: "600x600")) else { return nil }
             return ArtworkSearchSuggestion(
@@ -71,7 +77,11 @@ enum ArtworkSearchService {
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "limit", value: "20")
         ]
-        let payload: DeezerResponse = try await decode(components.url!)
+        var payload: DeezerResponse = try await decode(components.url!)
+        if payload.data.isEmpty, let album, !album.isEmpty {
+            components.queryItems?[0] = URLQueryItem(name: "q", value: album)
+            payload = try await decode(components.url!)
+        }
         return payload.data.compactMap { result in
             guard let imageURL = URL(string: result.coverXl ?? result.coverBig ?? "") else { return nil }
             return ArtworkSearchSuggestion(

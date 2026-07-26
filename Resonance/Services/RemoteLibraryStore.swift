@@ -2039,7 +2039,9 @@ final class RemoteDownloadManager: ObservableObject {
                     for await progress in progressStream.stream {
                         let now = Date()
                         let isFinal = progress.total > 0 && progress.completed >= progress.total
-                        guard isFinal || now.timeIntervalSince(lastProgressPublication) >= 0.25 else { continue }
+                        // Keep byte-level progress smooth in the queue without invalidating the
+                        // entire streaming catalog on every network callback.
+                        guard isFinal || now.timeIntervalSince(lastProgressPublication) >= 0.40 else { continue }
                         lastProgressPublication = now
                         currentCompletedBytes = progress.completed
                         currentTotalBytes = progress.total
@@ -2145,11 +2147,13 @@ final class RemoteDownloadManager: ObservableObject {
     private func setProgress(_ progress: RemoteDownloadProgress) {
         itemProgress[progress.id] = progress
         if let index = downloadQueue.firstIndex(where: { $0.id == progress.id }) {
+            let previousState = downloadQueue[index].state
             downloadQueue[index] = progress
+            if previousState != progress.state { prioritizeDownloadQueue() }
         } else {
             downloadQueue.append(progress)
+            prioritizeDownloadQueue()
         }
-        prioritizeDownloadQueue()
     }
 
     private func removeProgress(_ id: UUID) {

@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 91;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 92;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -324,7 +324,7 @@ assert streaming.count('UIImpactFeedbackGenerator(style: .medium).impactOccurred
 assert '.background(settings.themeBackgroundGradient)' not in streaming
 assert '.background(.background)' not in streaming
 assert '.overlay(alignment: .top)' in streaming
-assert 'backgroundImageName' not in root_view
+assert 'backgroundImageName' in root_view
 assert 'resonanceTabBottomSpace' in root_view
 assert 'resonanceDetailBottomSpace' in root_view
 assert 'dragTranslation' in root_view
@@ -347,7 +347,7 @@ assert 'var visualTheme' in settings
 assert 'backgroundGradientHex' in settings
 assert 'isBrightAppearance' in settings
 assert 'Visual style' in settings_view
-assert 'ResonanceThemeBackdrop' in settings_view
+assert 'backgroundImageName' in settings_view
 assert 'size: 158' in streaming
 assert 'size: 176' in streaming and 'size: 176' in album_detail
 assert '.scrollContentBackground(.hidden)' in streaming and '.scrollContentBackground(.hidden)' in album_detail
@@ -362,8 +362,8 @@ assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {', 1)[1].split('private struct ResonanceHeroSurface', 1)[0]
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
 assert 'backgroundImageName' not in surface_backdrop
-assert 'ResonanceThemeBackdrop()' in now_playing
-assert '.opacity(0.16)' not in root_view
+assert 'Color.clear' in now_playing
+assert '.opacity(0.16)' in root_view
 assert '.opacity(0.025)' not in root_view
 assert '.opacity(0.40)' in settings_view
 assert 'textAccentColor' in settings

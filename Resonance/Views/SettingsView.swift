@@ -423,7 +423,7 @@ struct SettingsView: View {
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
             .background {
-                ResonanceThemeBackdrop()
+                Color.clear
             }
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)

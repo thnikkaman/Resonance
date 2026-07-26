@@ -50,8 +50,6 @@ private extension View {
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
-    @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var showingOptions = false
     @State private var browseReady = false
     @State private var downloadSelectionMode = false
@@ -76,26 +74,6 @@ struct StreamingLibraryView: View {
         downloadSelectionMode = false
         selectedArtistIDs.removeAll()
         selectedAlbumIDs.removeAll()
-    }
-
-    private func downloadSelectedArtists() {
-        let tracks = selectedArtists.flatMap(\.tracks)
-        guard !tracks.isEmpty else { return }
-        downloads.requestDownload(uniqueRemoteTracks(tracks), into: library)
-        clearDownloadSelection()
-    }
-
-    private func downloadSelectedAlbums() {
-        let tracks = selectedAlbums.flatMap(\.tracks)
-        guard !tracks.isEmpty else { return }
-        downloads.requestDownload(uniqueRemoteTracks(tracks), into: library)
-        clearDownloadSelection()
-    }
-
-    private func uniqueRemoteTracks(_ tracks: [RemoteTrackItem]) -> [RemoteTrackItem] {
-        tracks.reduce(into: [RemoteTrackItem]()) { result, track in
-            if !result.contains(where: { $0.id == track.id }) { result.append(track) }
-        }
     }
 
     var body: some View {
@@ -183,7 +161,7 @@ struct StreamingLibraryView: View {
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
         .background {
-            ResonanceThemeBackdrop()
+            Color.clear
         }
         .overlay(alignment: .top) {
             RemoteDownloadOverlay()
@@ -204,34 +182,15 @@ struct StreamingLibraryView: View {
                     action: openLibrary
                 )
 
-                Menu {
-                    if selectedArtistCount > 0 {
-                        Button(selectedArtistCount == 1 ? "Download Artist" : "Download Artists") {
-                            downloadSelectedArtists()
-                        }
-                    }
-                    if selectedAlbumCount > 0 {
-                        Button(selectedAlbumCount == 1 ? "Download Album" : "Download Albums") {
-                            downloadSelectedAlbums()
-                        }
-                    }
-                    if downloadSelectionMode {
-                        Divider()
-                        Button("Clear Download Selection") {
-                            clearDownloadSelection()
-                        }
-                    }
-                    if selectedArtistCount > 0 || selectedAlbumCount > 0 {
-                        Divider()
-                    }
-                    Button("Browse and Sort Options") {
-                        showingOptions = true
-                    }
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: downloadSelectionMode ? "checkmark.circle" : "slider.horizontal.3")
-                }
-                .help(downloadSelectionMode ? "Download selection options" : "Streaming library view and sort options")
-                .accessibilityLabel(downloadSelectionMode ? "Download selection options" : "Streaming library view and sort options")
+                StreamingDownloadActionsMenu(
+                    artistTracks: selectedArtists.flatMap(\.tracks),
+                    albumTracks: selectedAlbums.flatMap(\.tracks),
+                    artistCount: selectedArtistCount,
+                    albumCount: selectedAlbumCount,
+                    selectionMode: downloadSelectionMode,
+                    onClearSelection: clearDownloadSelection,
+                    onShowBrowseOptions: { showingOptions = true }
+                )
 
                 Menu {
                     NavigationLink {
@@ -300,6 +259,55 @@ struct StreamingLibraryView: View {
                         }
                 )
         }
+    }
+}
+
+private struct StreamingDownloadActionsMenu: View {
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var library: LibraryStore
+
+    let artistTracks: [RemoteTrackItem]
+    let albumTracks: [RemoteTrackItem]
+    let artistCount: Int
+    let albumCount: Int
+    let selectionMode: Bool
+    let onClearSelection: () -> Void
+    let onShowBrowseOptions: () -> Void
+
+    private var hasSelection: Bool { artistCount > 0 || albumCount > 0 }
+
+    var body: some View {
+        Menu {
+            if artistCount > 0 {
+                Button(artistCount == 1 ? "Download Artist" : "Download Artists") {
+                    requestDownload(artistTracks)
+                }
+            }
+            if albumCount > 0 {
+                Button(albumCount == 1 ? "Download Album" : "Download Albums") {
+                    requestDownload(albumTracks)
+                }
+            }
+            if selectionMode {
+                Divider()
+                Button("Clear Download Selection", action: onClearSelection)
+            }
+            if hasSelection { Divider() }
+            Button("Browse and Sort Options", action: onShowBrowseOptions)
+        } label: {
+            ResonanceToolbarIconLabel(systemImage: selectionMode ? "checkmark.circle" : "slider.horizontal.3")
+        }
+        .help(selectionMode ? "Download selection options" : "Streaming library view and sort options")
+        .accessibilityLabel(selectionMode ? "Download selection options" : "Streaming library view and sort options")
+    }
+
+    private func requestDownload(_ tracks: [RemoteTrackItem]) {
+        let uniqueTracks = tracks.reduce(into: [RemoteTrackItem]()) { result, track in
+            if !result.contains(where: { $0.id == track.id }) { result.append(track) }
+        }
+        guard !uniqueTracks.isEmpty else { return }
+        downloads.requestDownload(uniqueTracks, into: library)
+        onClearSelection()
     }
 }
 
