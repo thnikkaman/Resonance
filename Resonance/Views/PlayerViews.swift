@@ -208,7 +208,9 @@ struct NowPlayingView: View {
       .tint(settings.accentColor)
     }
     .padding(.horizontal, 16)
-    .padding(.top, 2)
+    // Temporary visual test: move the complete Playing content down by about
+    // 20% of the iPhone viewport so the artwork clears the navigation bar.
+    .padding(.top, 120)
     .padding(.bottom, 8)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background {
@@ -681,7 +683,9 @@ struct PlaybackQueueView: View {
 struct MiniPlayerView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var player: PlayerController
+  let dock: MiniPlayerDock
   let openNowPlaying: () -> Void
+  let onDock: (MiniPlayerDock) -> Void
 
   var body: some View {
     HStack(spacing: 10) {
@@ -711,6 +715,14 @@ struct MiniPlayerView: View {
       Spacer(minLength: 10)
 
       HStack(spacing: 20) {
+        Button {
+          onDock(dock == .top ? .bottom : .top)
+        } label: {
+          Image(systemName: dock == .top ? "arrow.down" : "arrow.up")
+            .frame(width: 30, height: 36)
+        }
+        .accessibilityLabel(dock == .top ? "Move mini player to bottom" : "Move mini player to top")
+
         Button(action: player.previous) {
           Image(systemName: "backward.fill")
             .frame(width: 30, height: 36)
@@ -735,8 +747,12 @@ struct MiniPlayerView: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
     .background {
-      ResonanceThemeSurfaceBackdrop()
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .fill(.ultraThinMaterial)
+        .overlay {
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(settings.themeSurfaceGradient.opacity(0.28))
+        }
     }
     .overlay {
       RoundedRectangle(cornerRadius: 14, style: .continuous)

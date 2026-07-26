@@ -5,17 +5,44 @@ enum AppTab: Hashable {
   case playing, library, streaming, settings
 }
 
-private enum MiniPlayerDock: String {
+private struct ResonanceMiniPlayerBottomInsetKey: EnvironmentKey {
+  static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+  var resonanceMiniPlayerBottomInset: CGFloat {
+    get { self[ResonanceMiniPlayerBottomInsetKey.self] }
+    set { self[ResonanceMiniPlayerBottomInsetKey.self] = newValue }
+  }
+}
+
+enum MiniPlayerDock: String {
   case top, bottom, leading, trailing
 }
 
 struct RootView: View {
+    @EnvironmentObject private var player: PlayerController
   @State private var selectedTab: AppTab = .library
   @State private var miniPlayerDock: MiniPlayerDock = .top
 
     var body: some View {
         ZStack {
             activeTabContent
+                .environment(
+                    \.resonanceMiniPlayerBottomInset,
+                    miniPlayerDock == .bottom
+                        && selectedTab != .playing
+                        && player.currentTrack != nil
+                        ? 100
+                        : 0
+                )
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if miniPlayerDock == .bottom,
+                       selectedTab != .playing,
+                       player.currentTrack != nil {
+                        Color.clear.frame(height: 74)
+                    }
+                }
                 .resonanceThemeTextSurface()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -54,8 +81,34 @@ struct RootView: View {
                 .padding(.trailing, 2)
             }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if miniPlayerDock == .top,
+               selectedTab != .playing,
+               player.currentTrack != nil {
+                MiniPlayerOverlay(
+                    isVisible: true,
+                    dock: .top,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
+                .padding(.horizontal, 8)
+                .padding(.bottom, 6)
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ResonanceTabBar(selection: $selectedTab)
+            VStack(spacing: 0) {
+                if miniPlayerDock == .bottom, selectedTab != .playing {
+                    MiniPlayerOverlay(
+                        isVisible: true,
+                        dock: .bottom,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 6)
+                }
+                ResonanceTabBar(selection: $selectedTab)
+            }
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -80,12 +133,6 @@ struct RootView: View {
                 ZStack {
                     ResonanceThemeBackdrop()
                     NowPlayingView(openLibrary: { selectedTab = .library })
-                        .resonanceMiniPlayerInsets(
-                            isVisible: false,
-                            dock: miniPlayerDock,
-                            openNowPlaying: { selectedTab = .playing },
-                            onDock: { miniPlayerDock = $0 }
-                        )
                 }
             }
         case .library:
@@ -93,12 +140,6 @@ struct RootView: View {
                 ZStack {
                     ResonanceThemeBackdrop()
                     LibraryView()
-                        .resonanceMiniPlayerInsets(
-                            isVisible: true,
-                            dock: miniPlayerDock,
-                            openNowPlaying: { selectedTab = .playing },
-                            onDock: { miniPlayerDock = $0 }
-                        )
                 }
             }
         case .streaming:
@@ -109,12 +150,6 @@ struct RootView: View {
                         openLibrary: { selectedTab = .library },
                         openSettings: { selectedTab = .settings }
                     )
-                    .resonanceMiniPlayerInsets(
-                        isVisible: true,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
                 }
             }
         case .settings:
@@ -122,12 +157,6 @@ struct RootView: View {
                 ZStack {
                     ResonanceThemeBackdrop()
                     SettingsView(openLibrary: { selectedTab = .library })
-                        .resonanceMiniPlayerInsets(
-                            isVisible: true,
-                            dock: miniPlayerDock,
-                            openNowPlaying: { selectedTab = .playing },
-                            onDock: { miniPlayerDock = $0 }
-                        )
                 }
             }
         }
@@ -146,8 +175,9 @@ private struct ResonanceTabBar: View {
             tabButton(.settings, title: "Settings", systemImage: "gearshape")
         }
         .padding(.horizontal, 8)
-        .padding(.top, 7)
+        .padding(.top, 0)
         .padding(.bottom, 0)
+        .offset(y: 20)
         // Keep the bar at the original position and carry its themed surface
         // through the home-indicator area so no black footer is exposed.
         .background {
@@ -155,12 +185,14 @@ private struct ResonanceTabBar: View {
                 settings.themeSurfaceColor
                 settings.themeSurfaceGradient.opacity(0.78)
             }
+                .padding(.top, 10)
                 .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.primary.opacity(0.12))
                 .frame(height: 0.5)
+                .offset(y: 10)
         }
         .zIndex(100)
         .transaction { transaction in
@@ -337,7 +369,7 @@ private struct ResonanceHeroSurface: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            .padding(.vertical, 6)
             .background {
                 ResonanceThemeSurfaceBackdrop()
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -347,8 +379,8 @@ private struct ResonanceHeroSurface: ViewModifier {
                     .stroke(settings.accentColor.opacity(0.25), lineWidth: 1)
             }
             .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
     }
 }
 
@@ -449,6 +481,7 @@ struct ResonanceToolbarIconLabel: View {
 }
 
 private struct MiniPlayerInsets: ViewModifier {
+    @EnvironmentObject private var player: PlayerController
     let isVisible: Bool
     let dock: MiniPlayerDock
     let openNowPlaying: () -> Void
@@ -457,17 +490,7 @@ private struct MiniPlayerInsets: ViewModifier {
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
-                if isVisible, dock == .top {
-                    Color.clear.frame(height: 74)
-                }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if isVisible, dock == .bottom {
-                    Color.clear.frame(height: 74)
-                }
-            }
-            .overlay(alignment: .top) {
-                if isVisible, dock == .top {
+                if isVisible, dock == .top, player.currentTrack != nil {
                     MiniPlayerOverlay(
                         isVisible: isVisible,
                         dock: .top,
@@ -475,18 +498,7 @@ private struct MiniPlayerInsets: ViewModifier {
                         onDock: onDock
                     )
                     .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if isVisible, dock == .bottom {
-                    MiniPlayerOverlay(
-                        isVisible: isVisible,
-                        dock: .bottom,
-                        openNowPlaying: openNowPlaying,
-                        onDock: onDock
-                    )
-                    .padding(.horizontal, 8)
+                    .padding(.top, 90)
                     .padding(.bottom, 6)
                 }
             }
@@ -495,7 +507,6 @@ private struct MiniPlayerInsets: ViewModifier {
 
 private struct MiniPlayerOverlay: View {
   @EnvironmentObject private var player: PlayerController
-  @GestureState private var dragTranslation = CGSize.zero
   let isVisible: Bool
   let dock: MiniPlayerDock
   let openNowPlaying: () -> Void
@@ -503,24 +514,12 @@ private struct MiniPlayerOverlay: View {
 
   var body: some View {
     if isVisible, player.currentTrack != nil {
-        MiniPlayerView(openNowPlaying: openNowPlaying)
-            .offset(dragTranslation)
-        .highPriorityGesture(
-          DragGesture(minimumDistance: 18, coordinateSpace: .local)
-            .updating($dragTranslation) { value, state, _ in
-              state = value.translation
-            }
-            .onEnded { value in
-              let horizontal = abs(value.translation.width)
-              let vertical = abs(value.translation.height)
-              if horizontal > vertical, horizontal > 70 {
-                onDock(value.translation.width < 0 ? .trailing : .leading)
-              } else if vertical > 70 {
-                onDock(value.translation.height < 0 ? .top : .bottom)
-              }
-            }
-        )
-        .accessibilityHint("Swipe to dock this player at the top, bottom, or side of the screen")
+      MiniPlayerView(
+        dock: dock,
+        openNowPlaying: openNowPlaying,
+        onDock: onDock
+      )
+      .accessibilityHint("Use the arrow to move this player between the top and bottom")
     }
   }
 }
@@ -550,7 +549,11 @@ private struct MiniPlayerEdgeHandle: View {
             .font(.caption.weight(.bold))
         }
         .padding(5)
-        .background(settings.themeSurfaceGradient, in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay {
+          Capsule()
+            .fill(settings.themeSurfaceGradient.opacity(0.28))
+        }
         .overlay(Capsule().stroke(settings.accentColor.opacity(0.35), lineWidth: 1))
         .shadow(radius: 4, y: 2)
       }
@@ -558,7 +561,7 @@ private struct MiniPlayerEdgeHandle: View {
       .offset(dragTranslation)
       .contentShape(Rectangle())
       .zIndex(10)
-      .highPriorityGesture(
+      .simultaneousGesture(
         DragGesture(minimumDistance: 12, coordinateSpace: .local)
           .updating($dragTranslation) { value, state, _ in
             state = value.translation
