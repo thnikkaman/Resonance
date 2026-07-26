@@ -161,7 +161,7 @@ struct StreamingLibraryView: View {
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
         .background {
-            ResonanceThemeBackdrop()
+            Color.clear
         }
         .overlay(alignment: .top) {
             RemoteDownloadOverlay()
