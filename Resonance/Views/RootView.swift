@@ -195,12 +195,12 @@ private struct ErrorReportingCoordinatorView: View {
     }
 }
 
-private extension View {
-    func resonanceThemeTextSurface() -> some View {
+extension View {
+    fileprivate func resonanceThemeTextSurface() -> some View {
         modifier(ResonanceThemeTextSurface())
     }
 
-    func resonanceMiniPlayerInsets(
+    fileprivate func resonanceMiniPlayerInsets(
         isVisible: Bool,
         dock: MiniPlayerDock,
         openNowPlaying: @escaping () -> Void,
@@ -214,6 +214,12 @@ private extension View {
                 onDock: onDock
             )
         )
+    }
+
+    func resonanceTabBottomSpace() -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: 72)
+        }
     }
 }
 

@@ -35,6 +35,7 @@ struct ResonanceApp: App {
                     ResonanceDiagnostics.shared.record("scene.active.refresh.begin")
                     await library.refreshForActiveState()
                     await remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
+                    remoteDownloads.resumePersistedDownloads(from: remoteLibrary.tracks, into: library)
                     ResonanceDiagnostics.shared.record("scene.active.refresh.end")
                 }
         }

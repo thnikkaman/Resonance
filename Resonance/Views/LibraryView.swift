@@ -51,6 +51,7 @@ struct LibraryView: View {
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
         .searchable(text: $library.searchText)
+        .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button { showingLibraryOptions = true } label: {
@@ -514,9 +515,10 @@ private struct ArtistTile: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 5) {
-                Text(artist.name)
-                    .font(settings.libraryTextSize.font.weight(.semibold))
-                    .lineLimit(1)
+                ScrollableArtistName(
+                    artist.name,
+                    font: settings.libraryTextSize.font.weight(.semibold)
+                )
                 if artist.hasMetadataOverride {
                     Image(systemName: "pencil.circle.fill")
                         .font(.caption2)
@@ -546,9 +548,10 @@ private struct ArtistListRow: View {
             )
             VStack(alignment: .leading, spacing: large ? 4 : 1) {
                 HStack(spacing: 5) {
-                    Text(artist.name)
-                        .font(settings.libraryTextSize.font.weight(.semibold))
-                        .lineLimit(1)
+                    ScrollableArtistName(
+                        artist.name,
+                        font: settings.libraryTextSize.font.weight(.semibold)
+                    )
                     if artist.hasMetadataOverride {
                         Image(systemName: "pencil.circle.fill")
                             .font(.caption2)
@@ -561,6 +564,28 @@ private struct ArtistListRow: View {
                     .lineLimit(1)
             }
         }
+    }
+}
+
+private struct ScrollableArtistName: View {
+    let name: String
+    let font: Font
+
+    init(_ name: String, font: Font) {
+        self.name = name
+        self.font = font
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            Text(name)
+                .font(font)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .scrollIndicators(.hidden)
+        .accessibilityLabel(name)
     }
 }
 
@@ -627,9 +652,7 @@ struct ArtistDetailView: View {
                 )
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 5) {
-                        Text(liveArtist.name)
-                            .font(.headline)
-                            .lineLimit(1)
+                        ScrollableArtistName(liveArtist.name, font: .headline)
                         if liveArtist.hasMetadataOverride {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.caption)

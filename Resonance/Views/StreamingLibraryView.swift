@@ -24,8 +24,6 @@ struct StreamingLibraryView: View {
                 VStack(spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
                     RemoteSearchField(text: $remote.searchText)
-                    RemoteDownloadOverlay()
-
                     Group {
                         switch remote.grouping {
                         case .artists:
@@ -65,6 +63,10 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            RemoteDownloadOverlay()
+        }
+        .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
@@ -136,6 +138,8 @@ struct StreamingLibraryView: View {
 
 private struct RemoteDownloadOverlay: View {
     @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var library: LibraryStore
 
     var body: some View {
         Group {
@@ -151,6 +155,25 @@ private struct RemoteDownloadOverlay: View {
                     cancelTrack: downloads.cancelDownload,
                     requeueTrack: downloads.requeueDownload
                 )
+            } else if downloads.hasPersistedQueue {
+                HStack(spacing: 10) {
+                    Image(systemName: "pause.circle.fill")
+                        .foregroundStyle(.orange)
+                    Text("A download is ready to resume")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button("Resume") {
+                        downloads.resumePersistedDownloads(from: remote.tracks, into: library)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("A download is ready to resume")
             }
         }
         .alert(

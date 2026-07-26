@@ -1788,6 +1788,8 @@ enum RemoteDownloadError: LocalizedError {
 
 @MainActor
 final class RemoteDownloadManager: ObservableObject {
+    private static let persistedQueueIDsKey = "resonance.remoteDownloadQueueIDs"
+
     @Published private(set) var isDownloading = false
     @Published private(set) var currentTitle = ""
     @Published private(set) var completedCount = 0
@@ -1799,6 +1801,10 @@ final class RemoteDownloadManager: ObservableObject {
     @Published private(set) var downloadQueue: [RemoteDownloadProgress] = []
     @Published private(set) var pendingReplacementCount = 0
     @Published private(set) var pendingReplacementDescription = ""
+
+    var hasPersistedQueue: Bool {
+        !persistedQueueIDs().isEmpty
+    }
 
     private struct DownloadResult: Sendable {
         let bytes: Int64
@@ -1823,6 +1829,11 @@ final class RemoteDownloadManager: ObservableObject {
             if isDownloading { lastMessage = "A download is already in progress" }
             return
         }
+
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.request",
+            details: ["trackCount": String(tracks.count), "active": String(isDownloading)]
+        )
 
         let duplicates = tracks.filter {
             FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
@@ -1861,6 +1872,8 @@ final class RemoteDownloadManager: ObservableObject {
         guard isDownloading else { return }
         activeWorker?.cancel()
         downloadTask?.cancel()
+        clearPersistedQueue()
+        ResonanceDiagnostics.shared.recordDeferred("download.cancelAll")
         lastMessage = "Cancelling download…"
     }
 
@@ -1868,6 +1881,7 @@ final class RemoteDownloadManager: ObservableObject {
         guard isDownloading, let current = itemProgress[id] else { return }
         guard current.state == .queued || current.state == .downloading else { return }
         individuallyCancelledTrackIDs.insert(id)
+        removePersistedTrack(id)
         if activeTrackID == id {
             activeWorker?.cancel()
         } else {
@@ -1889,6 +1903,7 @@ final class RemoteDownloadManager: ObservableObject {
               let track = activeTracksByID[id] else { return }
         individuallyCancelledTrackIDs.remove(id)
         requeueRequests[id] = track
+        addPersistedTrack(id)
         setProgress(
             RemoteDownloadProgress(
                 id: current.id,
@@ -1901,12 +1916,35 @@ final class RemoteDownloadManager: ObservableObject {
         completedCount = max(0, completedCount - 1)
     }
 
+    func resumePersistedDownloads(from remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
+        guard !isDownloading else { return }
+        let savedIDs = persistedQueueIDs()
+        guard !savedIDs.isEmpty else { return }
+        guard !remoteTracks.isEmpty else { return }
+        let byID = Dictionary(uniqueKeysWithValues: remoteTracks.map { ($0.id, $0) })
+        let matchedTracks = savedIDs.compactMap { byID[$0] }
+        guard !matchedTracks.isEmpty else { return }
+        let candidates = matchedTracks.filter {
+            !FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+        }
+        guard !candidates.isEmpty else {
+            clearPersistedQueue()
+            return
+        }
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.resume",
+            details: ["trackCount": String(candidates.count)]
+        )
+        startDownload(candidates, into: library, replacingExisting: false)
+    }
+
     private func startDownload(
         _ tracks: [RemoteTrackItem],
         into library: LibraryStore,
         replacingExisting: Bool
     ) {
         downloadTask?.cancel()
+        persistQueue(tracks.map(\.id))
         downloadTask = Task { [weak self] in
             await self?.performDownload(
                 tracks,
@@ -1929,6 +1967,10 @@ final class RemoteDownloadManager: ObservableObject {
         individuallyCancelledTrackIDs = []
         requeueRequests = [:]
         activeTracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.batch.begin",
+            details: ["trackCount": String(tracks.count), "replacingExisting": String(replacingExisting)]
+        )
         lastMessage = "Preparing \(tracks.count) download\(tracks.count == 1 ? "" : "s")…"
         let initialQueue = tracks.map {
             RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .queued)
@@ -2028,6 +2070,11 @@ final class RemoteDownloadManager: ObservableObject {
                     )
                 )
                 await library.refreshDownloadedTrack(at: result.destination)
+                removePersistedTrack(track.id)
+                ResonanceDiagnostics.shared.recordDeferred(
+                    "download.track.completed",
+                    details: ["completedCount": String(completedCount), "totalCount": String(totalCount)]
+                )
             } catch is CancellationError {
                 activeWorker = nil
                 activeTrackID = nil
@@ -2041,6 +2088,7 @@ final class RemoteDownloadManager: ObservableObject {
                     )
                 )
                 completedCount += 1
+                removePersistedTrack(track.id)
                 if Task.isCancelled { break }
                 continue
             } catch {
@@ -2068,6 +2116,33 @@ final class RemoteDownloadManager: ObservableObject {
             ? "Downloaded \(succeeded) track\(succeeded == 1 ? "" : "s") to the local library"
             : "Downloaded \(succeeded) of \(tracks.count) tracks; review failed items"
         }
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.batch.end",
+            details: ["succeeded": String(succeeded), "totalCount": String(tracks.count), "cancelled": String(Task.isCancelled)]
+        )
+    }
+
+    private func persistedQueueIDs() -> [UUID] {
+        (UserDefaults.standard.array(forKey: Self.persistedQueueIDsKey) as? [String] ?? [])
+            .compactMap(UUID.init(uuidString:))
+    }
+
+    private func persistQueue(_ ids: [UUID]) {
+        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.persistedQueueIDsKey)
+    }
+
+    private func addPersistedTrack(_ id: UUID) {
+        var ids = persistedQueueIDs()
+        if !ids.contains(id) { ids.append(id) }
+        persistQueue(ids)
+    }
+
+    private func removePersistedTrack(_ id: UUID) {
+        persistQueue(persistedQueueIDs().filter { $0 != id })
+    }
+
+    private func clearPersistedQueue() {
+        UserDefaults.standard.removeObject(forKey: Self.persistedQueueIDsKey)
     }
 
     private struct DownloadByteProgress: Sendable {

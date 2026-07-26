@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **76**
+Build: **77**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -103,6 +103,8 @@ Alpha 3.7.4 build 74 refines the Streaming artist detail surface with three full
 Alpha 3.7.4 build 75 keeps the download manager’s high-frequency progress observation inside the download overlay so the Streaming catalog remains responsive while files arrive. Each completed file now performs a targeted library refresh, allowing open local artist and album views to update immediately without rescanning the entire Documents folder. The expanded queue has a visible Collapse control and a bounded scroll area, and local artist album cards now expose the same Remove from Library and Delete from iPhone choices as the album collection and detail screens. Playback, remote transport, QR setup, and download storage behavior are unchanged.
 
 Alpha 3.7.4 build 76 makes open local artist and album screens follow stable artist/album identity, so newly downloaded albums and tracks appear without navigating away and back. Cancelled download rows now offer Requeue, returning the track to the active queue while preserving the existing ordered progress list. Artist long-press menus now put immediate Download Artist above Select Artists to Download. Download progress is coalesced, disk writes use larger buffers, and completed-track indexing uses a single SQLite upsert to reduce interface churn, CPU, and battery work. Playback, Streaming responsiveness, QR setup, and download storage behavior are unchanged.
+
+Alpha 3.7.4 build 77 adds scrollable blank space below the final content on Library, Streaming, and Settings, and long artist names can be horizontally scrolled where they do not fit. The download panel is fixed outside the Streaming browse scroll surface, so it remains visible while browsing. Download batches now record only credential-free remote track IDs for recovery; if the app is interrupted, the cached catalog can resume missing tracks after relaunch or from a visible Resume banner. Download lifecycle diagnostics record counts and states without names, URLs, credentials, paths, or audio data. Playback and remote transport are unchanged.
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 

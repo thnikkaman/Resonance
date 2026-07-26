@@ -404,6 +404,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())
         .onTapGesture {
