@@ -118,8 +118,13 @@ final class PlayerController: NSObject, ObservableObject {
   private var activeBackend: ActiveBackend = .none
   private var audioPlayer: AVAudioPlayer?
   private var remotePlayer: AVPlayer?
-  private var remoteQueuePlayer: AVQueuePlayer?
   private var remoteItemTracks: [ObjectIdentifier: Track] = [:]
+  private var remotePreloadPlayer: AVPlayer?
+  private var remotePreloadItem: AVPlayerItem?
+  private var remotePreloadTrack: Track?
+  private var remotePreloadReady = false
+  private var remotePreloadTask: Task<Void, Never>?
+  private var remoteExperimentalSession = false
   private lazy var remoteObserver = RemotePlayerObserver(owner: self)
   private var playbackTimerTask: Task<Void, Never>?
   private var sleepTimerTask: Task<Void, Never>?
@@ -147,7 +152,7 @@ final class PlayerController: NSObject, ObservableObject {
   private var gaplessDisabledForSession = false
 
   private var activeRemotePlayer: AVPlayer? {
-    remoteQueuePlayer ?? remotePlayer
+    remotePlayer
   }
 
   private var remoteGaplessExperimentalEnabled: Bool {
@@ -594,6 +599,7 @@ final class PlayerController: NSObject, ObservableObject {
       )
     case .remote:
       guard let activeRemotePlayer else { return }
+      let wasPlaying = isPlaying
       let target = CMTime(seconds: clamped, preferredTimescale: 600)
       remoteSeekRequestID &+= 1
       let requestID = remoteSeekRequestID
@@ -619,6 +625,10 @@ final class PlayerController: NSObject, ObservableObject {
           self.pendingRemoteSeekPosition = nil
           guard finished else {
             self.updateElapsedFromClock()
+            self.resumeRemotePlaybackAfterSeek(
+              activeRemotePlayer,
+              wasPlaying: wasPlaying
+            )
             self.updateNowPlayingProgress()
             ResonanceDiagnostics.shared.recordDeferred(
               "remote.player.seek.completed",
@@ -634,6 +644,10 @@ final class PlayerController: NSObject, ObservableObject {
           self.elapsed = self.clampedRemoteElapsed(clamped)
           self.playbackAnchorElapsed = self.elapsed
           self.playbackAnchorDate = self.isPlaying ? Date() : nil
+          self.resumeRemotePlaybackAfterSeek(
+            activeRemotePlayer,
+            wasPlaying: wasPlaying
+          )
           self.updateNowPlayingProgress()
           ResonanceDiagnostics.shared.recordDeferred(
             "remote.player.seek.completed",
@@ -648,6 +662,24 @@ final class PlayerController: NSObject, ObservableObject {
     case .none:
       break
     }
+  }
+
+  private func resumeRemotePlaybackAfterSeek(_ player: AVPlayer, wasPlaying: Bool) {
+    guard wasPlaying, isPlaying else { return }
+    if remoteExperimentalSession {
+      player.playImmediately(atRate: 1)
+    } else {
+      player.play()
+    }
+    playbackAnchorElapsed = elapsed
+    playbackAnchorDate = Date()
+    ResonanceDiagnostics.shared.recordDeferred(
+      "remote.player.seek.resume",
+      details: [
+        "experimental": String(remoteExperimentalSession),
+        "timeControlStatus": String(describing: player.timeControlStatus)
+      ]
+    )
   }
 
   /// Re-reads the persisted preload settings and rebuilds the future schedule
@@ -730,12 +762,21 @@ final class PlayerController: NSObject, ObservableObject {
       audioPlayer = nil
     case .remote:
       remoteObserver.stop()
+      remotePreloadTask?.cancel()
+      remotePreloadTask = nil
+      remotePreloadPlayer?.cancelPendingPrerolls()
+      remotePreloadPlayer?.pause()
+      remotePreloadPlayer?.replaceCurrentItem(with: nil)
+      remotePreloadPlayer = nil
+      remotePreloadItem = nil
+      remotePreloadTrack = nil
+      remotePreloadReady = false
+      activeRemotePlayer?.cancelPendingPrerolls()
       activeRemotePlayer?.pause()
-      remoteQueuePlayer?.removeAllItems()
       remotePlayer?.replaceCurrentItem(with: nil)
-      remoteQueuePlayer = nil
       remotePlayer = nil
       remoteItemTracks.removeAll()
+      remoteExperimentalSession = false
       remoteSeekInFlight = false
       remoteSeekRequestID &+= 1
       pendingRemoteSeekPosition = nil
@@ -1011,37 +1052,16 @@ final class PlayerController: NSObject, ObservableObject {
     let item = makeRemoteItem(for: track, url: url)
     let experimentalGapless = remoteGaplessExperimentalEnabled
     let nextTrack = experimentalGapless ? remotePreloadCandidate(after: targetIndex) : nil
-    var queuedItems = [item]
-    if let nextTrack, let nextURL = nextTrack.fileURL {
-      queuedItems.append(makeRemoteItem(for: nextTrack, url: nextURL))
-    }
-
-    let newPlayer: AVPlayer
-    if experimentalGapless {
-      let queuePlayer = AVQueuePlayer(items: queuedItems)
-      remoteQueuePlayer = queuePlayer
-      remotePlayer = nil
-      newPlayer = queuePlayer
-    } else {
-      let singlePlayer = AVPlayer(playerItem: item)
-      remoteQueuePlayer = nil
-      remotePlayer = singlePlayer
-      newPlayer = singlePlayer
-    }
+    let newPlayer = AVPlayer(playerItem: item)
+    remotePlayer = newPlayer
+    remoteExperimentalSession = experimentalGapless
     // A queued remote item must be allowed to start as soon as its available
-    // media begins. Waiting for AVPlayer's stall-minimization threshold at an
-    // item boundary turns a queued transition into an audible pause when the
-    // server is still delivering the opening packets of the next stream.
+    // media begins. Experimental handoff uses a separately prerolling player;
+    // the stable single-item path retains AVPlayer's normal stall protection.
     newPlayer.automaticallyWaitsToMinimizeStalling = !experimentalGapless
-    if experimentalGapless {
-      newPlayer.actionAtItemEnd = .advance
-    }
     newPlayer.volume = Float(min(max(volume, 0), 1))
     remoteItemTracks = [ObjectIdentifier(item): track]
-    if queuedItems.count > 1, let nextTrack {
-      remoteItemTracks[ObjectIdentifier(queuedItems[1])] = nextTrack
-    }
-    remoteObserver.observe(queuedItems)
+    remoteObserver.observe(item)
     activeBackend = .remote
     currentQueueIndex = targetIndex
     currentTrack = track
@@ -1079,6 +1099,10 @@ final class PlayerController: NSObject, ObservableObject {
       ]
     )
 
+    if let nextTrack {
+      beginRemotePreload(nextTrack, generation: playbackGeneration)
+    }
+
     if elapsed > 0 {
       newPlayer.seek(to: CMTime(seconds: elapsed, preferredTimescale: 600))
     }
@@ -1114,6 +1138,116 @@ final class PlayerController: NSObject, ObservableObject {
     return item
   }
 
+  private func clearRemotePreload() {
+    remotePreloadTask?.cancel()
+    remotePreloadTask = nil
+    remotePreloadPlayer?.cancelPendingPrerolls()
+    remotePreloadPlayer?.pause()
+    remotePreloadPlayer?.replaceCurrentItem(with: nil)
+    remotePreloadPlayer = nil
+    remotePreloadItem = nil
+    remotePreloadTrack = nil
+    remotePreloadReady = false
+  }
+
+  /// A queued AVPlayer item can be present before its decoder has been
+  /// primed. Keep the next item on a separate silent player and explicitly
+  /// preroll it so the boundary handoff can reuse a warmed decoder instead of
+  /// starting a cold network item at the exact end of the previous one.
+  private func beginRemotePreload(_ track: Track, generation: Int) {
+    clearRemotePreload()
+    guard remoteExperimentalSession,
+      let url = track.fileURL,
+      url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https"
+    else {
+      preloadedTrackID = nil
+      preloadedTrackTitle = nil
+      return
+    }
+
+    let item = makeRemoteItem(for: track, url: url)
+    let player = AVPlayer(playerItem: item)
+    player.automaticallyWaitsToMinimizeStalling = false
+    player.volume = 0
+    remotePreloadPlayer = player
+    remotePreloadItem = item
+    remotePreloadTrack = track
+    remotePreloadReady = false
+    remoteItemTracks[ObjectIdentifier(item)] = track
+    preloadedTrackID = track.id
+    preloadedTrackTitle = track.title
+    preloadDetail = "Experimental remote gapless candidate preloading"
+
+    remotePreloadTask = Task { @MainActor [weak self] in
+      for _ in 0..<300 {
+        guard !Task.isCancelled,
+          let self,
+          self.playbackGeneration == generation,
+          self.remoteExperimentalSession,
+          let preloadPlayer = self.remotePreloadPlayer,
+          preloadPlayer === player,
+          let preloadItem = self.remotePreloadItem,
+          preloadItem === item
+        else { return }
+
+        switch preloadItem.status {
+        case .readyToPlay:
+          preloadPlayer.preroll(atRate: 1) { [weak self, weak preloadPlayer] finished in
+            Task { @MainActor [weak self, weak preloadPlayer] in
+              guard let self,
+                let preloadPlayer,
+                self.playbackGeneration == generation,
+                self.remotePreloadPlayer === preloadPlayer
+              else { return }
+              self.remotePreloadReady = finished
+              self.preloadDetail = finished
+                ? "Experimental remote gapless candidate ready"
+                : "Experimental remote gapless candidate buffering"
+              ResonanceDiagnostics.shared.recordDeferred(
+                "remote.player.preload.ready",
+                details: [
+                  "finished": String(finished),
+                  "likelyToKeepUp": String(preloadItem.isPlaybackLikelyToKeepUp),
+                  "loadedSeconds": String(format: "%.3f", self.loadedSeconds(for: preloadItem))
+                ]
+              )
+            }
+          }
+          return
+        case .failed:
+          self.preloadDetail = "Experimental remote gapless preload failed"
+          ResonanceDiagnostics.shared.recordDeferred(
+            "remote.player.preload.failed",
+            details: ["reason": preloadItem.error?.localizedDescription ?? "unknown"]
+          )
+          return
+        case .unknown:
+          break
+        @unknown default:
+          break
+        }
+        try? await Task.sleep(for: .milliseconds(100))
+      }
+
+      guard !Task.isCancelled,
+        let self,
+        self.playbackGeneration == generation,
+        self.remoteExperimentalSession,
+        self.remotePreloadPlayer === player
+      else { return }
+      self.preloadDetail = "Experimental remote gapless preload timed out"
+      ResonanceDiagnostics.shared.recordDeferred("remote.player.preload.timeout")
+    }
+  }
+
+  private func loadedSeconds(for item: AVPlayerItem) -> Double {
+    item.loadedTimeRanges.compactMap { value in
+      let range = value.timeRangeValue
+      let end = CMTimeGetSeconds(CMTimeRangeGetEnd(range))
+      return end.isFinite ? end : nil
+    }.max() ?? 0
+  }
+
   fileprivate func handleRemotePlaybackFinished(_ item: AVPlayerItem) {
     guard activeBackend == .remote,
       let finishedTrack = remoteItemTracks[ObjectIdentifier(item)]
@@ -1124,13 +1258,13 @@ final class PlayerController: NSObject, ObservableObject {
       "remote.player.finished",
       details: [
         "generation": String(playbackGeneration),
-        "experimental": String(remoteQueuePlayer != nil)
+        "experimental": String(remoteExperimentalSession)
       ]
     )
     if sleepTimerOption == .endOfTrack {
       stop()
-    } else if let remoteQueuePlayer {
-      handleRemoteQueueBoundary(finishedTrack, player: remoteQueuePlayer)
+    } else if remoteExperimentalSession {
+      handleRemoteQueueBoundary(finishedTrack)
     } else if repeatMode == .one, let currentTrack {
       _ = loadAndPlay(currentTrack, at: currentQueueIndex)
     } else {
@@ -1138,11 +1272,11 @@ final class PlayerController: NSObject, ObservableObject {
     }
   }
 
-  private func handleRemoteQueueBoundary(_ finishedTrack: Track, player: AVQueuePlayer) {
+  private func handleRemoteQueueBoundary(_ finishedTrack: Track) {
     let finishedIndex = queue.firstIndex(of: finishedTrack) ?? currentQueueIndex
 
     if repeatMode == .one {
-      guard let currentItem = player.currentItem else {
+      guard let currentItem = activeRemotePlayer?.currentItem else {
         _ = loadAndPlay(finishedTrack, at: finishedIndex)
         return
       }
@@ -1159,7 +1293,7 @@ final class PlayerController: NSObject, ObservableObject {
       playbackAnchorDate = Date()
       isPlaying = true
       remoteEndHandledTrackID = nil
-      player.playImmediately(atRate: 1)
+      activeRemotePlayer?.playImmediately(atRate: 1)
       onTrackStarted?(finishedTrack)
       updateNowPlaying()
       ResonanceDiagnostics.shared.recordDeferred(
@@ -1181,24 +1315,37 @@ final class PlayerController: NSObject, ObservableObject {
     }
 
     let target = queue[targetIndex]
-    let targetItem = player.items().first { remoteItemTracks[ObjectIdentifier($0)]?.id == target.id }
-    if player.currentItem !== targetItem, let targetItem {
-      while let currentItem = player.currentItem,
-        currentItem !== targetItem,
-        player.items().contains(where: { $0 === targetItem })
-      {
-        player.advanceToNextItem()
-      }
-    }
-
-    guard player.currentItem === targetItem else {
+    let targetIsPreloaded = remotePreloadTrack?.id == target.id
+    let targetPreloadReady = targetIsPreloaded && remotePreloadReady
+    guard targetIsPreloaded,
+      let targetPlayer = remotePreloadPlayer,
+      let targetItem = remotePreloadItem
+    else {
       ResonanceDiagnostics.shared.recordDeferred(
         "remote.player.boundary.end",
-        details: ["result": "fallback-load"]
+        details: [
+          "result": "fallback-load",
+          "preloadedTarget": String(targetIsPreloaded),
+          "preloadReady": String(targetPreloadReady)
+        ]
       )
       _ = loadAndPlay(target, at: targetIndex)
       return
     }
+
+    let oldPlayer = remotePlayer
+    remotePreloadTask?.cancel()
+    remotePreloadTask = nil
+    remotePlayer = targetPlayer
+    remotePreloadPlayer = nil
+    remotePreloadItem = nil
+    remotePreloadTrack = nil
+    remotePreloadReady = false
+    remoteObserver.observe(targetItem)
+    oldPlayer?.pause()
+    oldPlayer?.cancelPendingPrerolls()
+    oldPlayer?.replaceCurrentItem(with: nil)
+    targetPlayer.volume = Float(min(max(volume, 0), 1))
 
     currentQueueIndex = targetIndex
     currentTrack = target
@@ -1208,13 +1355,13 @@ final class PlayerController: NSObject, ObservableObject {
     playbackAnchorDate = Date()
     isPlaying = true
     remoteEndHandledTrackID = finishedTrack.id
-    preloadedTrackID = nil
-    preloadedTrackTitle = nil
     networkBufferStatus = "Connecting to remote stream…"
-    playbackEngineStatus = "Remote gapless — buffering"
+    playbackEngineStatus = targetPreloadReady
+      ? "Remote gapless — ready"
+      : "Remote gapless — buffering"
     // Start the newly current item before callbacks and queue maintenance can
     // do additional main-actor work at the boundary.
-    player.playImmediately(atRate: 1)
+    targetPlayer.playImmediately(atRate: 1)
     onTrackStarted?(target)
     refreshRemotePreloadAfterQueueChange()
     updateNowPlaying()
@@ -1223,45 +1370,40 @@ final class PlayerController: NSObject, ObservableObject {
       details: [
         "result": "advanced",
         "queueIndex": String(targetIndex),
-        "preloadedTarget": String(preloadedTrackID != nil)
+        "preloadedTarget": String(targetIsPreloaded),
+        "preloadReady": String(targetPreloadReady)
       ]
     )
   }
 
   private func refreshRemotePreloadAfterQueueChange() {
-    guard remoteGaplessExperimentalEnabled,
-      let player = remoteQueuePlayer,
-      let currentItem = player.currentItem,
+    guard remoteExperimentalSession,
+      remoteGaplessExperimentalEnabled,
+      remotePlayer?.currentItem != nil,
       currentTrack != nil
     else { return }
 
     let expected = remotePreloadCandidate(after: currentQueueIndex)
     if expected?.id == preloadedTrackID,
-      player.items().contains(where: { remoteItemTracks[ObjectIdentifier($0)]?.id == expected?.id })
+      remotePreloadTrack?.id == expected?.id
     {
       return
     }
 
-    for item in player.items() where item !== currentItem {
-      player.remove(item)
-      remoteItemTracks.removeValue(forKey: ObjectIdentifier(item))
-    }
+    clearRemotePreload()
     preloadedTrackID = nil
     preloadedTrackTitle = nil
 
     guard let expected, let url = expected.fileURL else {
       preloadDetail = "Experimental remote gapless — end of queue"
-      remoteObserver.observe(player.items())
       return
     }
 
-    let item = makeRemoteItem(for: expected, url: url)
-    player.insert(item, after: currentItem)
-    remoteItemTracks[ObjectIdentifier(item)] = expected
-    remoteObserver.observe(player.items())
-    preloadedTrackID = expected.id
-    preloadedTrackTitle = expected.title
-    preloadDetail = "Experimental remote gapless candidate queued"
+    guard url.scheme?.lowercased() == "http" || url.scheme?.lowercased() == "https" else {
+      preloadDetail = "Experimental remote gapless — invalid next URL"
+      return
+    }
+    beginRemotePreload(expected, generation: playbackGeneration)
   }
 
   private func remoteForwardBufferDuration(for track: Track) -> TimeInterval {

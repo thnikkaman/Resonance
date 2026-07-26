@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 68;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 69;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -55,7 +55,12 @@ assert 'LFE → both' in gapless
 # Alpha 3.7.1 focused playback crash hotfix.
 assert 'private var remotePlayer: AVPlayer?' in player
 assert 'AVPlayer(playerItem:' in player
-assert 'AVQueuePlayer(items:' in player
+assert 'private var remotePreloadPlayer: AVPlayer?' in player
+assert 'private var remotePreloadReady = false' in player
+assert 'private func beginRemotePreload' in player
+assert 'preroll(atRate: 1)' in player
+assert 'remote.player.preload.ready' in player
+assert 'AVQueuePlayer' not in player
 assert 'appendRemotePreloadedItem' not in player
 assert 'remoteItemContexts' not in player
 assert 'private func tearDownActiveBackend()' in player
@@ -143,8 +148,10 @@ assert 'private func clampedRemoteElapsed' in player
 assert 'self.elapsed = self.clampedRemoteElapsed(clamped)' in player
 assert 'self.remoteSeekRequestID == requestID' in player
 assert 'pendingRemoteSeekPosition' in player
+assert 'resumeRemotePlaybackAfterSeek' in player
+assert 'remote.player.seek.resume' in player
 assert 'newPlayer.playImmediately(atRate: 1)' in player
-assert 'player.playImmediately(atRate: 1)' in player
+assert 'targetPlayer.playImmediately(atRate: 1)' in player
 assert 'elapsed = clampedRemoteElapsed(seconds)' in player
 assert 'lastRemoteBufferStatusPublicationDate' in player
 assert 'shouldPublishBufferText' in player
@@ -184,7 +191,8 @@ assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
 assert 'automaticallyWaitsToMinimizeStalling = !experimentalGapless' in player
-assert 'newPlayer.actionAtItemEnd = .advance' in player
+assert 'remoteExperimentalSession' in player
+assert 'preloadReady' in player
 assert 'markPlayed(trackID:' in root_view
 assert 'ErrorReportingCoordinatorView' in root_view
 assert 'collectDocumentInventory' in library_store

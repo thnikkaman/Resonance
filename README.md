@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **68**
+Build: **69**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -121,10 +121,12 @@ Alpha 3.7.4 build 68 repairs the device layout regressions without touching the 
 
 Controlled build-68 simulator validation used the exact Tool `Parabol`/`Parabola` FLACs and the available Yes `America: A–E` 5.1 FLACs through a local Resonance Manifest server. The Tool pair started remotely, accepted ordinary and exact-end seeks with millisecond-level diagnostic agreement, and advanced from Parabol to Parabola at the boundary. The Yes files were indexed as six-channel, 96 kHz 5.1 media; America: A started with America: B preloaded, and a near-end resume advanced to America: B with `preloadedTarget=true`. The simulator verified control flow and queue handoff, but cannot replace physical-device listening for audible gap and channel-routing acceptance. The simulator also confirmed the tab bar remains at the bottom, the custom Streaming search field stays above the browse surface, and the exact-end label is `−0:00`.
 
+Alpha 3.7.4 build 69 replaces the experimental remote `AVQueuePlayer` handoff with a readiness-aware dual-player preloader. The next HTTP(S) track is independently prepared and prerolled at zero volume; a boundary reuses that warmed player only after it is ready, while stable single-item remote playback remains unchanged. Remote seeking now explicitly resumes a stream that was playing after seek completion, including the failed-seek recovery path, and records a privacy-safe resume diagnostic. Local playback, the explicit 5.1 graph, and the responsive tab composition were not changed. The simulator endpoint test exercised Tool Parabol→Parabola and all available Yes America A–E boundaries by jumping to approximately 15 seconds before each endpoint; every tested transition reported `preloadReady=true`, and seek actual/target values agreed within milliseconds. Physical-device listening remains required for audible gap and surround-routing acceptance.
+
 ## Next major phase
 
-- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 68. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed 5.1 gapless behavior.
-- Perform the remaining physical-device acceptance on build 68: audible stereo and 5.1 remote boundaries, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first.
+- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 69. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed 5.1 gapless behavior.
+- Perform the remaining physical-device acceptance on build 69: audible stereo and 5.1 remote boundaries, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first.
 - Retrieve a fresh `Documents/Resonance-Diagnostics.log` after the physical runtime test and correlate `remote.player.queueConfigured`, `remote.player.finished`, `remote.player.boundary.end`, `remote.player.endFallback`, and seek `target`/`actual` details with the recording. Do not launch Resonance automatically or commit the copied diagnostics file.
 - If physical evidence exposes a new defect, make the next build narrowly targeted; the controlled fixture run did not justify changing `PlayerController.swift` or `GaplessAudioEngine.swift`.
 - Perform focused FLAC acceptance on build 59: play a normal stereo FLAC, a high-rate stereo FLAC if available, and the known 5.1 FLAC; confirm audible playback starts at normal speed, front/rear/center/LFE routing remains correct, seeking is accurate, and the next track starts. Retrieve the log and compare `sourceSampleRate`, `graphSampleRate`, `outputSampleRate`, `sourceFrames`, `duration`, `preparationMs`, and render-meter entries. If audio is still wrong, make the next build an explicit FLAC-only compatibility-player experiment to separate AVAudioEngine graph behavior from the system decoder.
