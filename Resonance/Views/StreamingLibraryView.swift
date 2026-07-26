@@ -33,7 +33,9 @@ struct StreamingLibraryView: View {
                             total: downloads.totalCount,
                             completedBytes: downloads.currentCompletedBytes,
                             totalBytes: downloads.currentTotalBytes,
-                            cancel: downloads.cancel
+                            queue: downloads.downloadQueue,
+                            cancel: downloads.cancel,
+                            cancelTrack: downloads.cancelDownload
                         )
                     }
 
@@ -203,43 +205,128 @@ private struct RemoteDownloadBanner: View {
     let total: Int
     let completedBytes: Int64
     let totalBytes: Int64
+    let queue: [RemoteDownloadProgress]
     let cancel: () -> Void
+    let cancelTrack: (UUID) -> Void
+    @State private var isExpanded = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            Group {
-                if totalBytes > 0 {
-                    ProgressView(
-                        value: Double(completedBytes),
-                        total: Double(totalBytes)
-                    )
-                } else {
-                    ProgressView()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Group {
+                    if totalBytes > 0 {
+                        ProgressView(
+                            value: Double(completedBytes),
+                            total: Double(totalBytes)
+                        )
+                    } else {
+                        ProgressView()
+                    }
                 }
-            }
-            .frame(width: 52)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Downloading \(completed + 1) of \(total)")
-                    .font(.caption.weight(.semibold))
-                Text(title)
-                    .font(.caption2)
-                    .lineLimit(1)
-                    .foregroundStyle(.secondary)
-                if totalBytes > 0 {
-                    Text("\(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)) of \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))")
-                        .font(.caption2.monospacedDigit())
+                .frame(width: 52)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Downloading \(min(completed + 1, total)) of \(total)")
+                        .font(.caption.weight(.semibold))
+                    Text(title)
+                        .font(.caption2)
+                        .lineLimit(1)
                         .foregroundStyle(.secondary)
+                    if totalBytes > 0 {
+                        Text("\(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)) of \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                Spacer(minLength: 0)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Hide download queue" : "Show download queue")
+                Button(action: cancel) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Cancel all downloads")
             }
-            Spacer(minLength: 0)
-            Button("Cancel", role: .cancel, action: cancel)
-                .font(.caption.weight(.semibold))
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(queue) { item in
+                        RemoteDownloadQueueRow(item: item, cancel: cancelTrack)
+                    }
+                }
+                .padding(.top, 2)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(.bar)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Download queue, \(completed) of \(total) completed")
+    }
+}
+
+private struct RemoteDownloadQueueRow: View {
+    let item: RemoteDownloadProgress
+    let cancel: (UUID) -> Void
+
+    private var statusText: String {
+        switch item.state {
+        case .queued: "Queued"
+        case .downloading: "Downloading"
+        case .completed: "Completed"
+        case .skipped: "Kept existing"
+        case .failed: "Failed"
+        case .cancelled: "Cancelled"
+        }
+    }
+
+    private var iconName: String {
+        switch item.state {
+        case .queued: "clock"
+        case .downloading: "arrow.down.circle"
+        case .completed, .skipped: "checkmark.circle.fill"
+        case .failed: "exclamationmark.triangle.fill"
+        case .cancelled: "minus.circle.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .foregroundStyle(item.state == .failed ? .orange : .secondary)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.caption)
+                    .lineLimit(1)
+                Text(statusText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            if item.state == .queued || item.state == .downloading {
+                Button {
+                    cancel(item.id)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Cancel \(item.title)")
+            }
+        }
+        .padding(.vertical, 3)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Downloading \(title), track \(completed + 1) of \(total)")
+        .accessibilityLabel("\(item.title), \(statusText)")
     }
 }
 
@@ -934,34 +1021,46 @@ private struct RemoteArtistDetailView: View {
                     Text(artist.name).font(.title2.bold())
                     Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
                         .foregroundStyle(.secondary)
-                    HStack {
-                        Button {
-                            Task { await remote.playArtist(artist, using: player) }
-                        } label: {
-                            Label("Play Artist", systemImage: "play.fill")
-                                .foregroundStyle(settings.contrastingAccentTextColor)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(settings.accentColor)
-
-                        Button {
-                            Task { await remote.playArtist(artist, using: player, shuffle: true) }
-                        } label: {
-                            Label("Shuffle", systemImage: "shuffle")
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            downloads.requestDownload(allTracks, into: library)
-                        } label: {
-                            Label("Download Artist Collection", systemImage: "arrow.down.circle")
-                        }
-                        .buttonStyle(.bordered)
-                    }
                 }
                 Spacer()
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.top)
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                spacing: 8
+            ) {
+                RemoteArtistActionButton(
+                    title: "Play",
+                    systemImage: "play.fill",
+                    tint: settings.accentColor,
+                    foreground: settings.contrastingAccentTextColor,
+                    isProminent: true
+                ) {
+                    Task { await remote.playArtist(artist, using: player) }
+                }
+                RemoteArtistActionButton(
+                    title: "Shuffle",
+                    systemImage: "shuffle",
+                    tint: .indigo,
+                    foreground: .indigo,
+                    isProminent: false
+                ) {
+                    Task { await remote.playArtist(artist, using: player, shuffle: true) }
+                }
+                RemoteArtistActionButton(
+                    title: "Download",
+                    systemImage: "arrow.down.circle.fill",
+                    tint: .teal,
+                    foreground: .teal,
+                    isProminent: false
+                ) {
+                    downloads.requestDownload(allTracks, into: library)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 12)
 
             VStack(spacing: 10) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
@@ -1064,6 +1163,40 @@ private struct RemoteArtistDetailView: View {
         }
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct RemoteArtistActionButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let foreground: Color
+    let isProminent: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.headline)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .foregroundStyle(foreground)
+            .background(
+                tint.opacity(isProminent ? 1 : 0.13),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(tint.opacity(isProminent ? 0 : 0.35), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title == "Download" ? "Download artist collection" : "\(title) artist")
     }
 }
 

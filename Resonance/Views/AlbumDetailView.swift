@@ -7,6 +7,7 @@ struct AlbumDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var showingPlaylistPicker = false
     @State private var showingMetadataEditor = false
+    @State private var showingRemovalOptions = false
     let album: Album
 
     private var liveTracks: [Track] {
@@ -59,6 +60,10 @@ struct AlbumDetailView: View {
                 .contextMenu {
                     Button { showingMetadataEditor = true } label: {
                         Label("Edit Album Metadata", systemImage: "pencil")
+                    }
+                    Divider()
+                    Button { showingRemovalOptions = true } label: {
+                        Label("Remove or Delete Album", systemImage: "trash")
                     }
                 }
                 .listRowBackground(Color.clear)
@@ -121,6 +126,11 @@ struct AlbumDetailView: View {
                     Image(systemName: "text.badge.plus")
                 }
                 .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add album to playlist")
+                Button { showingRemovalOptions = true } label: {
+                    Image(systemName: "trash")
+                }
+                .foregroundStyle(.red)
+                .accessibilityLabel("Remove or delete album")
             }
         }
         .sheet(isPresented: $showingPlaylistPicker) {
@@ -129,6 +139,23 @@ struct AlbumDetailView: View {
         }
         .sheet(isPresented: $showingMetadataEditor) {
             AlbumMetadataEditorSheet(album: liveAlbum)
+        }
+        .confirmationDialog(
+            "Remove \(liveAlbum.title)?",
+            isPresented: $showingRemovalOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Remove from Library") {
+                Task { await library.removeTracks(liveAlbum.tracks, deletingFiles: false) }
+                dismiss()
+            }
+            Button("Delete from iPhone", role: .destructive) {
+                Task { await library.removeTracks(liveAlbum.tracks, deletingFiles: true) }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
         .contentShape(Rectangle())
         .gesture(

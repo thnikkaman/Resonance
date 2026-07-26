@@ -1754,6 +1754,7 @@ struct RemoteDownloadProgress: Identifiable, Sendable {
     let state: State
 
     enum State: String, Sendable {
+        case queued
         case downloading
         case completed
         case skipped
@@ -1795,10 +1796,19 @@ final class RemoteDownloadManager: ObservableObject {
     @Published private(set) var currentTotalBytes: Int64 = 0
     @Published private(set) var lastMessage = ""
     @Published private(set) var itemProgress: [UUID: RemoteDownloadProgress] = [:]
+    @Published private(set) var downloadQueue: [RemoteDownloadProgress] = []
     @Published private(set) var pendingReplacementCount = 0
     @Published private(set) var pendingReplacementDescription = ""
 
+    private struct DownloadResult: Sendable {
+        let bytes: Int64
+        let skipped: Bool
+    }
+
     private var downloadTask: Task<Void, Never>?
+    private var activeWorker: Task<DownloadResult, Error>?
+    private var activeTrackID: UUID?
+    private var individuallyCancelledTrackIDs: Set<UUID> = []
     private var pendingTracks: [RemoteTrackItem] = []
     private weak var pendingLibrary: LibraryStore?
 
@@ -1846,8 +1856,29 @@ final class RemoteDownloadManager: ObservableObject {
 
     func cancel() {
         guard isDownloading else { return }
+        activeWorker?.cancel()
         downloadTask?.cancel()
         lastMessage = "Cancelling download…"
+    }
+
+    func cancelDownload(_ id: UUID) {
+        guard isDownloading, let current = itemProgress[id] else { return }
+        guard current.state == .queued || current.state == .downloading else { return }
+        individuallyCancelledTrackIDs.insert(id)
+        if activeTrackID == id {
+            activeWorker?.cancel()
+        } else {
+            setProgress(
+                RemoteDownloadProgress(
+                    id: current.id,
+                    title: current.title,
+                    completed: current.completed,
+                    total: current.total,
+                    state: .cancelled
+                )
+            )
+            completedCount += 1
+        }
     }
 
     private func startDownload(
@@ -1875,32 +1906,46 @@ final class RemoteDownloadManager: ObservableObject {
         totalCount = tracks.count
         currentCompletedBytes = 0
         currentTotalBytes = 0
+        individuallyCancelledTrackIDs = []
         lastMessage = "Preparing \(tracks.count) download\(tracks.count == 1 ? "" : "s")…"
-        itemProgress = Dictionary(uniqueKeysWithValues: tracks.map {
-            ($0.id, RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .downloading))
-        })
+        let initialQueue = tracks.map {
+            RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .queued)
+        }
+        itemProgress = Dictionary(uniqueKeysWithValues: initialQueue.map { ($0.id, $0) })
+        downloadQueue = initialQueue
         defer {
             isDownloading = false
             currentTitle = ""
             currentCompletedBytes = 0
             currentTotalBytes = 0
+            activeWorker = nil
+            activeTrackID = nil
             downloadTask = nil
         }
 
         for track in tracks {
+            if individuallyCancelledTrackIDs.contains(track.id) {
+                if itemProgress[track.id]?.state != .cancelled {
+                    setProgress(
+                        RemoteDownloadProgress(
+                            id: track.id,
+                            title: track.title,
+                            completed: 0,
+                            total: 0,
+                            state: .cancelled
+                        )
+                    )
+                    completedCount += 1
+                }
+                continue
+            }
             if Task.isCancelled {
-                itemProgress[track.id] = RemoteDownloadProgress(
-                    id: track.id,
-                    title: track.title,
-                    completed: Int(min(Int64(Int.max), currentCompletedBytes)),
-                    total: Int(min(Int64(Int.max), currentTotalBytes)),
-                    state: .cancelled
-                )
                 break
             }
             currentTitle = track.title
             currentCompletedBytes = 0
             currentTotalBytes = max(0, track.fileSizeBytes)
+            activeTrackID = track.id
             do {
                 let progressStream = AsyncStream<DownloadByteProgress>.makeStream()
                 let destinationRoot = library.sharedMusicFolderURL
@@ -1914,55 +1959,72 @@ final class RemoteDownloadManager: ObservableObject {
                         progressStream.continuation.yield(DownloadByteProgress(completed: completed, total: total))
                     }
                 }
+                activeWorker = worker
                 await withTaskCancellationHandler(operation: {
                     for await progress in progressStream.stream {
                         currentCompletedBytes = progress.completed
                         currentTotalBytes = progress.total
-                        itemProgress[track.id] = RemoteDownloadProgress(
-                            id: track.id,
-                            title: track.title,
-                            completed: Int(min(Int64(Int.max), progress.completed)),
-                            total: Int(min(Int64(Int.max), progress.total)),
-                            state: .downloading
+                        setProgress(
+                            RemoteDownloadProgress(
+                                id: track.id,
+                                title: track.title,
+                                completed: Int(min(Int64(Int.max), progress.completed)),
+                                total: Int(min(Int64(Int.max), progress.total)),
+                                state: .downloading
+                            )
                         )
                     }
                 }, onCancel: {
                     worker.cancel()
                 })
                 let result = try await worker.value
+                activeWorker = nil
+                activeTrackID = nil
                 completedCount += 1
-                itemProgress[track.id] = RemoteDownloadProgress(
-                    id: track.id,
-                    title: track.title, completed: Int(min(Int64(Int.max), result.bytes)),
-                    total: Int(min(Int64(Int.max), result.bytes)),
-                    state: result.skipped ? .skipped : .completed
+                setProgress(
+                    RemoteDownloadProgress(
+                        id: track.id,
+                        title: track.title, completed: Int(min(Int64(Int.max), result.bytes)),
+                        total: Int(min(Int64(Int.max), result.bytes)),
+                        state: result.skipped ? .skipped : .completed
+                    )
                 )
                 if !result.skipped {
                     await library.scanSharedMusicFolder(forceMetadataRefresh: true)
                 }
             } catch is CancellationError {
-                itemProgress[track.id] = RemoteDownloadProgress(
-                    id: track.id,
-                    title: track.title,
-                    completed: Int(min(Int64(Int.max), currentCompletedBytes)),
-                    total: Int(min(Int64(Int.max), currentTotalBytes)),
-                    state: .cancelled
+                activeWorker = nil
+                activeTrackID = nil
+                setProgress(
+                    RemoteDownloadProgress(
+                        id: track.id,
+                        title: track.title,
+                        completed: Int(min(Int64(Int.max), currentCompletedBytes)),
+                        total: Int(min(Int64(Int.max), currentTotalBytes)),
+                        state: .cancelled
+                    )
                 )
-                break
-            } catch {
                 completedCount += 1
-                itemProgress[track.id] = RemoteDownloadProgress(
-                    id: track.id,
-                    title: track.title,
-                    completed: 0,
-                    total: 0,
-                    state: .failed
+                if Task.isCancelled { break }
+                continue
+            } catch {
+                activeWorker = nil
+                activeTrackID = nil
+                completedCount += 1
+                setProgress(
+                    RemoteDownloadProgress(
+                        id: track.id,
+                        title: track.title,
+                        completed: 0,
+                        total: 0,
+                        state: .failed
+                    )
                 )
                 lastMessage = "Download failed: \(error.localizedDescription)"
             }
         }
 
-        let succeeded = itemProgress.values.filter { $0.state == .completed || $0.state == .skipped }.count
+        let succeeded = downloadQueue.filter { $0.state == .completed || $0.state == .skipped }.count
         if Task.isCancelled || itemProgress.values.contains(where: { $0.state == .cancelled }) {
             lastMessage = "Download cancelled after \(succeeded) track\(succeeded == 1 ? "" : "s")"
         } else {
@@ -1977,9 +2039,13 @@ final class RemoteDownloadManager: ObservableObject {
         let total: Int64
     }
 
-    private struct DownloadResult: Sendable {
-        let bytes: Int64
-        let skipped: Bool
+    private func setProgress(_ progress: RemoteDownloadProgress) {
+        itemProgress[progress.id] = progress
+        if let index = downloadQueue.firstIndex(where: { $0.id == progress.id }) {
+            downloadQueue[index] = progress
+        } else {
+            downloadQueue.append(progress)
+        }
     }
 
     private nonisolated static func downloadOne(

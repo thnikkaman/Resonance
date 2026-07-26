@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 73;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 74;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -114,7 +114,8 @@ assert 'compilationAlbumKeys' in remote
 assert 'Various Artists' in remote
 assert 'RemotePlaylistCollectionView' in streaming
 assert 'RemotePlaylistPickerSheet' in streaming
-assert 'Play Artist' in streaming and 'contrastingAccentTextColor' in streaming
+assert 'RemoteArtistActionButton' in streaming
+assert 'foreground: settings.contrastingAccentTextColor' in streaming
 assert 'Play Album' in streaming and 'Play All Albums' in streaming
 assert 'VerticalArtistIndex' in streaming
 assert 'RemoteAlbumCollectionView' in streaming
@@ -296,6 +297,12 @@ assert 'requestDownload' in remote
 assert 'confirmReplacement' in remote
 assert 'scanSharedMusicFolder(forceMetadataRefresh: true)' in remote
 assert 'case cancelled' in remote
+assert 'case queued' in remote
+assert 'downloadQueue' in remote
+assert 'cancelDownload' in remote
+assert 'Hide download queue' in streaming
+assert 'RemoteDownloadQueueRow' in streaming
+assert 'Remove or Delete Album' in library_view
 assert 'ignoredLocalPaths' in library_store
 assert 'deletingFiles: Bool' in library_store
 assert 'Select Artists to Download' in streaming
