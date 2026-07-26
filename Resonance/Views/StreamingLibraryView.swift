@@ -777,9 +777,14 @@ private struct RemoteArtistCollectionView: View {
                 }
             }
             .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.45) {
-                onBeginSelection(artist.id)
-            }
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                LongPressGesture(minimumDuration: 0.45)
+                    .onEnded { _ in
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        onBeginSelection(artist.id)
+                    }
+            )
         }
     }
 
@@ -795,7 +800,6 @@ private struct RemoteArtistCollectionView: View {
                                         .foregroundStyle(settings.themeSecondaryColor)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
-                                        .background(settings.themeBackgroundGradient)
 
                                 if settings.albumLayout == .grid {
                                     LazyVGrid(columns: columns, spacing: 18) {
@@ -1009,9 +1013,14 @@ private struct RemoteAlbumCollectionView: View {
                 }
             }
             .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.45) {
-                onBeginSelection(album.id)
-            }
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                LongPressGesture(minimumDuration: 0.45)
+                    .onEnded { _ in
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        onBeginSelection(album.id)
+                    }
+            )
         }
     }
 
@@ -1027,7 +1036,6 @@ private struct RemoteAlbumCollectionView: View {
                                     .foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
-                                    .background(.background)
 
                                 if settings.albumLayout == .grid {
                                     LazyVGrid(columns: columns, spacing: 18) {

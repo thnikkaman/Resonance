@@ -427,11 +427,13 @@ struct SettingsView: View {
             }
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            isTextFieldFocused = false
-            UIApplication.shared.endEditing()
-        }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                guard isTextFieldFocused else { return }
+                isTextFieldFocused = false
+                UIApplication.shared.endEditing()
+            }
+        )
         .onChange(of: settings.showLockScreenArtwork) { _, _ in
             player.refreshNowPlayingMetadata()
         }
@@ -1080,8 +1082,9 @@ private struct ThemeChoiceButton: View {
                         Image(imageName)
                             .resizable()
                             .scaledToFill()
-                            .opacity(0.18)
+                            .opacity(0.58)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .allowsHitTesting(false)
                     }
                 }
                 .frame(height: 42)
@@ -1117,8 +1120,11 @@ private struct ThemeChoiceButton: View {
                         lineWidth: 1.5
                     )
             }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityAddTraits(settings.visualTheme == theme ? .isSelected : [])
     }
 }
 

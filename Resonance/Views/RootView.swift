@@ -280,14 +280,14 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.16)
+                    .opacity(0.28)
                 LinearGradient(
-                    colors: [.black.opacity(0.08), .black.opacity(0.34)],
+                    colors: [.black.opacity(0.04), .black.opacity(0.24)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 settings.themeBackgroundGradient
-                    .opacity(0.42)
+                    .opacity(0.28)
             }
         }
         .ignoresSafeArea()
@@ -307,9 +307,9 @@ struct ResonanceThemeSurfaceBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.08)
+                    .opacity(0.14)
                 settings.themeSurfaceGradient
-                    .opacity(0.62)
+                    .opacity(0.54)
             }
         }
         .allowsHitTesting(false)
