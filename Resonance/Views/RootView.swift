@@ -15,7 +15,6 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            ResonanceThemeBackdrop()
             activeTabContent
                 .resonanceThemeTextSurface()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
