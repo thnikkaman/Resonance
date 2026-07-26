@@ -50,25 +50,41 @@ private extension View {
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var library: LibraryStore
     @State private var showingOptions = false
     @State private var browseReady = false
     @State private var downloadSelectionMode = false
     @State private var selectedArtistIDs: Set<String> = []
     @State private var selectedAlbumIDs: Set<String> = []
+    @State private var artistBrowseSnapshot: [RemoteArtist] = []
+    @State private var albumBrowseSnapshot: [RemoteAlbum] = []
     let openLibrary: () -> Void
     let openSettings: () -> Void
 
-    private var selectedArtists: [RemoteArtist] {
-        remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
-            .filter { selectedArtistIDs.contains($0.id) }
-    }
-
-    private var selectedAlbums: [RemoteAlbum] {
-        remote.albums.filter { selectedAlbumIDs.contains($0.id) }
-    }
-
     private var selectedArtistCount: Int { selectedArtistIDs.count }
     private var selectedAlbumCount: Int { selectedAlbumIDs.count }
+
+    private var browseSnapshotKey: String {
+        [
+            String(remote.browseRevisionForViews),
+            remote.grouping.rawValue,
+            remote.sortDirection.rawValue,
+            String(settings.groupCompilationArtists)
+        ].joined(separator: "|")
+    }
+
+    private var visibleArtists: [RemoteArtist] {
+        artistBrowseSnapshot.isEmpty
+            ? (remote.grouping == .albumArtists
+                ? remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists)
+                : remote.artists(groupCompilationArtists: settings.groupCompilationArtists))
+            : artistBrowseSnapshot
+    }
+
+    private var visibleAlbums: [RemoteAlbum] {
+        albumBrowseSnapshot.isEmpty ? remote.albums : albumBrowseSnapshot
+    }
 
     private func clearDownloadSelection() {
         downloadSelectionMode = false
@@ -97,7 +113,7 @@ struct StreamingLibraryView: View {
                             switch remote.grouping {
                             case .artists:
                                 RemoteArtistCollectionView(
-                                    artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
+                                    artists: visibleArtists,
                                     sortDirection: remote.sortDirection,
                                     selectionMode: $downloadSelectionMode,
                                     selectedIDs: $selectedArtistIDs,
@@ -109,7 +125,7 @@ struct StreamingLibraryView: View {
                                 )
                             case .albumArtists:
                                 RemoteArtistCollectionView(
-                                    artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
+                                    artists: visibleArtists,
                                     sortDirection: remote.sortDirection,
                                     selectionMode: $downloadSelectionMode,
                                     selectedIDs: $selectedArtistIDs,
@@ -121,7 +137,7 @@ struct StreamingLibraryView: View {
                                 )
                             case .albums:
                                 RemoteAlbumCollectionView(
-                                    albums: remote.albums,
+                                    albums: visibleAlbums,
                                     sortDirection: remote.sortDirection,
                                     selectionMode: $downloadSelectionMode,
                                     selectedIDs: $selectedAlbumIDs,
@@ -188,6 +204,17 @@ struct StreamingLibraryView: View {
                     showingOptions = true
                 }
 
+                if downloadSelectionMode && (selectedArtistCount > 0 || selectedAlbumCount > 0) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: selectedArtistCount > 0
+                            ? "Download selected artists"
+                            : "Download selected albums",
+                        systemImage: "arrow.down.circle"
+                    ) {
+                        downloadSelectedItems()
+                    }
+                }
+
                 Menu {
                     NavigationLink {
                         RemotePlaylistCollectionView()
@@ -218,6 +245,19 @@ struct StreamingLibraryView: View {
         }
         .task {
             await remote.activateCachedCatalogAndCheckForChanges(using: settings)
+        }
+        .task(id: browseSnapshotKey) {
+            switch remote.grouping {
+            case .artists:
+                artistBrowseSnapshot = remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
+            case .albumArtists:
+                artistBrowseSnapshot = remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists)
+            case .albums:
+                albumBrowseSnapshot = remote.albums
+            default:
+                artistBrowseSnapshot = []
+                albumBrowseSnapshot = []
+            }
         }
         .task(id: settings.streamHost) {
             browseReady = false
@@ -250,6 +290,28 @@ struct StreamingLibraryView: View {
                         }
                 )
         }
+    }
+
+    private func downloadSelectedItems() {
+        let tracks: [RemoteTrackItem]
+        if !selectedArtistIDs.isEmpty {
+            tracks = visibleArtists
+                .filter { selectedArtistIDs.contains($0.id) }
+                .flatMap(\.tracks)
+        } else {
+            tracks = visibleAlbums
+                .filter { selectedAlbumIDs.contains($0.id) }
+                .flatMap(\.tracks)
+        }
+
+        var uniqueTracks: [RemoteTrackItem] = []
+        var seenIDs = Set<UUID>()
+        for track in tracks where seenIDs.insert(track.id).inserted {
+            uniqueTracks.append(track)
+        }
+        guard !uniqueTracks.isEmpty else { return }
+        downloads.requestDownload(uniqueTracks, into: library)
+        clearDownloadSelection()
     }
 }
 

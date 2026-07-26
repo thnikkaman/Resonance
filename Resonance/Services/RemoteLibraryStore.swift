@@ -243,6 +243,10 @@ final class RemoteLibraryStore: ObservableObject {
         didSet { browseCache = nil }
     }
 
+    /// Stable identity for browse snapshots. Selection changes must not rebuild
+    /// the remote artist/album projections; only catalog changes invalidate them.
+    var browseRevisionForViews: Int { trackRevision }
+
     var hasConnectionIssue: Bool {
         guard !isLoading else { return false }
         let combined = "\(connectionStatus) \(catalogSyncStatus)".lowercased()
