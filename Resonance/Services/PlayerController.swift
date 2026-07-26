@@ -135,6 +135,8 @@ final class PlayerController: NSObject, ObservableObject {
   private var cachedNowPlayingArtwork: PreparedNowPlayingArtwork?
   private var preloadedTrackID: UUID?
   private var remoteSeekInFlight = false
+  private var remoteSeekRequestID = 0
+  private var pendingRemoteSeekPosition: Double?
   private var remoteEndHandledTrackID: UUID?
   private var lastRemoteBufferStatusPublicationDate = Date.distantPast
   private var engineDurations: [UUID: TimeInterval] = [:]
@@ -307,7 +309,11 @@ final class PlayerController: NSObject, ObservableObject {
       guard audioPlayer?.play() == true else { return }
     case .remote:
       guard let activeRemotePlayer else { return }
-      activeRemotePlayer.play()
+      if remoteGaplessExperimentalEnabled {
+        activeRemotePlayer.playImmediately(atRate: 1)
+      } else {
+        activeRemotePlayer.play()
+      }
     case .none:
       return
     }
@@ -370,7 +376,13 @@ final class PlayerController: NSObject, ObservableObject {
 
   func skip(by interval: TimeInterval) {
     guard currentTrack != nil else { return }
-    seek(to: elapsed + interval)
+    let basePosition: Double
+    if activeBackend == .remote, let pendingRemoteSeekPosition {
+      basePosition = pendingRemoteSeekPosition
+    } else {
+      basePosition = elapsed
+    }
+    seek(to: basePosition + interval)
   }
 
   func toggleShuffle() {
@@ -583,6 +595,9 @@ final class PlayerController: NSObject, ObservableObject {
     case .remote:
       guard let activeRemotePlayer else { return }
       let target = CMTime(seconds: clamped, preferredTimescale: 600)
+      remoteSeekRequestID &+= 1
+      let requestID = remoteSeekRequestID
+      pendingRemoteSeekPosition = clamped
       remoteSeekInFlight = true
       elapsed = clamped
       playbackAnchorElapsed = clamped
@@ -596,10 +611,12 @@ final class PlayerController: NSObject, ObservableObject {
             let activeRemotePlayer,
             self.activeBackend == .remote,
             self.activeRemotePlayer === activeRemotePlayer,
-            self.playbackGeneration == generation
+            self.playbackGeneration == generation,
+            self.remoteSeekRequestID == requestID
           else { return }
 
           self.remoteSeekInFlight = false
+          self.pendingRemoteSeekPosition = nil
           guard finished else {
             self.updateElapsedFromClock()
             self.updateNowPlayingProgress()
@@ -611,15 +628,20 @@ final class PlayerController: NSObject, ObservableObject {
           }
 
           let actual = activeRemotePlayer.currentTime().seconds
-          if actual.isFinite {
-            self.elapsed = self.clampedRemoteElapsed(actual)
-            self.playbackAnchorElapsed = self.elapsed
-            self.playbackAnchorDate = self.isPlaying ? Date() : nil
-          }
+          // AVPlayer can report its pre-seek clock briefly after a successful
+          // completion. The requested position is authoritative for the UI;
+          // retain the raw clock only for diagnostics.
+          self.elapsed = self.clampedRemoteElapsed(clamped)
+          self.playbackAnchorElapsed = self.elapsed
+          self.playbackAnchorDate = self.isPlaying ? Date() : nil
           self.updateNowPlayingProgress()
           ResonanceDiagnostics.shared.recordDeferred(
             "remote.player.seek.completed",
-            details: ["finished": String(finished)]
+            details: [
+              "finished": String(finished),
+              "target": String(format: "%.3f", clamped),
+              "actual": actual.isFinite ? String(format: "%.3f", actual) : "invalid"
+            ]
           )
         }
       }
@@ -715,6 +737,8 @@ final class PlayerController: NSObject, ObservableObject {
       remotePlayer = nil
       remoteItemTracks.removeAll()
       remoteSeekInFlight = false
+      remoteSeekRequestID &+= 1
+      pendingRemoteSeekPosition = nil
       remoteEndHandledTrackID = nil
     case .none:
       break
@@ -1029,6 +1053,8 @@ final class PlayerController: NSObject, ObservableObject {
     preloadedTrackID = nil
     preloadedTrackTitle = nil
     remoteSeekInFlight = false
+    remoteSeekRequestID &+= 1
+    pendingRemoteSeekPosition = nil
     remoteEndHandledTrackID = nil
     if experimentalGapless, let nextTrack {
       preloadedTrackID = nextTrack.id
@@ -1058,7 +1084,11 @@ final class PlayerController: NSObject, ObservableObject {
     }
     if autoPlay {
       ResonanceDiagnostics.shared.record("remote.player.play.begin")
-      newPlayer.play()
+      if experimentalGapless {
+        newPlayer.playImmediately(atRate: 1)
+      } else {
+        newPlayer.play()
+      }
       ResonanceDiagnostics.shared.record("remote.player.play.end")
     }
     if notifyTrackStarted {
@@ -1129,7 +1159,7 @@ final class PlayerController: NSObject, ObservableObject {
       playbackAnchorDate = Date()
       isPlaying = true
       remoteEndHandledTrackID = nil
-      player.play()
+      player.playImmediately(atRate: 1)
       onTrackStarted?(finishedTrack)
       updateNowPlaying()
       ResonanceDiagnostics.shared.recordDeferred(
@@ -1182,9 +1212,11 @@ final class PlayerController: NSObject, ObservableObject {
     preloadedTrackTitle = nil
     networkBufferStatus = "Connecting to remote stream…"
     playbackEngineStatus = "Remote gapless — buffering"
+    // Start the newly current item before callbacks and queue maintenance can
+    // do additional main-actor work at the boundary.
+    player.playImmediately(atRate: 1)
     onTrackStarted?(target)
     refreshRemotePreloadAfterQueueChange()
-    player.play()
     updateNowPlaying()
     ResonanceDiagnostics.shared.recordDeferred(
       "remote.player.boundary.end",
@@ -1430,10 +1462,10 @@ final class PlayerController: NSObject, ObservableObject {
 
   private func safeSeekPosition(_ requested: Double, duration: Double) -> Double {
     guard duration.isFinite, duration > 0 else { return 0 }
-    // Keep a small guard from the exact endpoint so dragging to the end does
-    // not get interpreted as a natural completion while the user is seeking.
-    let endGuard = duration > 1.25 ? duration - 0.75 : duration
-    return min(max(0, requested), max(0, endGuard))
+    // A user seek must be allowed to reach the real endpoint. Natural remote
+    // completion is separately guarded by remoteSeekInFlight and the end
+    // fallback, so an artificial endpoint offset only makes the scrubber lie.
+    return min(max(0, requested), duration)
   }
 
   private func clampedRemoteElapsed(_ requested: Double) -> Double {

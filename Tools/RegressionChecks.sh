@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 66;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 67;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -139,7 +139,11 @@ assert 'remoteSeekInFlight' in player
 assert 'remote.player.seek.completed' in player
 assert 'remote.player.endFallback' in player
 assert 'private func clampedRemoteElapsed' in player
-assert 'self.elapsed = self.clampedRemoteElapsed(actual)' in player
+assert 'self.elapsed = self.clampedRemoteElapsed(clamped)' in player
+assert 'self.remoteSeekRequestID == requestID' in player
+assert 'pendingRemoteSeekPosition' in player
+assert 'newPlayer.playImmediately(atRate: 1)' in player
+assert 'player.playImmediately(atRate: 1)' in player
 assert 'elapsed = clampedRemoteElapsed(seconds)' in player
 assert 'lastRemoteBufferStatusPublicationDate' in player
 assert 'shouldPublishBufferText' in player

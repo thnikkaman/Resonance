@@ -400,7 +400,11 @@ private struct TrackScrubber: View {
   @State private var previewTime: Double?
   @State private var fingerX: CGFloat = 0
 
-  private var displayedTime: Double { previewTime ?? playbackProgress.elapsed }
+  private var displayedTime: Double {
+    let raw = previewTime ?? playbackProgress.elapsed
+    guard player.duration.isFinite, player.duration > 0 else { return max(0, raw) }
+    return min(max(0, raw), player.duration)
+  }
   private var isScrubbing: Bool { previewTime != nil }
 
   var body: some View {
