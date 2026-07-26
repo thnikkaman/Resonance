@@ -50,10 +50,50 @@ private extension View {
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var showingOptions = false
     @State private var browseReady = false
+    @State private var downloadSelectionMode = false
+    @State private var selectedArtistIDs: Set<String> = []
+    @State private var selectedAlbumIDs: Set<String> = []
     let openLibrary: () -> Void
     let openSettings: () -> Void
+
+    private var selectedArtists: [RemoteArtist] {
+        remote.artists(groupCompilationArtists: settings.groupCompilationArtists)
+            .filter { selectedArtistIDs.contains($0.id) }
+    }
+
+    private var selectedAlbums: [RemoteAlbum] {
+        remote.albums.filter { selectedAlbumIDs.contains($0.id) }
+    }
+
+    private func clearDownloadSelection() {
+        downloadSelectionMode = false
+        selectedArtistIDs.removeAll()
+        selectedAlbumIDs.removeAll()
+    }
+
+    private func downloadSelectedArtists() {
+        let tracks = selectedArtists.flatMap(\.tracks)
+        guard !tracks.isEmpty else { return }
+        downloads.requestDownload(uniqueRemoteTracks(tracks), into: library)
+        clearDownloadSelection()
+    }
+
+    private func downloadSelectedAlbums() {
+        let tracks = selectedAlbums.flatMap(\.tracks)
+        guard !tracks.isEmpty else { return }
+        downloads.requestDownload(uniqueRemoteTracks(tracks), into: library)
+        clearDownloadSelection()
+    }
+
+    private func uniqueRemoteTracks(_ tracks: [RemoteTrackItem]) -> [RemoteTrackItem] {
+        tracks.reduce(into: [RemoteTrackItem]()) { result, track in
+            if !result.contains(where: { $0.id == track.id }) { result.append(track) }
+        }
+    }
 
     var body: some View {
         Group {
@@ -77,15 +117,39 @@ struct StreamingLibraryView: View {
                             case .artists:
                                 RemoteArtistCollectionView(
                                     artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
-                                    sortDirection: remote.sortDirection
+                                    sortDirection: remote.sortDirection,
+                                    selectionMode: $downloadSelectionMode,
+                                    selectedIDs: $selectedArtistIDs,
+                                    onBeginSelection: { artistID in
+                                        selectedAlbumIDs.removeAll()
+                                        selectedArtistIDs = [artistID]
+                                        downloadSelectionMode = true
+                                    }
                                 )
                             case .albumArtists:
                                 RemoteArtistCollectionView(
                                     artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
-                                    sortDirection: remote.sortDirection
+                                    sortDirection: remote.sortDirection,
+                                    selectionMode: $downloadSelectionMode,
+                                    selectedIDs: $selectedArtistIDs,
+                                    onBeginSelection: { artistID in
+                                        selectedAlbumIDs.removeAll()
+                                        selectedArtistIDs = [artistID]
+                                        downloadSelectionMode = true
+                                    }
                                 )
                             case .albums:
-                                RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
+                                RemoteAlbumCollectionView(
+                                    albums: remote.albums,
+                                    sortDirection: remote.sortDirection,
+                                    selectionMode: $downloadSelectionMode,
+                                    selectedIDs: $selectedAlbumIDs,
+                                    onBeginSelection: { albumID in
+                                        selectedArtistIDs.removeAll()
+                                        selectedAlbumIDs = [albumID]
+                                        downloadSelectionMode = true
+                                    }
+                                )
                             case .songs:
                                 RemoteTrackCollectionView(tracks: remote.filteredTracks)
                             case .favorites:
@@ -115,9 +179,12 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
-        .background(settings.themeBackgroundGradient.ignoresSafeArea())
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .background {
+            ResonanceThemeBackdrop()
+        }
+        .overlay(alignment: .top) {
             RemoteDownloadOverlay()
+                .zIndex(20)
         }
         .resonanceTabBottomSpace()
         .toolbar {
@@ -128,12 +195,34 @@ struct StreamingLibraryView: View {
                     action: openLibrary
                 )
 
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Streaming library view and sort options",
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    showingOptions = true
+                Menu {
+                    if !selectedArtists.isEmpty {
+                        Button(selectedArtists.count == 1 ? "Download Artist" : "Download Artists") {
+                            downloadSelectedArtists()
+                        }
+                    }
+                    if !selectedAlbums.isEmpty {
+                        Button(selectedAlbums.count == 1 ? "Download Album" : "Download Albums") {
+                            downloadSelectedAlbums()
+                        }
+                    }
+                    if downloadSelectionMode {
+                        Divider()
+                        Button("Clear Download Selection") {
+                            clearDownloadSelection()
+                        }
+                    }
+                    if !selectedArtists.isEmpty || !selectedAlbums.isEmpty {
+                        Divider()
+                    }
+                    Button("Browse and Sort Options") {
+                        showingOptions = true
+                    }
+                } label: {
+                    ResonanceToolbarIconLabel(systemImage: downloadSelectionMode ? "checkmark.circle" : "slider.horizontal.3")
                 }
+                .help(downloadSelectionMode ? "Download selection options" : "Streaming library view and sort options")
+                .accessibilityLabel(downloadSelectionMode ? "Download selection options" : "Streaming library view and sort options")
 
                 Menu {
                     NavigationLink {
@@ -576,18 +665,26 @@ private struct RemoteLibraryOptionsSheet: View {
 
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
-  @EnvironmentObject private var library: LibraryStore
-  @EnvironmentObject private var downloads: RemoteDownloadManager
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
+  @Binding var selectionMode: Bool
+  @Binding var selectedIDs: Set<String>
+  let onBeginSelection: (String) -> Void
   private let artistIDs: [String]
   @State private var sections: [ArtistIndexSection<RemoteArtist>] = []
-  @State private var showingDownloadSelection = false
-  @State private var initialDownloadArtistID: String?
 
-  init(artists: [RemoteArtist], sortDirection: SortDirection) {
+  init(
+    artists: [RemoteArtist],
+    sortDirection: SortDirection,
+    selectionMode: Binding<Bool>,
+    selectedIDs: Binding<Set<String>>,
+    onBeginSelection: @escaping (String) -> Void
+  ) {
     self.artists = artists
     self.sortDirection = sortDirection
+    _selectionMode = selectionMode
+    _selectedIDs = selectedIDs
+    self.onBeginSelection = onBeginSelection
     self.artistIDs = artists.map(\.id)
   }
 
@@ -623,6 +720,69 @@ private struct RemoteArtistCollectionView: View {
         }
     }
 
+    private func toggleSelection(_ artist: RemoteArtist) {
+        if selectedIDs.contains(artist.id) {
+            selectedIDs.remove(artist.id)
+        } else {
+            selectedIDs.insert(artist.id)
+        }
+    }
+
+    @ViewBuilder
+    private func artistTile(_ artist: RemoteArtist) -> some View {
+        ZStack(alignment: .topTrailing) {
+            RemoteArtistTile(artist: artist)
+            if selectionMode {
+                DownloadSelectionBubble(isSelected: selectedIDs.contains(artist.id))
+                    .padding(6)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func artistItem(_ artist: RemoteArtist) -> some View {
+        if selectionMode {
+            Button { toggleSelection(artist) } label: {
+                if settings.albumLayout == .grid {
+                    artistTile(artist)
+                } else {
+                    ZStack(alignment: .topTrailing) {
+                        RemoteCollectionRow(
+                            title: artist.name,
+                            subtitle: "\(artist.albums.count) albums • \(artist.tracks.count) tracks",
+                            artworkURL: artist.artworkURL,
+                            artworkBase64: artist.artworkBase64,
+                            large: settings.albumLayout == .large
+                        )
+                        DownloadSelectionBubble(isSelected: selectedIDs.contains(artist.id))
+                            .padding(.trailing, 8)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                RemoteArtistDetailView(artist: artist)
+            } label: {
+                if settings.albumLayout == .grid {
+                    artistTile(artist)
+                } else {
+                    RemoteCollectionRow(
+                        title: artist.name,
+                        subtitle: "\(artist.albums.count) albums • \(artist.tracks.count) tracks",
+                        artworkURL: artist.artworkURL,
+                        artworkBase64: artist.artworkBase64,
+                        large: settings.albumLayout == .large
+                    )
+                }
+            }
+            .buttonStyle(.plain)
+            .onLongPressGesture(minimumDuration: 0.45) {
+                onBeginSelection(artist.id)
+            }
+        }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
@@ -640,57 +800,13 @@ private struct RemoteArtistCollectionView: View {
                                 if settings.albumLayout == .grid {
                                     LazyVGrid(columns: columns, spacing: 18) {
                                         ForEach(section.items) { artist in
-                                            NavigationLink {
-                                                RemoteArtistDetailView(artist: artist)
-                                            } label: {
-                                                RemoteArtistTile(artist: artist)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .contextMenu {
-                                                Button {
-                                                    downloads.requestDownload(artist.tracks, into: library)
-                                                } label: {
-                                                    Label("Download Artist", systemImage: "arrow.down.circle.fill")
-                                                }
-                                                Divider()
-                                                Button {
-                                                    initialDownloadArtistID = artist.id
-                                                    showingDownloadSelection = true
-                                                } label: {
-                                                    Label("Select Artists to Download", systemImage: "arrow.down.circle")
-                                                }
-                                            }
+                                            artistItem(artist)
                                         }
                                     }
                                 } else {
                                     ForEach(section.items) { artist in
-                                        NavigationLink {
-                                            RemoteArtistDetailView(artist: artist)
-                                        } label: {
-                                            RemoteCollectionRow(
-                                                title: artist.name,
-                                                subtitle: "\(artist.albums.count) albums • \(artist.tracks.count) tracks",
-                                                artworkURL: artist.artworkURL,
-                                                artworkBase64: artist.artworkBase64,
-                                                large: settings.albumLayout == .large
-                                            )
+                                        artistItem(artist)
                                             .padding(.vertical, settings.albumLayout == .compact ? 3 : 8)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .contextMenu {
-                                            Button {
-                                                downloads.requestDownload(artist.tracks, into: library)
-                                            } label: {
-                                                Label("Download Artist", systemImage: "arrow.down.circle.fill")
-                                            }
-                                            Divider()
-                                            Button {
-                                                initialDownloadArtistID = artist.id
-                                                showingDownloadSelection = true
-                                            } label: {
-                                                Label("Select Artists to Download", systemImage: "arrow.down.circle")
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -728,92 +844,20 @@ private struct RemoteArtistCollectionView: View {
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
             }
-            .sheet(isPresented: $showingDownloadSelection) {
-                RemoteArtistDownloadSelectionSheet(
-                    artists: artists,
-                    initialArtistID: initialDownloadArtistID
-                )
-            }
         }
     }
 }
 
-private struct RemoteArtistDownloadSelectionSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var downloads: RemoteDownloadManager
-    let artists: [RemoteArtist]
-    let initialArtistID: String?
-    @State private var selectedIDs: Set<String>
-
-    init(artists: [RemoteArtist], initialArtistID: String?) {
-        self.artists = artists
-        self.initialArtistID = initialArtistID
-        _selectedIDs = State(initialValue: initialArtistID.map { [$0] } ?? [])
-    }
-
-    private var selectedArtists: [RemoteArtist] {
-        artists.filter { selectedIDs.contains($0.id) }
-    }
+private struct DownloadSelectionBubble: View {
+    let isSelected: Bool
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Text("Touch and hold an artist in Streaming to open this multi-select download list.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Artists") {
-                    ForEach(artists) { artist in
-                        Button {
-                            if selectedIDs.contains(artist.id) {
-                                selectedIDs.remove(artist.id)
-                            } else {
-                                selectedIDs.insert(artist.id)
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 48)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(artist.name)
-                                    Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: selectedIDs.contains(artist.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(
-                                        selectedIDs.contains(artist.id) ? Color.accentColor : Color.secondary
-                                    )
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .navigationTitle("Download Artists")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Download \(selectedArtists.count)") {
-                        let tracks = selectedArtists
-                            .flatMap(\.tracks)
-                            .reduce(into: [RemoteTrackItem]()) { result, track in
-                                if !result.contains(where: { $0.id == track.id }) { result.append(track) }
-                            }
-                        downloads.requestDownload(tracks, into: library)
-                        dismiss()
-                    }
-                    .disabled(selectedArtists.isEmpty)
-                }
-            }
-        }
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .padding(2)
+            .background(.ultraThinMaterial, in: Circle())
+            .accessibilityHidden(true)
     }
 }
 
@@ -844,12 +888,24 @@ private struct RemoteAlbumCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
   let albums: [RemoteAlbum]
   let sortDirection: SortDirection
+  @Binding var selectionMode: Bool
+  @Binding var selectedIDs: Set<String>
+  let onBeginSelection: (String) -> Void
   private let albumIDs: [String]
   @State private var sections: [ArtistIndexSection<RemoteAlbum>] = []
 
-  init(albums: [RemoteAlbum], sortDirection: SortDirection) {
+  init(
+    albums: [RemoteAlbum],
+    sortDirection: SortDirection,
+    selectionMode: Binding<Bool>,
+    selectedIDs: Binding<Set<String>>,
+    onBeginSelection: @escaping (String) -> Void
+  ) {
     self.albums = albums
     self.sortDirection = sortDirection
+    _selectionMode = selectionMode
+    _selectedIDs = selectedIDs
+    self.onBeginSelection = onBeginSelection
     self.albumIDs = albums.map(\.id)
   }
 
@@ -883,6 +939,82 @@ private struct RemoteAlbumCollectionView: View {
         }
     }
 
+    private func toggleSelection(_ album: RemoteAlbum) {
+        if selectedIDs.contains(album.id) {
+            selectedIDs.remove(album.id)
+        } else {
+            selectedIDs.insert(album.id)
+        }
+    }
+
+    @ViewBuilder
+    private func albumTile(_ album: RemoteAlbum) -> some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 6) {
+                RemoteArtwork(
+                    url: album.artworkURL,
+                    base64: album.artworkBase64,
+                    size: settings.libraryThumbnailSize.gridArtworkPoints
+                )
+                Text(album.title)
+                    .font(settings.libraryTextSize.font.weight(.semibold))
+                    .lineLimit(1)
+                Text(album.artist)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            if selectionMode {
+                DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
+                    .padding(6)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func albumItem(_ album: RemoteAlbum) -> some View {
+        if selectionMode {
+            Button { toggleSelection(album) } label: {
+                if settings.albumLayout == .grid {
+                    albumTile(album)
+                } else {
+                    ZStack(alignment: .topTrailing) {
+                        RemoteCollectionRow(
+                            title: album.title,
+                            subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
+                            artworkURL: album.artworkURL,
+                            artworkBase64: album.artworkBase64,
+                            large: settings.albumLayout == .large
+                        )
+                        DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
+                            .padding(.trailing, 8)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                RemoteAlbumDetailView(album: album)
+            } label: {
+                if settings.albumLayout == .grid {
+                    albumTile(album)
+                } else {
+                    RemoteCollectionRow(
+                        title: album.title,
+                        subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
+                        artworkURL: album.artworkURL,
+                        artworkBase64: album.artworkBase64,
+                        large: settings.albumLayout == .large
+                    )
+                }
+            }
+            .buttonStyle(.plain)
+            .onLongPressGesture(minimumDuration: 0.45) {
+                onBeginSelection(album.id)
+            }
+        }
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
@@ -900,42 +1032,13 @@ private struct RemoteAlbumCollectionView: View {
                                 if settings.albumLayout == .grid {
                                     LazyVGrid(columns: columns, spacing: 18) {
                                         ForEach(section.items) { album in
-                                            NavigationLink {
-                                                RemoteAlbumDetailView(album: album)
-                                            } label: {
-                                                VStack(alignment: .leading, spacing: 6) {
-                                                    RemoteArtwork(
-                                                        url: album.artworkURL,
-                                                        base64: album.artworkBase64,
-                                                        size: settings.libraryThumbnailSize.gridArtworkPoints
-                                                    )
-                                                    Text(album.title)
-                                                        .font(settings.libraryTextSize.font.weight(.semibold))
-                                                        .lineLimit(1)
-                                                    Text(album.artist)
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.secondary)
-                                                        .lineLimit(1)
-                                                }
-                                            }
-                                            .buttonStyle(.plain)
+                                            albumItem(album)
                                         }
                                     }
                                 } else {
                                     ForEach(section.items) { album in
-                                        NavigationLink {
-                                            RemoteAlbumDetailView(album: album)
-                                        } label: {
-                                            RemoteCollectionRow(
-                                                title: album.title,
-                                                subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
-                                                artworkURL: album.artworkURL,
-                                                artworkBase64: album.artworkBase64,
-                                                large: settings.albumLayout == .large
-                                            )
+                                        albumItem(album)
                                             .padding(.vertical, settings.albumLayout == .compact ? 2 : 8)
-                                        }
-                                        .buttonStyle(.plain)
                                         Divider()
                                     }
                                 }
@@ -1448,7 +1551,9 @@ private struct RemoteAlbumDetailView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(settings.themeBackgroundGradient)
+            .background {
+                ResonanceThemeBackdrop()
+            }
         }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)

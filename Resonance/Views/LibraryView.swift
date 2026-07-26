@@ -51,7 +51,9 @@ struct LibraryView: View {
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
         .searchable(text: $library.searchText)
-        .background(settings.themeBackgroundGradient.ignoresSafeArea())
+        .background {
+            ResonanceThemeBackdrop()
+        }
         .resonanceTabBottomSpace()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {

@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 83;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 84;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -311,8 +311,15 @@ assert 'requeueDownload' in remote
 assert 'Requeue' in streaming
 assert 'ignoredLocalPaths' in library_store
 assert 'deletingFiles: Bool' in library_store
-assert 'Select Artists to Download' in streaming
 assert 'Download Artist' in streaming
+assert 'Download Artists' in streaming
+assert 'Download Album' in streaming
+assert 'Download Albums' in streaming
+assert 'DownloadSelectionBubble' in streaming
+assert 'downloadSelectionMode' in streaming
+assert 'onLongPressGesture' in streaming
+assert '.overlay(alignment: .top)' in streaming
+assert 'backgroundImageName' in root_view
 assert 'resonanceTabBottomSpace' in root_view
 assert 'resonanceDetailBottomSpace' in root_view
 assert 'dragTranslation' in root_view
@@ -335,7 +342,7 @@ assert 'var visualTheme' in settings
 assert 'backgroundGradientHex' in settings
 assert 'isBrightAppearance' in settings
 assert 'Visual style' in settings_view
-assert 'themeBackgroundGradient' in settings_view
+assert 'ResonanceThemeBackdrop' in settings_view
 assert 'size: 158' in streaming
 assert 'size: 176' in streaming and 'size: 176' in album_detail
 assert '.scrollContentBackground(.hidden)' in streaming and '.scrollContentBackground(.hidden)' in album_detail

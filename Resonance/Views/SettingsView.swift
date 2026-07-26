@@ -422,7 +422,9 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
-            .background(settings.themeBackgroundGradient.ignoresSafeArea())
+            .background {
+                ResonanceThemeBackdrop()
+            }
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())
@@ -1060,10 +1062,9 @@ private struct ThemeChoiceButton: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 7) {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.clear)
-                    .background {
-                        ZStack {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(
                             LinearGradient(
                                 colors: [
                                     Color(hex: theme.accentHex) ?? .purple,
@@ -1074,15 +1075,17 @@ private struct ThemeChoiceButton: View {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
-                            if let imageName = theme.backgroundImageName {
-                                Image(imageName)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .opacity(0.55)
-                            }
-                        }
+                        )
+                    if let imageName = theme.backgroundImageName {
+                        Image(imageName)
+                            .resizable()
+                            .scaledToFill()
+                            .opacity(0.18)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
-                    .frame(height: 42)
+                }
+                .frame(height: 42)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(alignment: .topTrailing) {
                         if settings.visualTheme == theme {
                             Image(systemName: "checkmark.circle.fill")

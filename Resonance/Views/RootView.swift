@@ -278,12 +278,16 @@ struct ResonanceThemeBackdrop: View {
                 Image(imageName)
                     .resizable()
                     .scaledToFill()
-                    .opacity(0.38)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .opacity(0.16)
                 LinearGradient(
-                    colors: [.black.opacity(0.16), .black.opacity(0.56)],
+                    colors: [.black.opacity(0.08), .black.opacity(0.34)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
+                settings.themeBackgroundGradient
+                    .opacity(0.42)
             }
         }
         .ignoresSafeArea()
@@ -301,8 +305,11 @@ struct ResonanceThemeSurfaceBackdrop: View {
                 Image(imageName)
                     .resizable()
                     .scaledToFill()
-                    .opacity(0.20)
-                Color.black.opacity(0.10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .opacity(0.08)
+                settings.themeSurfaceGradient
+                    .opacity(0.62)
             }
         }
         .allowsHitTesting(false)
