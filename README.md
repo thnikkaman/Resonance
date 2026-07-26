@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **69**
+Build: **70**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -23,6 +23,7 @@ Install directly over Alpha 3.7.3 with the same bundle identifier and signing te
 - The new build-66 recording showed the remote queue advancing correctly but retaining a short audible boundary interruption.
 - Remote seeks to the end were still displayed about 0.75 seconds early, and rapid seek completions could overwrite a newer target.
 - The device recording showed the root tab bar floating above the bottom of the screen, with Streaming search rendered underneath it, and an exact-end seek displayed a malformed remaining-time label.
+- The latest recordings still contained a short measured silence at remote boundaries and showed that manual seek display could be overwritten by AVPlayer's transient pre-seek clock.
 
 ## Playback recovery
 
@@ -84,6 +85,15 @@ The Streaming Library options include **Group compilation-only artists**. When e
 - The final ZIP passed archive-integrity validation.
 - A local fixture server exposed the exact Tool stereo pair and available Yes America A–E 5.1 files; manifest metadata, range responses, remote startup, seek completion, endpoint clamping, and queued boundary advancement were exercised on the iOS simulator.
 
+## Agent validation workflow
+
+- `.xcodebuildmcp/config.yaml` supplies the project, scheme, and stable simulator-name defaults for repeatable agent checks.
+- Use `npx -y xcodebuildmcp@latest simulator build` for the fast compile path, `simulator install` and `simulator snapshot-ui` for controlled UI checks, and `--output jsonl` when a long build or test needs machine-readable live progress.
+- Keep the explicit `Tools/PreflightBuild.sh`, signed `xcodebuild`, `codesign`, and `devicectl` sequence as the release evidence path because it verifies this project's warning policy, physical-device code signature, and in-place install without launching the app.
+- XcodeBuildMCP artifacts and daemon logs are workspace-local diagnostics; do not commit them, and never pass credentials, private URLs, or private music through launch arguments or logs.
+
+Alpha 3.7.4 build 70 repairs the remaining streaming boundary and seek-clock defects from the new recordings. Experimental remote playback starts its ready, silent next player 350 ms before the active item's endpoint and ramps the two players across that warmed handoff, preventing AVPlayer startup latency from becoming an audible boundary gap. The previous player remains the authoritative queue item until the overlap commits, then the next player's actual clock becomes the new track position. Remote seek display now holds the requested position for a short, bounded clock-settle interval, preserving wall-clock progress while playing and the exact requested value while paused; failed seeks clear the hold before falling back to AVPlayer's clock. Stable single-item remote playback, local playback, the explicit 5.1 graph, and the responsive tab composition were not changed. XcodeBuildMCP's configured simulator build, install, launch, UI snapshot, and fixture-server checks passed; physical-device audible boundary and seek acceptance remain required.
+
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 
 Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so screen transitions, Streaming scrolling, and alphabet gestures do not synchronously block the main actor. It also passes the computed compilation-album set into Album Artists browsing and adds privacy-safe synchronous boundary/preload diagnostics for reproducing the reported local and streaming gapless failures. The remote backend remains the deliberately stable single-item `AVPlayer` path pending a separate gapless streaming design decision.
@@ -125,8 +135,8 @@ Alpha 3.7.4 build 69 replaces the experimental remote `AVQueuePlayer` handoff wi
 
 ## Next major phase
 
-- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 69. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed 5.1 gapless behavior.
-- Perform the remaining physical-device acceptance on build 69: audible stereo and 5.1 remote boundaries, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first.
+- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 70. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed 5.1 gapless behavior.
+- Perform the remaining physical-device acceptance on build 70: audible stereo and 5.1 remote boundaries, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first.
 - Retrieve a fresh `Documents/Resonance-Diagnostics.log` after the physical runtime test and correlate `remote.player.queueConfigured`, `remote.player.finished`, `remote.player.boundary.end`, `remote.player.endFallback`, and seek `target`/`actual` details with the recording. Do not launch Resonance automatically or commit the copied diagnostics file.
 - If physical evidence exposes a new defect, make the next build narrowly targeted; the controlled fixture run did not justify changing `PlayerController.swift` or `GaplessAudioEngine.swift`.
 - Perform focused FLAC acceptance on build 59: play a normal stereo FLAC, a high-rate stereo FLAC if available, and the known 5.1 FLAC; confirm audible playback starts at normal speed, front/rear/center/LFE routing remains correct, seeking is accurate, and the next track starts. Retrieve the log and compare `sourceSampleRate`, `graphSampleRate`, `outputSampleRate`, `sourceFrames`, `duration`, `preparationMs`, and render-meter entries. If audio is still wrong, make the next build an explicit FLAC-only compatibility-player experiment to separate AVAudioEngine graph behavior from the system decoder.
