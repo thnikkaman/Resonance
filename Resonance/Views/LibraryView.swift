@@ -570,6 +570,7 @@ struct ArtistDetailView: View {
     @EnvironmentObject private var player: PlayerController
     @State private var artistToEdit: Artist?
     @State private var albumToEdit: Album?
+    @State private var albumToRemove: Album?
     let artist: Artist
 
     private var liveArtist: Artist { library.refreshedArtist(artist) }
@@ -722,6 +723,10 @@ struct ArtistDetailView: View {
                                 Button { albumToEdit = album } label: {
                                     Label("Edit Album Metadata", systemImage: "pencil")
                                 }
+                                Divider()
+                                Button { albumToRemove = album } label: {
+                                    Label("Remove or Delete Album", systemImage: "trash")
+                                }
                             }
                         }
                     }
@@ -763,6 +768,10 @@ struct ArtistDetailView: View {
                             Button { albumToEdit = album } label: {
                                 Label("Edit Album Metadata", systemImage: "pencil")
                             }
+                            Divider()
+                            Button { albumToRemove = album } label: {
+                                Label("Remove or Delete Album", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -774,6 +783,30 @@ struct ArtistDetailView: View {
         }
         .sheet(item: $albumToEdit) { album in
             AlbumMetadataEditorSheet(album: album)
+        }
+        .confirmationDialog(
+            "Remove \(albumToRemove?.title ?? "album")?",
+            isPresented: Binding(
+                get: { albumToRemove != nil },
+                set: { if !$0 { albumToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove from Library") {
+                if let albumToRemove {
+                    Task { await library.removeTracks(albumToRemove.tracks, deletingFiles: false) }
+                }
+                albumToRemove = nil
+            }
+            Button("Delete from iPhone", role: .destructive) {
+                if let albumToRemove {
+                    Task { await library.removeTracks(albumToRemove.tracks, deletingFiles: true) }
+                }
+                albumToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { albumToRemove = nil }
+        } message: {
+            Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album)

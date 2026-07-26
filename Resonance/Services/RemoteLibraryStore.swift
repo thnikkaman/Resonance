@@ -1803,6 +1803,7 @@ final class RemoteDownloadManager: ObservableObject {
     private struct DownloadResult: Sendable {
         let bytes: Int64
         let skipped: Bool
+        let destination: URL
     }
 
     private var downloadTask: Task<Void, Never>?
@@ -1989,9 +1990,7 @@ final class RemoteDownloadManager: ObservableObject {
                         state: result.skipped ? .skipped : .completed
                     )
                 )
-                if !result.skipped {
-                    await library.scanSharedMusicFolder(forceMetadataRefresh: true)
-                }
+                await library.refreshDownloadedTrack(at: result.destination)
             } catch is CancellationError {
                 activeWorker = nil
                 activeTrackID = nil
@@ -2098,12 +2097,12 @@ final class RemoteDownloadManager: ObservableObject {
             if FileManager.default.fileExists(atPath: destination.path) {
                 guard replacingExisting else {
                     try? FileManager.default.removeItem(at: temporaryURL)
-                    return DownloadResult(bytes: completedBytes, skipped: true)
+                    return DownloadResult(bytes: completedBytes, skipped: true, destination: destination)
                 }
                 try FileManager.default.removeItem(at: destination)
             }
             try FileManager.default.moveItem(at: temporaryURL, to: destination)
-            return DownloadResult(bytes: completedBytes, skipped: false)
+            return DownloadResult(bytes: completedBytes, skipped: false, destination: destination)
         } catch {
             try? FileManager.default.removeItem(at: temporaryURL)
             throw error

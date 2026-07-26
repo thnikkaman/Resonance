@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **74**
+Build: **75**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -99,6 +99,8 @@ Alpha 3.7.4 build 72 begins the offline-library phase. Experimental streaming ga
 Alpha 3.7.4 build 73 completes the first offline-library download workflow. Downloads now use a disk-backed byte stream with per-file byte progress, a visible cancellation control, cancellation cleanup, and a library rescan after every newly completed track so tracks appear incrementally. Existing destination names trigger an explicit Replace Existing or Keep Existing choice; completed downloads remain duplicate-safe. Streaming artists now support a touch-and-hold Select Artists to Download action that opens a multi-select sheet for downloading several collections together. Local track, album, and artist removal now distinguishes Remove from Library—which preserves the file and persists an exclusion from automatic rescans—from Delete from iPhone, which removes the audio file. Settings adds a QR-camera icon beside the server address field; it accepts a plain URL/host and common JSON address payloads, and requires camera permission only while scanning. The direct FLAC/MP3 tag-writing and stable single-item streaming playback paths are unchanged.
 
 Alpha 3.7.4 build 74 refines the Streaming artist detail surface with three full-width, icon-led action tiles for Play, Shuffle, and Download, using consistent hierarchy, contrast, and touch targets. The local album detail screen now offers Remove from Library and Delete from iPhone alongside its metadata and playback actions. The download banner expands into a queue panel showing queued, active, completed, failed, and cancelled tracks; queued or active tracks have a red circular cancel control, while the header retains a red cancel-all control and can collapse back to the compact progress view. Playback, remote transport, QR setup, and the underlying download storage behavior are unchanged.
+
+Alpha 3.7.4 build 75 keeps the download manager’s high-frequency progress observation inside the download overlay so the Streaming catalog remains responsive while files arrive. Each completed file now performs a targeted library refresh, allowing open local artist and album views to update immediately without rescanning the entire Documents folder. The expanded queue has a visible Collapse control and a bounded scroll area, and local artist album cards now expose the same Remove from Library and Delete from iPhone choices as the album collection and detail screens. Playback, remote transport, QR setup, and download storage behavior are unchanged.
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 

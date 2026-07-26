@@ -149,6 +149,32 @@ final class LibraryStore: ObservableObject {
         await scanDocuments(forceMetadataRefresh: forceMetadataRefresh)
     }
 
+    func refreshDownloadedTrack(at url: URL) async {
+        guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else { return }
+        let path = normalizedPath(url)
+        guard let parsed = await reader.track(from: url) else { return }
+        let existingIndex = tracks.firstIndex { track in
+            guard let fileURL = track.fileURL else { return false }
+            return normalizedPath(fileURL) == path
+        }
+        let existing = existingIndex.map { tracks[$0] }
+        let refreshed = applyMetadataOverride(preservingIdentity(of: parsed, existing: existing))
+
+        if let existingIndex {
+            tracks[existingIndex] = refreshed
+        } else {
+            tracks.append(refreshed)
+            sharedFolderTrackCount += 1
+        }
+        ignoredLocalPaths.remove(path)
+        persistIgnoredLocalPaths()
+        knownModificationDates[path] = modificationDate(for: url)
+        cleanPersistedCollections()
+        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        lastSharedFolderScan = Date()
+        scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
+    }
+
     func importURLs(_ urls: [URL]) async {
         ensureSharedMusicFolder()
         isScanning = true

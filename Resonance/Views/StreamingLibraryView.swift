@@ -5,8 +5,6 @@ import ImageIO
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
-    @EnvironmentObject private var library: LibraryStore
-    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var showingOptions = false
     let openLibrary: () -> Void
     let openSettings: () -> Void
@@ -26,18 +24,7 @@ struct StreamingLibraryView: View {
                 VStack(spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
                     RemoteSearchField(text: $remote.searchText)
-                    if downloads.isDownloading {
-                        RemoteDownloadBanner(
-                            title: downloads.currentTitle,
-                            completed: downloads.completedCount,
-                            total: downloads.totalCount,
-                            completedBytes: downloads.currentCompletedBytes,
-                            totalBytes: downloads.currentTotalBytes,
-                            queue: downloads.downloadQueue,
-                            cancel: downloads.cancel,
-                            cancelTrack: downloads.cancelDownload
-                        )
-                    }
+                    RemoteDownloadOverlay()
 
                     Group {
                         switch remote.grouping {
@@ -78,22 +65,6 @@ struct StreamingLibraryView: View {
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
-        .alert(
-            "File Already Exists",
-            isPresented: Binding(
-                get: { downloads.pendingReplacementCount > 0 },
-                set: { if !$0 { downloads.cancelPendingReplacement() } }
-            )
-        ) {
-            Button("Replace Existing", role: .destructive) {
-                downloads.confirmReplacement()
-            }
-            Button("Keep Existing", role: .cancel) {
-                downloads.cancelPendingReplacement()
-            }
-        } message: {
-            Text(downloads.pendingReplacementDescription)
-        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 Button(action: openLibrary) {
@@ -159,6 +130,43 @@ struct StreamingLibraryView: View {
                             }
                         }
                 )
+        }
+    }
+}
+
+private struct RemoteDownloadOverlay: View {
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+
+    var body: some View {
+        Group {
+            if downloads.isDownloading {
+                RemoteDownloadBanner(
+                    title: downloads.currentTitle,
+                    completed: downloads.completedCount,
+                    total: downloads.totalCount,
+                    completedBytes: downloads.currentCompletedBytes,
+                    totalBytes: downloads.currentTotalBytes,
+                    queue: downloads.downloadQueue,
+                    cancel: downloads.cancel,
+                    cancelTrack: downloads.cancelDownload
+                )
+            }
+        }
+        .alert(
+            "File Already Exists",
+            isPresented: Binding(
+                get: { downloads.pendingReplacementCount > 0 },
+                set: { if !$0 { downloads.cancelPendingReplacement() } }
+            )
+        ) {
+            Button("Replace Existing", role: .destructive) {
+                downloads.confirmReplacement()
+            }
+            Button("Keep Existing", role: .cancel) {
+                downloads.cancelPendingReplacement()
+            }
+        } message: {
+            Text(downloads.pendingReplacementDescription)
         }
     }
 }
@@ -257,12 +265,30 @@ private struct RemoteDownloadBanner: View {
                 .accessibilityLabel("Cancel all downloads")
             }
             if isExpanded {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(queue) { item in
-                        RemoteDownloadQueueRow(item: item, cancel: cancelTrack)
+                HStack {
+                    Text("Download Queue")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isExpanded = false
+                        }
+                    } label: {
+                        Label("Collapse", systemImage: "chevron.up")
+                            .font(.caption.weight(.semibold))
                     }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Collapse download queue")
                 }
                 .padding(.top, 2)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(queue) { item in
+                            RemoteDownloadQueueRow(item: item, cancel: cancelTrack)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
