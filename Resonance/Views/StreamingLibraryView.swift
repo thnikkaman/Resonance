@@ -21,44 +21,45 @@ struct StreamingLibraryView: View {
                         .buttonStyle(.borderedProminent)
                 }
             } else {
-                Group {
-                    switch remote.grouping {
-                    case .artists:
-                        RemoteArtistCollectionView(
-                            artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
-                            sortDirection: remote.sortDirection
-                        )
-                    case .albumArtists:
-                        RemoteArtistCollectionView(
-                            artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
-                            sortDirection: remote.sortDirection
-                        )
-                    case .albums:
-                        RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
-                    case .songs:
-                        RemoteTrackCollectionView(tracks: remote.filteredTracks)
-                    case .favorites:
-                        RemoteTrackCollectionView(tracks: remote.favoriteTracks)
-                    case .recentlyAdded:
-                        RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
-                    case .recentlyPlayed:
-                        RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
-                    }
-                }
-                .overlay {
-                    if !remote.isLoading && remote.filteredTracks.isEmpty {
-                        ContentUnavailableView(
-                            "No Remote Music",
-                            systemImage: "music.note.list",
-                            description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
-                        )
-                    }
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
+                    RemoteSearchField(text: $remote.searchText)
+
+                    Group {
+                        switch remote.grouping {
+                        case .artists:
+                            RemoteArtistCollectionView(
+                                artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
+                                sortDirection: remote.sortDirection
+                            )
+                        case .albumArtists:
+                            RemoteArtistCollectionView(
+                                artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
+                                sortDirection: remote.sortDirection
+                            )
+                        case .albums:
+                            RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
+                        case .songs:
+                            RemoteTrackCollectionView(tracks: remote.filteredTracks)
+                        case .favorites:
+                            RemoteTrackCollectionView(tracks: remote.favoriteTracks)
+                        case .recentlyAdded:
+                            RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
+                        case .recentlyPlayed:
+                            RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
+                        }
+                    }
+                    .overlay {
+                        if !remote.isLoading && remote.filteredTracks.isEmpty {
+                            ContentUnavailableView(
+                                "No Remote Music",
+                                systemImage: "music.note.list",
+                                description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
+                            )
+                        }
+                    }
+                    .refreshable { await remote.refresh(using: settings) }
                 }
-                .searchable(text: $remote.searchText, prompt: "Search remote music")
-                .refreshable { await remote.refresh(using: settings) }
             }
         }
         .navigationTitle("Streaming Library")
@@ -129,6 +130,42 @@ struct StreamingLibraryView: View {
                         }
                 )
         }
+    }
+}
+
+private struct RemoteSearchField: View {
+    @EnvironmentObject private var settings: AppSettings
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("Search remote music", text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear remote search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 42)
+        .background(.bar, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .tint(settings.accentColor)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Search remote music")
     }
 }
 

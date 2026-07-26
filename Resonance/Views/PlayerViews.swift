@@ -483,7 +483,7 @@ private struct TrackScrubber: View {
       HStack {
         Text(format(displayedTime))
         Spacer()
-        Text("−\(format(max(0, player.duration - displayedTime)))")
+        Text("−\(formatRemainingTime(player.duration - displayedTime))")
       }
       .font(.caption.monospacedDigit())
       .foregroundStyle(.secondary)
@@ -495,6 +495,11 @@ private struct TrackScrubber: View {
   private func formatScrubTime(_ seconds: Double) -> String {
     guard seconds.isFinite, seconds >= 0 else { return "0:00" }
     return String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
+  }
+
+  private func formatRemainingTime(_ seconds: Double) -> String {
+    guard seconds.isFinite else { return "—:—" }
+    return formatScrubTime(max(0, seconds))
   }
 }
 

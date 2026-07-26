@@ -17,6 +17,7 @@ struct RootView: View {
         ZStack {
             activeTabContent
                 .resonanceThemeTextSurface()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             PlaybackCoordinatorView()
                 .frame(width: 0, height: 0)
@@ -28,6 +29,7 @@ struct RootView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .leading) {
             if miniPlayerDock == .leading {
                 MiniPlayerEdgeHandle(isVisible: selectedTab != .playing, edge: .leading) {

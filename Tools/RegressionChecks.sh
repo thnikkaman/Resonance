@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 67;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 68;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -124,7 +124,8 @@ assert 'commands.nextTrackCommand.isEnabled = true' in player
 assert 'commands.previousTrackCommand.isEnabled = true' in player
 assert 'commands.skipForwardCommand.isEnabled = false' in player
 assert 'commands.skipBackwardCommand.isEnabled = false' in player
-assert '.safeAreaInset(edge: .top, spacing: 0)' in streaming
+assert 'RemoteSearchField' in streaming
+assert '.searchable(text: $remote.searchText' not in streaming
 assert '.navigationBarTitleDisplayMode(.large)' in streaming
 assert 'streaming.option.compilationGrouping.changed' in streaming
 assert 'compilationAlbumIdentity' in remote
@@ -158,6 +159,7 @@ assert 'private struct ResonanceTabBar' in root_view
 assert '.resonanceThemeTextSurface()' in root_view
 assert 'private struct ResonanceThemeTextSurface' in root_view
 assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
+assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 assert 'transaction.animation = nil' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view
@@ -177,6 +179,7 @@ assert 'sourceSampleRate' in gapless and 'graphSampleRate' in player
 assert 'playback.gapless.prepared' in player
 assert 'playback.seek.begin' in player
 assert 'playback.seek.completed' in player
+assert 'formatRemainingTime' in views
 assert 'makeSections' in streaming
 assert 'Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion")' in settings_view
 assert 'Alpha 3.7.4 (47)' not in settings_view
