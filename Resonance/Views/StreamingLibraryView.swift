@@ -2,6 +2,51 @@ import SwiftUI
 import UIKit
 import ImageIO
 
+private struct RemoteTrackSwipeActions: ViewModifier {
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var remote: RemoteLibraryStore
+    @EnvironmentObject private var player: PlayerController
+    let track: RemoteTrackItem
+
+    func body(content: Content) -> some View {
+        content
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button {
+                    Task { await remote.playNext([track], using: player) }
+                } label: {
+                    Label("Play Next", systemImage: "text.insert")
+                }
+                .tint(.indigo)
+
+                Button {
+                    Task { await remote.addToQueue([track], using: player) }
+                } label: {
+                    Label("Add to Queue", systemImage: "text.append")
+                }
+                .tint(settings.accentColor)
+            }
+    }
+}
+
+private extension View {
+    func remoteTrackSwipeActions(_ track: RemoteTrackItem) -> some View {
+        modifier(RemoteTrackSwipeActions(track: track))
+    }
+
+    func remoteDetailBackSwipe(action: @escaping () -> Void) -> some View {
+        highPriorityGesture(
+            DragGesture(minimumDistance: 45, coordinateSpace: .local)
+                .onEnded { value in
+                    guard value.startLocation.y < 120,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    action()
+                }
+        )
+    }
+}
+
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
@@ -1115,6 +1160,8 @@ private struct RemoteArtistDetailView: View {
             }
             .padding(.horizontal)
             .padding(.top)
+            .contentShape(Rectangle())
+            .remoteDetailBackSwipe { dismiss() }
 
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
@@ -1253,16 +1300,6 @@ private struct RemoteArtistDetailView: View {
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 45)
-                .onEnded { value in
-                    guard value.startLocation.y < 120,
-                          value.translation.height > 70,
-                          abs(value.translation.height) > abs(value.translation.width)
-                    else { return }
-                    dismiss()
-                }
-        )
     }
 }
 
@@ -1337,6 +1374,7 @@ private struct RemoteAllAlbumsTrackListView: View {
                         RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
                     }
                     .buttonStyle(.plain)
+                    .remoteTrackSwipeActions(track)
                     .contextMenu {
                         Button { Task { await remote.playNext([track], using: player) } } label: {
                             Label("Play Next", systemImage: "text.insert")
@@ -1430,6 +1468,7 @@ private struct RemoteAlbumDetailView: View {
                         RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
                     }
                     .buttonStyle(.plain)
+                    .remoteTrackSwipeActions(track)
                     .contextMenu {
                         Button { Task { await remote.playNext([track], using: player) } } label: {
                             Label("Play Next", systemImage: "text.insert")
@@ -1676,6 +1715,7 @@ private struct RemotePlaylistDetailView: View {
                                 RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
                             }
                             .buttonStyle(.plain)
+                            .remoteTrackSwipeActions(track)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     Task { _ = await remote.removeTrack(at: index, from: playlist, using: settings) }

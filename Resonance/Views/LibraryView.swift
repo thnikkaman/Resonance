@@ -669,6 +669,16 @@ struct ArtistDetailView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .contentShape(Rectangle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 45, coordinateSpace: .local)
+                    .onEnded { value in
+                        guard value.startLocation.y < 120,
+                              value.translation.height > 70,
+                              abs(value.translation.height) > abs(value.translation.width)
+                        else { return }
+                        dismiss()
+                    }
+            )
             .contextMenu {
                 Button { artistToEdit = liveArtist } label: {
                     Label("Edit Artist Metadata", systemImage: "pencil")
@@ -803,16 +813,6 @@ struct ArtistDetailView: View {
         }
         .navigationTitle(liveArtist.name)
         .resonanceDetailBottomSpace()
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 45)
-                .onEnded { value in
-                    guard value.startLocation.y < 120,
-                          value.translation.height > 70,
-                          abs(value.translation.height) > abs(value.translation.width)
-                    else { return }
-                    dismiss()
-                }
-        )
         .sheet(item: $artistToEdit) { artist in
             ArtistMetadataEditorSheet(artist: artist)
         }

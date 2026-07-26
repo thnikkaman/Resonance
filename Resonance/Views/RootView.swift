@@ -287,9 +287,9 @@ private struct MiniPlayerOverlay: View {
 
   var body: some View {
     if isVisible, player.currentTrack != nil {
-      MiniPlayerView(openNowPlaying: openNowPlaying)
-        .offset(dragTranslation)
-        .simultaneousGesture(
+        MiniPlayerView(openNowPlaying: openNowPlaying)
+            .offset(dragTranslation)
+        .highPriorityGesture(
           DragGesture(minimumDistance: 18, coordinateSpace: .local)
             .updating($dragTranslation) { value, state, _ in
               state = value.translation
@@ -311,6 +311,7 @@ private struct MiniPlayerOverlay: View {
 
 private struct MiniPlayerEdgeHandle: View {
   @EnvironmentObject private var player: PlayerController
+  @GestureState private var dragTranslation = CGSize.zero
   let isVisible: Bool
   let edge: MiniPlayerDock
   let openNowPlaying: () -> Void
@@ -335,8 +336,14 @@ private struct MiniPlayerEdgeHandle: View {
         .shadow(radius: 4, y: 2)
       }
       .buttonStyle(.plain)
-      .simultaneousGesture(
+      .offset(dragTranslation)
+      .contentShape(Rectangle())
+      .zIndex(10)
+      .highPriorityGesture(
         DragGesture(minimumDistance: 12, coordinateSpace: .local)
+          .updating($dragTranslation) { value, state, _ in
+            state = value.translation
+          }
           .onEnded { value in
             let returnsInward = edge == .leading
               ? value.translation.width > 35
