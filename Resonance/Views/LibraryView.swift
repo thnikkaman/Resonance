@@ -447,10 +447,13 @@ struct ArtistCollectionView: View {
                                                 trailing: 40
                                             )
                                         )
+                                        .listRowBackground(Color.clear)
                                     }
                                 } header: {
                                     Text(section.key)
                                 }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                                 .id("artist-section-\(section.key)")
                             }
                         }
@@ -973,7 +976,11 @@ struct AlbumCollectionView: View {
                             trailing: 16
                         )
                     )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .sheet(item: $albumToEdit) { album in
@@ -1095,7 +1102,11 @@ struct TrackCollectionView: View {
                             trailing: 16
                         )
                     )
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
     }
