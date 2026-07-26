@@ -170,7 +170,7 @@ final class LibraryStore: ObservableObject {
         persistIgnoredLocalPaths()
         knownModificationDates[path] = modificationDate(for: url)
         cleanPersistedCollections()
-        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        await database.upsert(refreshed)
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
     }
@@ -393,8 +393,10 @@ final class LibraryStore: ObservableObject {
     }
 
     func refreshedArtist(_ artist: Artist) -> Artist {
-        let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
-        let currentTracks = tracks.filter { ids.contains($0.id) }
+        let currentTracks = tracks.filter { track in
+            let currentName = artist.usesAlbumArtist ? track.albumArtist : track.artist
+            return currentName.localizedCaseInsensitiveCompare(artist.name) == .orderedSame
+        }
         guard let first = currentTracks.first else { return artist }
         let currentName = artist.usesAlbumArtist ? first.albumArtist : first.artist
         return makeArtist(name: currentName, tracks: currentTracks, useAlbumArtist: artist.usesAlbumArtist)

@@ -81,6 +81,36 @@ actor LibraryDatabase {
         }
     }
 
+    func upsert(_ track: Track) {
+        guard let db else { return }
+        let sql = """
+        INSERT OR REPLACE INTO tracks
+        (id,title,artist,album_artist,album_name,track_number,disc_number,release_year,duration,file_url,artwork,artwork_embedded,date_added)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(statement) }
+        bind(track.id.uuidString, 1, statement)
+        bind(track.title, 2, statement)
+        bind(track.artist, 3, statement)
+        bind(track.albumArtist, 4, statement)
+        bind(track.album, 5, statement)
+        sqlite3_bind_int(statement, 6, Int32(track.trackNumber))
+        sqlite3_bind_int(statement, 7, Int32(track.discNumber))
+        sqlite3_bind_int(statement, 8, Int32(track.releaseYear))
+        sqlite3_bind_double(statement, 9, track.duration)
+        bind(persistedPath(for: track.fileURL), 10, statement)
+        if let data = track.artworkData {
+            _ = data.withUnsafeBytes { buffer in
+                sqlite3_bind_blob(statement, 11, buffer.baseAddress, Int32(data.count), SQLITE_TRANSIENT)
+            }
+        } else { sqlite3_bind_null(statement, 11) }
+        sqlite3_bind_int(statement, 12, track.artworkIsEmbedded ? 1 : 0)
+        sqlite3_bind_double(statement, 13, track.dateAdded.timeIntervalSince1970)
+        sqlite3_step(statement)
+    }
+
     func loadAll() -> [Track] {
         guard let db else { return [] }
         let sql = """

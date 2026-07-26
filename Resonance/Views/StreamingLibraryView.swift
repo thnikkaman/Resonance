@@ -148,7 +148,8 @@ private struct RemoteDownloadOverlay: View {
                     totalBytes: downloads.currentTotalBytes,
                     queue: downloads.downloadQueue,
                     cancel: downloads.cancel,
-                    cancelTrack: downloads.cancelDownload
+                    cancelTrack: downloads.cancelDownload,
+                    requeueTrack: downloads.requeueDownload
                 )
             }
         }
@@ -216,6 +217,7 @@ private struct RemoteDownloadBanner: View {
     let queue: [RemoteDownloadProgress]
     let cancel: () -> Void
     let cancelTrack: (UUID) -> Void
+    let requeueTrack: (UUID) -> Void
     @State private var isExpanded = false
 
     var body: some View {
@@ -284,7 +286,7 @@ private struct RemoteDownloadBanner: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(queue) { item in
-                            RemoteDownloadQueueRow(item: item, cancel: cancelTrack)
+                            RemoteDownloadQueueRow(item: item, cancel: cancelTrack, requeue: requeueTrack)
                         }
                     }
                 }
@@ -303,6 +305,7 @@ private struct RemoteDownloadBanner: View {
 private struct RemoteDownloadQueueRow: View {
     let item: RemoteDownloadProgress
     let cancel: (UUID) -> Void
+    let requeue: (UUID) -> Void
 
     private var statusText: String {
         switch item.state {
@@ -348,6 +351,16 @@ private struct RemoteDownloadQueueRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel \(item.title)")
+            } else if item.state == .cancelled {
+                Button {
+                    requeue(item.id)
+                } label: {
+                    Label("Requeue", systemImage: "arrow.clockwise.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Requeue \(item.title)")
             }
         }
         .padding(.vertical, 3)
@@ -527,6 +540,8 @@ private struct RemoteLibraryOptionsSheet: View {
 
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var downloads: RemoteDownloadManager
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
   private let artistIDs: [String]
@@ -597,6 +612,12 @@ private struct RemoteArtistCollectionView: View {
                                             .buttonStyle(.plain)
                                             .contextMenu {
                                                 Button {
+                                                    downloads.requestDownload(artist.tracks, into: library)
+                                                } label: {
+                                                    Label("Download Artist", systemImage: "arrow.down.circle.fill")
+                                                }
+                                                Divider()
+                                                Button {
                                                     initialDownloadArtistID = artist.id
                                                     showingDownloadSelection = true
                                                 } label: {
@@ -621,6 +642,12 @@ private struct RemoteArtistCollectionView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .contextMenu {
+                                            Button {
+                                                downloads.requestDownload(artist.tracks, into: library)
+                                            } label: {
+                                                Label("Download Artist", systemImage: "arrow.down.circle.fill")
+                                            }
+                                            Divider()
                                             Button {
                                                 initialDownloadArtistID = artist.id
                                                 showingDownloadSelection = true

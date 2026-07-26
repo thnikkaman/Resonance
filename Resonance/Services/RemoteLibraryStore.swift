@@ -1810,6 +1810,8 @@ final class RemoteDownloadManager: ObservableObject {
     private var activeWorker: Task<DownloadResult, Error>?
     private var activeTrackID: UUID?
     private var individuallyCancelledTrackIDs: Set<UUID> = []
+    private var requeueRequests: [UUID: RemoteTrackItem] = [:]
+    private var activeTracksByID: [UUID: RemoteTrackItem] = [:]
     private var pendingTracks: [RemoteTrackItem] = []
     private weak var pendingLibrary: LibraryStore?
 
@@ -1882,6 +1884,23 @@ final class RemoteDownloadManager: ObservableObject {
         }
     }
 
+    func requeueDownload(_ id: UUID) {
+        guard isDownloading, let current = itemProgress[id], current.state == .cancelled,
+              let track = activeTracksByID[id] else { return }
+        individuallyCancelledTrackIDs.remove(id)
+        requeueRequests[id] = track
+        setProgress(
+            RemoteDownloadProgress(
+                id: current.id,
+                title: current.title,
+                completed: 0,
+                total: 0,
+                state: .queued
+            )
+        )
+        completedCount = max(0, completedCount - 1)
+    }
+
     private func startDownload(
         _ tracks: [RemoteTrackItem],
         into library: LibraryStore,
@@ -1908,6 +1927,8 @@ final class RemoteDownloadManager: ObservableObject {
         currentCompletedBytes = 0
         currentTotalBytes = 0
         individuallyCancelledTrackIDs = []
+        requeueRequests = [:]
+        activeTracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
         lastMessage = "Preparing \(tracks.count) download\(tracks.count == 1 ? "" : "s")…"
         let initialQueue = tracks.map {
             RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .queued)
@@ -1921,10 +1942,19 @@ final class RemoteDownloadManager: ObservableObject {
             currentTotalBytes = 0
             activeWorker = nil
             activeTrackID = nil
+            requeueRequests = [:]
+            activeTracksByID = [:]
             downloadTask = nil
         }
 
-        for track in tracks {
+        var pendingTracks = tracks
+        while !pendingTracks.isEmpty || !requeueRequests.isEmpty {
+            for (_, track) in requeueRequests where !pendingTracks.contains(where: { $0.id == track.id }) {
+                pendingTracks.append(track)
+            }
+            requeueRequests.removeAll()
+            guard !pendingTracks.isEmpty else { continue }
+            let track = pendingTracks.removeFirst()
             if individuallyCancelledTrackIDs.contains(track.id) {
                 if itemProgress[track.id]?.state != .cancelled {
                     setProgress(
@@ -1948,7 +1978,9 @@ final class RemoteDownloadManager: ObservableObject {
             currentTotalBytes = max(0, track.fileSizeBytes)
             activeTrackID = track.id
             do {
-                let progressStream = AsyncStream<DownloadByteProgress>.makeStream()
+                let progressStream = AsyncStream<DownloadByteProgress>.makeStream(
+                    bufferingPolicy: .bufferingNewest(1)
+                )
                 let destinationRoot = library.sharedMusicFolderURL
                 let worker = Task.detached(priority: .utility) {
                     defer { progressStream.continuation.finish() }
@@ -1962,7 +1994,12 @@ final class RemoteDownloadManager: ObservableObject {
                 }
                 activeWorker = worker
                 await withTaskCancellationHandler(operation: {
+                    var lastProgressPublication = Date.distantPast
                     for await progress in progressStream.stream {
+                        let now = Date()
+                        let isFinal = progress.total > 0 && progress.completed >= progress.total
+                        guard isFinal || now.timeIntervalSince(lastProgressPublication) >= 0.25 else { continue }
+                        lastProgressPublication = now
                         currentCompletedBytes = progress.completed
                         currentTotalBytes = progress.total
                         setProgress(
@@ -2075,11 +2112,11 @@ final class RemoteDownloadManager: ObservableObject {
             defer { try? handle.close() }
 
             var buffer = Data()
-            buffer.reserveCapacity(64 * 1024)
+            buffer.reserveCapacity(256 * 1024)
             for try await byte in bytes {
                 try Task.checkCancellation()
                 buffer.append(byte)
-                if buffer.count >= 64 * 1024 {
+                if buffer.count >= 256 * 1024 {
                     try handle.write(contentsOf: buffer)
                     completedBytes += Int64(buffer.count)
                     buffer.removeAll(keepingCapacity: true)

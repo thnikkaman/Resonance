@@ -11,9 +11,15 @@ struct AlbumDetailView: View {
     let album: Album
 
     private var liveTracks: [Track] {
+        let albumKey = "\(album.artist)|\(album.title)"
+        let matchingTracks = library.tracks.filter {
+            "\($0.albumArtist)|\($0.album)".localizedCaseInsensitiveCompare(albumKey) == .orderedSame
+        }
         let ids = Set(album.tracks.map(\.id))
-        return library.tracks
-            .filter { ids.contains($0.id) }
+        let currentTracks = matchingTracks.isEmpty
+            ? library.tracks.filter { ids.contains($0.id) }
+            : matchingTracks
+        return currentTracks
             .sorted { ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title) }
     }
 
