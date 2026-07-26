@@ -137,6 +137,9 @@ private struct ResonanceTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 7)
         .padding(.bottom, 7)
+        // safeAreaInset places this view against the bottom edge; reserve the
+        // home-indicator area inside the bar so the labels stay above it.
+        .padding(.bottom, 28)
         // Keep the custom tab bar opaque and above page artwork. The page backdrop
         // intentionally ignores the safe area, so the bar must own its contrast.
         .background {
@@ -269,7 +272,12 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(Color.clear)
+            // NavigationStack, Form, and List can provide opaque page
+            // backgrounds. Keep the selected image theme on the active page
+            // surface so it remains visible behind those containers.
+            .background {
+                ResonanceThemeBackdrop()
+            }
             .tint(settings.accentColor)
             .foregroundStyle(
                 settings.textAccentColor
@@ -292,13 +300,15 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.16)
-                settings.themeBackgroundGradient.opacity(0.34)
+                    .opacity(0.42)
+                // Keep a readable veil over the artwork without removing its
+                // texture and color from the page background.
+                settings.themeBackgroundGradient.opacity(0.28)
             }
         }
-        // Stop the decorative image at the content boundary. This keeps it from
-        // competing with the custom bottom navigation and the device home area.
-        .ignoresSafeArea(edges: [.top, .leading, .trailing])
+        // The custom tab bar owns an opaque surface, so the page artwork can
+        // extend behind the system safe areas without obscuring its controls.
+        .ignoresSafeArea()
         .allowsHitTesting(false)
     }
 }

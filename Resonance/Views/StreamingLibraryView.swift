@@ -161,13 +161,12 @@ struct StreamingLibraryView: View {
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
         .background {
-            Color.clear
+            ResonanceThemeBackdrop()
         }
         .overlay(alignment: .top) {
             RemoteDownloadOverlay()
                 .zIndex(20)
         }
-        .resonanceTabBottomSpace()
         .onChange(of: selectedArtistIDs) { _, ids in
             if ids.isEmpty && selectedAlbumIDs.isEmpty { downloadSelectionMode = false }
         }
