@@ -43,6 +43,7 @@ assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
+assert '.padding(.bottom, 56)' in root_view
 
 # Previous current-SDK and Swift 6 fixes.
 assert '?? await' not in metadata
@@ -366,7 +367,7 @@ assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {', 1)[1].split('private struct ResonanceHeroSurface', 1)[0]
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
 assert 'backgroundImageName' in surface_backdrop
-assert ' : 0.88' in surface_backdrop
+assert ' : 0.72' in surface_backdrop
 assert 'Color.clear' in now_playing
 assert '.opacity(0.42)' in root_view
 assert '.opacity(0.025)' not in root_view

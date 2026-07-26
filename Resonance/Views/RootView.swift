@@ -151,7 +151,7 @@ private struct ResonanceTabBar: View {
         .padding(.bottom, 7)
         // safeAreaInset places this view against the bottom edge; reserve the
         // home-indicator area inside the bar so the labels stay above it.
-        .padding(.bottom, 28)
+        .padding(.bottom, 56)
         // Keep the custom tab bar opaque and above page artwork. The page backdrop
         // intentionally ignores the safe area, so the bar must own its contrast.
         .background {
@@ -328,7 +328,7 @@ struct ResonanceThemeSurfaceBackdrop: View {
         // visible behind them. The gradient veil preserves contrast for text
         // and controls without placing a bitmap above their content.
         settings.themeSurfaceGradient.opacity(
-            settings.visualTheme.backgroundImageName == nil ? 1 : 0.88
+            settings.visualTheme.backgroundImageName == nil ? 1 : 0.72
         )
         .allowsHitTesting(false)
     }

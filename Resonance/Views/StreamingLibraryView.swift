@@ -1581,6 +1581,7 @@ private struct RemoteAlbumDetailView: View {
                 }
             }
             .listStyle(.plain)
+            .listRowBackground(Color.clear)
             .scrollContentBackground(.hidden)
             .background {
                 ResonanceThemeSurfaceBackdrop()
