@@ -15,6 +15,10 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
+            // Paint behind the root safe-area inset as well as the active
+            // navigation stack so the tab bar never leaves a black footer.
+            ResonanceThemeBackdrop()
+
             activeTabContent
                 .resonanceThemeTextSurface()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 96;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 97;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -384,9 +384,9 @@ assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings
 assert 'ThemeElectronic' in settings
 assert 'case .nocturne, .galleryLight, .colorBloom: nil' in settings
-assert 'case .nocturne: ["0B1020", "1D1636"]' in settings
-assert 'case .galleryLight: ["F5F0E8", "FFFDF8"]' in settings
-assert 'case .colorBloom: ["07142B", "241244"]' in settings
+assert 'case .nocturne: ["0B1020", "271A4A", "080B15"]' in settings
+assert 'case .galleryLight: ["F4E5D2", "C97955", "FFF8EE"]' in settings
+assert 'case .colorBloom: ["07142B", "8A245F", "0B4560"]' in settings
 assert 'ThemePsychedelic' in settings
 assert 'removeProgress' in remote
 assert 'prioritizeDownloadQueue' in remote

@@ -114,9 +114,9 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var backgroundGradientHex: [String] {
         switch self {
-        case .nocturne: ["0B1020", "1D1636"]
-        case .galleryLight: ["F5F0E8", "FFFDF8"]
-        case .colorBloom: ["07142B", "241244"]
+        case .nocturne: ["0B1020", "271A4A", "080B15"]
+        case .galleryLight: ["F4E5D2", "C97955", "FFF8EE"]
+        case .colorBloom: ["07142B", "8A245F", "0B4560"]
         case .brushedMetal: ["11161B", "46515A", "1A2026"]
         case .classicWood: ["241109", "5B321B", "2A140B"]
         case .electronic: ["030711", "0A1D32", "04101D"]
@@ -127,9 +127,9 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var surfaceGradientHex: [String] {
         switch self {
-        case .nocturne: ["151A2C", "24203D"]
-        case .galleryLight: ["FFFDF8", "F2E9DC"]
-        case .colorBloom: ["10254A", "1C1A50"]
+        case .nocturne: ["151A2C", "3A2A5A", "101522"]
+        case .galleryLight: ["FFF8EE", "E8B79A", "F6E4D2"]
+        case .colorBloom: ["10254A", "5B2262", "123C5A"]
         case .brushedMetal: ["303840", "59656D", "333D45"]
         case .classicWood: ["4A2A18", "6C3D20"]
         case .electronic: ["0D1830", "122C4A"]
