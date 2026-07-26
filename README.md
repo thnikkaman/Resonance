@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **85**
+Build: **86**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -117,6 +117,8 @@ Alpha 3.7.4 build 83 gives Library and Streaming album actions the same themed o
 Alpha 3.7.4 build 84 keeps the download banner stationary while Streaming content scrolls. Long-pressing Streaming artists or albums now enters inline multi-selection with circular selection bubbles; the top menu provides Download Artist, Download Artists, Download Album, and Download Albums actions without opening a separate window. Generated material-theme imagery is clipped and translucent behind the active gradients and surfaces, preventing it from covering the top half of the app or obscuring the theme controls. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
 
 Alpha 3.7.4 build 85 fixes the runtime issues shown in the 02:11 recording. Streaming artist and album section letters no longer paint opaque full-width bars beside the alphabet index. Artist and album holds now use a high-priority long-press recognizer, provide tactile feedback, and enter the existing inline circular multi-selection mode without navigating. Now Playing renders the same active full-screen theme as Library, Streaming, and Settings. Theme cards have a complete hit target, no longer compete with the Settings keyboard-dismiss tap, and preview image-backed styles more clearly. Electronic and Psychedelic use newly generated, more colorful high-detail circuit-control and liquid-fractal artwork, with stronger but still layered background visibility. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 86 repairs the remaining theme and Streaming interaction regressions. Theme-colored text is enabled by default; choosing a palette or hex accent switches text to the custom hex color without discarding the selected visual theme. Image-backed themes now use a stronger readability veil and lower image opacity, while Brushed Metal has a detailed machined-panel, vent, knob, rivet, and slider background. The mini-player is inserted inside each navigation stack so its top dock stays below navigation controls and remains draggable. Streaming artist and album rows keep a stable button structure, activate selection as soon as the hold threshold is reached, avoid repeated catalog resolution during toolbar rendering, and automatically leave selection mode when the last item is deselected. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
 
 Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
 

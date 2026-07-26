@@ -15,11 +15,11 @@ struct NowPlayingView: View {
   }
 
   private var nowPlayingPrimaryColor: Color {
-    settings.applyThemeColorToText ? settings.accentColor : .primary
+    settings.textAccentColor
   }
 
   private var nowPlayingSecondaryColor: Color {
-    settings.applyThemeColorToText ? settings.accentColor.opacity(0.72) : .secondary
+    settings.textAccentColor.opacity(0.72)
   }
 
   var body: some View {

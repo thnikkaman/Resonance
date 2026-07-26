@@ -483,7 +483,9 @@ struct SettingsView: View {
         .onChange(of: accentHexDraft) { _, value in
             guard value.count == 6 else { return }
             accentHexCommitter.schedule(value) { [weak settings] value in
-                if settings?.accentHex != value { settings?.accentHex = value }
+                guard let settings else { return }
+                if settings.accentHex != value { settings.accentHex = value }
+                settings.applyThemeColorToText = false
             }
         }
     }
@@ -491,8 +493,8 @@ struct SettingsView: View {
     private func applyAccentHex(_ value: String) {
         accentHexCommitter.cancel()
         accentHexDraft = value
-        settings.visualTheme = .custom
         settings.accentHex = value
+        settings.applyThemeColorToText = false
     }
 }
 
@@ -1051,7 +1053,7 @@ private struct ThemePreview: View {
                     .stroke(settings.accentColor.opacity(0.35), lineWidth: 1)
             }
         }
-        .foregroundStyle(settings.applyThemeColorToText ? settings.accentColor : settings.themeSecondaryColor)
+        .foregroundStyle(settings.textAccentColor)
         .padding(.vertical, 4)
     }
 }
@@ -1082,7 +1084,7 @@ private struct ThemeChoiceButton: View {
                         Image(imageName)
                             .resizable()
                             .scaledToFill()
-                            .opacity(0.58)
+                            .opacity(0.40)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .allowsHitTesting(false)
                     }

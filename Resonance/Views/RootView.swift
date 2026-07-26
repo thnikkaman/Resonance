@@ -78,42 +78,46 @@ struct RootView: View {
         case .playing:
             NavigationStack {
                 NowPlayingView(openLibrary: { selectedTab = .library })
+                    .resonanceMiniPlayerInsets(
+                        isVisible: false,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
             }
-            .resonanceMiniPlayerInsets(
-                isVisible: false,
-                dock: miniPlayerDock,
-                openNowPlaying: { selectedTab = .playing },
-                onDock: { miniPlayerDock = $0 }
-            )
         case .library:
-            NavigationStack { LibraryView() }
-                .resonanceMiniPlayerInsets(
-                    isVisible: true,
-                    dock: miniPlayerDock,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
-                )
+            NavigationStack {
+                LibraryView()
+                    .resonanceMiniPlayerInsets(
+                        isVisible: true,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
+            }
         case .streaming:
             NavigationStack {
                 StreamingLibraryView(
                     openLibrary: { selectedTab = .library },
                     openSettings: { selectedTab = .settings }
                 )
+                .resonanceMiniPlayerInsets(
+                    isVisible: true,
+                    dock: miniPlayerDock,
+                    openNowPlaying: { selectedTab = .playing },
+                    onDock: { miniPlayerDock = $0 }
+                )
             }
-                .resonanceMiniPlayerInsets(
-                    isVisible: true,
-                    dock: miniPlayerDock,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
-                )
         case .settings:
-            NavigationStack { SettingsView(openLibrary: { selectedTab = .library }) }
-                .resonanceMiniPlayerInsets(
-                    isVisible: true,
-                    dock: miniPlayerDock,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
-                )
+            NavigationStack {
+                SettingsView(openLibrary: { selectedTab = .library })
+                    .resonanceMiniPlayerInsets(
+                        isVisible: true,
+                        dock: miniPlayerDock,
+                        openNowPlaying: { selectedTab = .playing },
+                        onDock: { miniPlayerDock = $0 }
+                    )
+            }
         }
     }
 }
@@ -260,7 +264,7 @@ private struct ResonanceThemeTextSurface: ViewModifier {
             }
             .tint(settings.accentColor)
             .foregroundStyle(
-                settings.applyThemeColorToText ? settings.accentColor : Color.primary
+                settings.textAccentColor
             )
             .toolbarBackground(settings.themeSurfaceGradient, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -280,14 +284,14 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.28)
+                    .opacity(0.16)
                 LinearGradient(
-                    colors: [.black.opacity(0.04), .black.opacity(0.24)],
+                    colors: [.black.opacity(0.14), .black.opacity(0.42)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 settings.themeBackgroundGradient
-                    .opacity(0.28)
+                    .opacity(0.34)
             }
         }
         .ignoresSafeArea()
@@ -307,9 +311,9 @@ struct ResonanceThemeSurfaceBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.14)
+                    .opacity(0.07)
                 settings.themeSurfaceGradient
-                    .opacity(0.54)
+                    .opacity(0.70)
             }
         }
         .allowsHitTesting(false)
@@ -443,6 +447,16 @@ private struct MiniPlayerInsets: ViewModifier {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
                 if isVisible, dock == .top {
+                    Color.clear.frame(height: 74)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isVisible, dock == .bottom {
+                    Color.clear.frame(height: 74)
+                }
+            }
+            .overlay(alignment: .top) {
+                if isVisible, dock == .top {
                     MiniPlayerOverlay(
                         isVisible: isVisible,
                         dock: .top,
@@ -451,10 +465,9 @@ private struct MiniPlayerInsets: ViewModifier {
                     )
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
-                    .padding(.bottom, 6)
                 }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            .overlay(alignment: .bottom) {
                 if isVisible, dock == .bottom {
                     MiniPlayerOverlay(
                         isVisible: isVisible,
@@ -463,7 +476,6 @@ private struct MiniPlayerInsets: ViewModifier {
                         onDock: onDock
                     )
                     .padding(.horizontal, 8)
-                    .padding(.top, 6)
                     .padding(.bottom, 6)
                 }
             }

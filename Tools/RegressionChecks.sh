@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 85;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 86;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -317,7 +317,7 @@ assert 'Download Album' in streaming
 assert 'Download Albums' in streaming
 assert 'DownloadSelectionBubble' in streaming
 assert 'downloadSelectionMode' in streaming
-assert streaming.count('LongPressGesture(minimumDuration: 0.45)') == 2
+assert streaming.count('DragGesture(minimumDistance: 0)') == 2
 assert streaming.count('UIImpactFeedbackGenerator(style: .medium).impactOccurred()') == 2
 assert '.background(settings.themeBackgroundGradient)' not in streaming
 assert '.background(.background)' not in streaming
@@ -357,8 +357,15 @@ assert 'themeSurfaceGradient' in root_view
 assert 'themeSurfaceGradient' in streaming
 assert 'ResonanceThemeSurfaceBackdrop' in views
 assert 'ResonanceThemeBackdrop()' in now_playing
-assert '.opacity(0.28)' in root_view
-assert '.opacity(0.58)' in settings_view
+assert '.opacity(0.16)' in root_view
+assert '.opacity(0.07)' in root_view
+assert '.opacity(0.40)' in settings_view
+assert 'textAccentColor' in settings
+assert 'applyThemeColorToTextConfigured' in settings
+assert '.onChanged' in streaming
+assert streaming.count('.simultaneousGesture(') >= 2
+assert 'navigationDestination(item: $destinationArtist)' in streaming
+assert 'navigationDestination(item: $destinationAlbum)' in streaming
 assert 'backgroundImageName' in settings
 assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings

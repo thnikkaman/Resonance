@@ -69,6 +69,9 @@ struct StreamingLibraryView: View {
         remote.albums.filter { selectedAlbumIDs.contains($0.id) }
     }
 
+    private var selectedArtistCount: Int { selectedArtistIDs.count }
+    private var selectedAlbumCount: Int { selectedAlbumIDs.count }
+
     private func clearDownloadSelection() {
         downloadSelectionMode = false
         selectedArtistIDs.removeAll()
@@ -187,6 +190,12 @@ struct StreamingLibraryView: View {
                 .zIndex(20)
         }
         .resonanceTabBottomSpace()
+        .onChange(of: selectedArtistIDs) { _, ids in
+            if ids.isEmpty && selectedAlbumIDs.isEmpty { downloadSelectionMode = false }
+        }
+        .onChange(of: selectedAlbumIDs) { _, ids in
+            if ids.isEmpty && selectedArtistIDs.isEmpty { downloadSelectionMode = false }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 ResonanceToolbarIconButton(
@@ -196,13 +205,13 @@ struct StreamingLibraryView: View {
                 )
 
                 Menu {
-                    if !selectedArtists.isEmpty {
-                        Button(selectedArtists.count == 1 ? "Download Artist" : "Download Artists") {
+                    if selectedArtistCount > 0 {
+                        Button(selectedArtistCount == 1 ? "Download Artist" : "Download Artists") {
                             downloadSelectedArtists()
                         }
                     }
-                    if !selectedAlbums.isEmpty {
-                        Button(selectedAlbums.count == 1 ? "Download Album" : "Download Albums") {
+                    if selectedAlbumCount > 0 {
+                        Button(selectedAlbumCount == 1 ? "Download Album" : "Download Albums") {
                             downloadSelectedAlbums()
                         }
                     }
@@ -212,7 +221,7 @@ struct StreamingLibraryView: View {
                             clearDownloadSelection()
                         }
                     }
-                    if !selectedArtists.isEmpty || !selectedAlbums.isEmpty {
+                    if selectedArtistCount > 0 || selectedAlbumCount > 0 {
                         Divider()
                     }
                     Button("Browse and Sort Options") {
@@ -672,6 +681,10 @@ private struct RemoteArtistCollectionView: View {
   let onBeginSelection: (String) -> Void
   private let artistIDs: [String]
   @State private var sections: [ArtistIndexSection<RemoteArtist>] = []
+  @State private var destinationArtist: RemoteArtist?
+  @State private var longPressRecognized = false
+  @State private var selectionPressActive = false
+  @State private var selectionPressToken = UUID()
 
   init(
     artists: [RemoteArtist],
@@ -741,29 +754,16 @@ private struct RemoteArtistCollectionView: View {
 
     @ViewBuilder
     private func artistItem(_ artist: RemoteArtist) -> some View {
-        if selectionMode {
-            Button { toggleSelection(artist) } label: {
-                if settings.albumLayout == .grid {
-                    artistTile(artist)
-                } else {
-                    ZStack(alignment: .topTrailing) {
-                        RemoteCollectionRow(
-                            title: artist.name,
-                            subtitle: "\(artist.albums.count) albums • \(artist.tracks.count) tracks",
-                            artworkURL: artist.artworkURL,
-                            artworkBase64: artist.artworkBase64,
-                            large: settings.albumLayout == .large
-                        )
-                        DownloadSelectionBubble(isSelected: selectedIDs.contains(artist.id))
-                            .padding(.trailing, 8)
-                    }
-                }
+        Button {
+            if longPressRecognized {
+                longPressRecognized = false
+            } else if selectionMode {
+                toggleSelection(artist)
+            } else {
+                destinationArtist = artist
             }
-            .buttonStyle(.plain)
-        } else {
-            NavigationLink {
-                RemoteArtistDetailView(artist: artist)
-            } label: {
+        } label: {
+            ZStack(alignment: .topTrailing) {
                 if settings.albumLayout == .grid {
                     artistTile(artist)
                 } else {
@@ -774,18 +774,33 @@ private struct RemoteArtistCollectionView: View {
                         artworkBase64: artist.artworkBase64,
                         large: settings.albumLayout == .large
                     )
+                    if selectionMode {
+                        DownloadSelectionBubble(isSelected: selectedIDs.contains(artist.id))
+                            .padding(.trailing, 8)
+                    }
                 }
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .highPriorityGesture(
-                LongPressGesture(minimumDuration: 0.45)
-                    .onEnded { _ in
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !selectionMode, !selectionPressActive else { return }
+                    selectionPressActive = true
+                    let token = UUID()
+                    selectionPressToken = token
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        guard selectionPressActive,
+                              selectionPressToken == token,
+                              !selectionMode else { return }
+                        longPressRecognized = true
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         onBeginSelection(artist.id)
                     }
-            )
-        }
+                }
+                .onEnded { _ in selectionPressActive = false }
+        )
     }
 
     var body: some View {
@@ -847,10 +862,13 @@ private struct RemoteArtistCollectionView: View {
             .scrollIndicators(.hidden)
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
+                }
+            }
+            .navigationDestination(item: $destinationArtist) { artist in
+                RemoteArtistDetailView(artist: artist)
             }
         }
     }
-}
 
 private struct DownloadSelectionBubble: View {
     let isSelected: Bool
@@ -897,6 +915,10 @@ private struct RemoteAlbumCollectionView: View {
   let onBeginSelection: (String) -> Void
   private let albumIDs: [String]
   @State private var sections: [ArtistIndexSection<RemoteAlbum>] = []
+  @State private var destinationAlbum: RemoteAlbum?
+  @State private var longPressRecognized = false
+  @State private var selectionPressActive = false
+  @State private var selectionPressToken = UUID()
 
   init(
     albums: [RemoteAlbum],
@@ -977,29 +999,16 @@ private struct RemoteAlbumCollectionView: View {
 
     @ViewBuilder
     private func albumItem(_ album: RemoteAlbum) -> some View {
-        if selectionMode {
-            Button { toggleSelection(album) } label: {
-                if settings.albumLayout == .grid {
-                    albumTile(album)
-                } else {
-                    ZStack(alignment: .topTrailing) {
-                        RemoteCollectionRow(
-                            title: album.title,
-                            subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
-                            artworkURL: album.artworkURL,
-                            artworkBase64: album.artworkBase64,
-                            large: settings.albumLayout == .large
-                        )
-                        DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
-                            .padding(.trailing, 8)
-                    }
-                }
+        Button {
+            if longPressRecognized {
+                longPressRecognized = false
+            } else if selectionMode {
+                toggleSelection(album)
+            } else {
+                destinationAlbum = album
             }
-            .buttonStyle(.plain)
-        } else {
-            NavigationLink {
-                RemoteAlbumDetailView(album: album)
-            } label: {
+        } label: {
+            ZStack(alignment: .topTrailing) {
                 if settings.albumLayout == .grid {
                     albumTile(album)
                 } else {
@@ -1010,18 +1019,33 @@ private struct RemoteAlbumCollectionView: View {
                         artworkBase64: album.artworkBase64,
                         large: settings.albumLayout == .large
                     )
+                    if selectionMode {
+                        DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
+                            .padding(.trailing, 8)
+                    }
                 }
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .highPriorityGesture(
-                LongPressGesture(minimumDuration: 0.45)
-                    .onEnded { _ in
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !selectionMode, !selectionPressActive else { return }
+                    selectionPressActive = true
+                    let token = UUID()
+                    selectionPressToken = token
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        guard selectionPressActive,
+                              selectionPressToken == token,
+                              !selectionMode else { return }
+                        longPressRecognized = true
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         onBeginSelection(album.id)
                     }
-            )
-        }
+                }
+                .onEnded { _ in selectionPressActive = false }
+        )
     }
 
     var body: some View {
@@ -1084,10 +1108,13 @@ private struct RemoteAlbumCollectionView: View {
             .scrollIndicators(.hidden)
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(albums, ascending: sortDirection == .ascending)
+                }
+            }
+            .navigationDestination(item: $destinationAlbum) { album in
+                RemoteAlbumDetailView(album: album)
             }
         }
     }
-}
 
 private struct RemoteTrackCollectionView: View {
     @EnvironmentObject private var remote: RemoteLibraryStore

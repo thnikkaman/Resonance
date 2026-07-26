@@ -159,7 +159,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
     @AppStorage("accentHex") var accentHex = "A855F7"
-    @AppStorage("applyThemeColorToText") var applyThemeColorToText = false
+    @AppStorage("applyThemeColorToText") var applyThemeColorToText = true
+    @AppStorage("applyThemeColorToTextConfigured") private var applyThemeColorToTextConfigured = false
     @AppStorage("albumLayout") private var albumLayoutRaw = AlbumLayout.grid.rawValue
     @AppStorage("artistAlbumLayout") private var artistAlbumLayoutRaw = ArtistAlbumLayout.grid.rawValue
     @AppStorage("artistAlbumSort") private var artistAlbumSortRaw = ArtistAlbumSort.title.rawValue
@@ -192,6 +193,14 @@ final class AppSettings: ObservableObject {
 
     init() {
         streamPassword = KeychainCredentialStore.load(account: "remote-library-password") ?? ""
+
+        // Build 85 stored this option as false by default. Migrate existing users
+        // once so themed text is the default; a custom visual theme remains the
+        // signal that the user previously chose their own accent.
+        if !applyThemeColorToTextConfigured {
+            applyThemeColorToText = visualTheme != .custom
+            applyThemeColorToTextConfigured = true
+        }
 
         if !streamBackendDefaultsApplied {
             streamBackendRaw = RemoteLibraryBackend.subsonic.rawValue
@@ -280,6 +289,13 @@ final class AppSettings: ObservableObject {
 
     var accentColor: Color {
         Color(hex: visualTheme == .custom ? normalizedAccentHex : visualTheme.accentHex) ?? .purple
+    }
+
+    var textAccentColor: Color {
+        if applyThemeColorToText {
+            return accentColor
+        }
+        return Color(hex: normalizedAccentHex) ?? .purple
     }
 
     var themeBackgroundGradient: LinearGradient {
