@@ -50,17 +50,17 @@ struct LibraryView: View {
             }
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
-        .searchable(
-            text: $library.searchText,
-            placement: .navigationBarDrawer(displayMode: .always)
-        )
         .background {
             Color.clear
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
                 ResonanceToolbarIconButton(
-                    accessibilityLabel: "Library view and sort options",
+                    accessibilityLabel: library.grouping == .albums
+                        ? "Album view settings"
+                        : library.grouping == .artists || library.grouping == .albumArtists
+                            ? "Artist view settings"
+                            : "Library view and sort options",
                     systemImage: "slider.horizontal.3"
                 ) {
                     showingLibraryOptions = true
@@ -414,7 +414,8 @@ struct ArtistCollectionView: View {
                             }
                             .padding(.leading)
                             .padding(.trailing, 40)
-                            .padding(.vertical)
+                            .padding(.top, 84)
+                            .padding(.bottom)
                         }
 
                     case .compact, .large:
@@ -463,6 +464,7 @@ struct ArtistCollectionView: View {
                         .listStyle(.plain)
                         .listRowBackground(Color.clear)
                         .scrollContentBackground(.hidden)
+                        .safeAreaPadding(.top, 84)
                     }
                 }
 
@@ -596,6 +598,47 @@ private struct ScrollableArtistName: View {
     }
 }
 
+struct ArtistAlbumLayoutToggle: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        HStack(spacing: 4) {
+            layoutButton(.grid, systemImage: "square.grid.2x2")
+            layoutButton(.list, systemImage: "list.bullet")
+        }
+        .padding(3)
+        .background(.ultraThinMaterial.opacity(0.32), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(settings.accentColor.opacity(0.22), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Album view")
+    }
+
+    private func layoutButton(_ layout: ArtistAlbumLayout, systemImage: String) -> some View {
+        Button {
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                settings.artistAlbumLayout = layout
+            }
+        } label: {
+            Label(layout.rawValue, systemImage: systemImage)
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(
+            (layout == .grid && settings.artistAlbumLayout == .grid && settings.albumLayout == .grid)
+                || (layout == .list && (settings.artistAlbumLayout != .grid || settings.albumLayout != .grid))
+                ? settings.accentColor
+                : settings.themeSecondaryColor
+        )
+    }
+}
+
 struct ArtistDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
@@ -604,6 +647,7 @@ struct ArtistDetailView: View {
     @State private var artistToEdit: Artist?
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
+    @State private var showingLibraryOptions = false
     let artist: Artist
 
     private var liveArtist: Artist { library.refreshedArtist(artist) }
@@ -651,9 +695,9 @@ struct ArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 10) {
+            VStack(spacing: 4) {
                 HStack(alignment: .center, spacing: 12) {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             if let first = allTracks.first { player.play(first, in: allTracks) }
                         }
@@ -669,7 +713,7 @@ struct ArtistDetailView: View {
                         showWarningBorder: false
                     )
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Edit", systemImage: "pencil", tint: settings.accentColor, prominent: false) {
                             artistToEdit = liveArtist
                         }
@@ -687,9 +731,6 @@ struct ArtistDetailView: View {
                             .font(.caption)
                     }
                 }
-                Text("(liveArtist.albums.count) albums • (allTracks.count) tracks")
-                    .font(.caption)
-                    .foregroundStyle(settings.themeSecondaryColor)
             }
             .contentShape(Rectangle())
             .resonanceHeroSurface()
@@ -711,7 +752,7 @@ struct ArtistDetailView: View {
                 }
             }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 2) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
                     ForEach(ArtistAlbumSort.allCases) { sort in
                         Text(sort.rawValue).tag(sort)
@@ -720,20 +761,16 @@ struct ArtistDetailView: View {
                 .pickerStyle(.menu)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Picker("Album view", selection: $settings.artistAlbumLayout) {
-                    Label("Grid", systemImage: "square.grid.2x2").tag(ArtistAlbumLayout.grid)
-                    Label("List", systemImage: "list.bullet").tag(ArtistAlbumLayout.list)
-                }
-                .pickerStyle(.segmented)
+                ArtistAlbumLayoutToggle()
             }
             .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.vertical, 1)
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
             .resonanceTopDownDismiss { dismiss() }
 
-            if settings.artistAlbumLayout == .grid {
+            if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                 ScrollView {
                     LazyVGrid(columns: gridColumns, spacing: 18) {
                         NavigationLink {
@@ -770,7 +807,10 @@ struct ArtistDetailView: View {
                         AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
                     } label: {
                         HStack(spacing: 12) {
-                            PlaceholderArtwork(symbol: "square.stack.3d.up.fill", size: 58)
+                            PlaceholderArtwork(
+                                symbol: "square.stack.3d.up.fill",
+                                size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
+                            )
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("All Albums").font(.headline)
                                 Text("\(allTracks.count) tracks, grouped by album")
@@ -779,6 +819,7 @@ struct ArtistDetailView: View {
                             }
                         }
                     }
+                    .listRowBackground(Color.clear)
 
                     ForEach(sortedAlbums) { album in
                         NavigationLink(value: album) {
@@ -786,9 +827,9 @@ struct ArtistDetailView: View {
                                 ArtworkView(
                                     data: album.artworkData,
                                     embedded: album.artworkIsEmbedded,
-                                    size: 58
+                                    size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
                                 )
-                                VStack(alignment: .leading, spacing: 3) {
+                                VStack(alignment: .leading, spacing: settings.albumLayout == .compact ? 1 : 3) {
                                     Text(album.title).font(settings.libraryTextSize.font.weight(.semibold)).lineLimit(1)
                                     Text(album.yearLabel)
                                         .font(.caption)
@@ -796,6 +837,7 @@ struct ArtistDetailView: View {
                                 }
                             }
                         }
+                        .listRowBackground(Color.clear)
                         .contextMenu {
                             Button { albumToEdit = album } label: {
                                 Label("Edit Album Metadata", systemImage: "pencil")
@@ -810,9 +852,7 @@ struct ArtistDetailView: View {
                 .listStyle(.plain)
                 .listRowBackground(Color.clear)
                 .scrollContentBackground(.hidden)
-                .background {
-                    ResonanceThemeSurfaceBackdrop()
-                }
+                .background(Color.clear)
             }
         }
         .background {
@@ -822,6 +862,29 @@ struct ArtistDetailView: View {
         }
         .navigationTitle(liveArtist.name)
         .resonanceDetailBottomSpace()
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Artist view settings",
+                    systemImage: "slider.horizontal.3"
+                ) {
+                    showingLibraryOptions = true
+                }
+
+                NavigationLink {
+                    PlaylistCollectionView()
+                } label: {
+                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                }
+                .buttonStyle(.plain)
+                .help("Open playlists")
+                .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
+            }
+        }
+        .sheet(isPresented: $showingLibraryOptions) {
+            LibraryOptionsSheet()
+                .presentationDetents([.medium, .large])
+        }
         .sheet(item: $artistToEdit) { artist in
             ArtistMetadataEditorSheet(artist: artist)
         }

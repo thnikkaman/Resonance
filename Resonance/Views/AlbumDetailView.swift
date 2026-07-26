@@ -35,9 +35,9 @@ struct AlbumDetailView: View {
     }
 
     private var albumHero: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             HStack(alignment: .center, spacing: 12) {
-                VStack(spacing: 10) {
+                VStack(spacing: 6) {
                     ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         if let first = liveAlbum.tracks.first {
                             player.play(first, in: liveAlbum.tracks)
@@ -59,7 +59,7 @@ struct AlbumDetailView: View {
                     size: 176
                 )
 
-                VStack(spacing: 10) {
+                VStack(spacing: 6) {
                     ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
                         player.playNext(liveAlbum.tracks)
                     }
