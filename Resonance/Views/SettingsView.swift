@@ -140,60 +140,6 @@ struct SettingsView: View {
             }
 
             SettingsCategory(
-                "Reported Errors",
-                key: "reported-errors",
-                isExpanded: $settings.settingsReportedErrorsExpanded
-            ) {
-                if errorLog.entries.isEmpty {
-                    Label("No errors have been reported", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                } else {
-                    if let latest = errorLog.latest {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(latest.source)
-                                .font(.caption.weight(.semibold))
-                            Text(latest.message)
-                                .font(.callout.monospaced())
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(latest.timestamp.formatted(date: .abbreviated, time: .standard))
-                                .font(.caption2)
-                        }
-                        .foregroundStyle(.red)
-                    }
-
-                    DisclosureGroup("Error History (\(errorLog.entries.count))") {
-                        ForEach(errorLog.entries) { entry in
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(entry.source)
-                                    .font(.caption.weight(.semibold))
-                                Text(entry.message)
-                                    .font(.caption.monospaced())
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Text(entry.timestamp.formatted(date: .numeric, time: .standard))
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(.red)
-                            .padding(.vertical, 3)
-                        }
-                    }
-
-                    HStack {
-                        Button {
-                            UIPasteboard.general.string = errorLog.copyText()
-                        } label: {
-                            Label("Copy Errors", systemImage: "doc.on.doc")
-                        }
-                        Spacer()
-                        Button(role: .destructive) {
-                            errorLog.clear()
-                        } label: {
-                            Label("Clear", systemImage: "trash")
-                        }
-                    }
-                }
-            }
-
-            SettingsCategory(
                 "Streaming Library",
                 key: "streaming",
                 isExpanded: $settings.settingsStreamingExpanded
@@ -371,6 +317,60 @@ struct SettingsView: View {
                 isExpanded: $settings.settingsLibraryExpanded
             ) {
                 Button("Restore demo library") { Task { await library.resetDemoLibrary() } }
+            }
+
+            SettingsCategory(
+                "Reported Errors",
+                key: "reported-errors",
+                isExpanded: $settings.settingsReportedErrorsExpanded
+            ) {
+                if errorLog.entries.isEmpty {
+                    Label("No errors have been reported", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    if let latest = errorLog.latest {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(latest.source)
+                                .font(.caption.weight(.semibold))
+                            Text(latest.message)
+                                .font(.callout.monospaced())
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(latest.timestamp.formatted(date: .abbreviated, time: .standard))
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.red)
+                    }
+
+                    DisclosureGroup("Error History (\(errorLog.entries.count))") {
+                        ForEach(errorLog.entries) { entry in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(entry.source)
+                                    .font(.caption.weight(.semibold))
+                                Text(entry.message)
+                                    .font(.caption.monospaced())
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(entry.timestamp.formatted(date: .numeric, time: .standard))
+                                    .font(.caption2)
+                            }
+                            .foregroundStyle(.red)
+                            .padding(.vertical, 3)
+                        }
+                    }
+
+                    HStack {
+                        Button {
+                            UIPasteboard.general.string = errorLog.copyText()
+                        } label: {
+                            Label("Copy Errors", systemImage: "doc.on.doc")
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            errorLog.clear()
+                        } label: {
+                            Label("Clear", systemImage: "trash")
+                        }
+                    }
+                }
             }
 
             SettingsCategory(

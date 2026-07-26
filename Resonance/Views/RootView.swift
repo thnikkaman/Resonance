@@ -147,7 +147,7 @@ private struct ResonanceTabBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 7)
-        .padding(.bottom, 7)
+        .padding(.bottom, 0)
         // Keep the bar at the original position and carry its themed surface
         // through the home-indicator area so no black footer is exposed.
         .background {
