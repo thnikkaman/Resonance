@@ -36,7 +36,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 98;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 99;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -44,6 +44,9 @@ assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
 assert '.padding(.bottom, 7)' in root_view
+assert root_view.count('.padding(.bottom, 7)') == 1
+assert 'settings.themeSurfaceColor' in root_view
+assert 'settings.themeSurfaceGradient.opacity(0.78)' in root_view
 
 # Previous current-SDK and Swift 6 fixes.
 assert '?? await' not in metadata

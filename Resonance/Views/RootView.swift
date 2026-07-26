@@ -148,15 +148,13 @@ private struct ResonanceTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 7)
         .padding(.bottom, 7)
-        // safeAreaInset already accounts for the home-indicator area. Keep the
-        // bar at the same bottom position on every theme and device size.
-        .padding(.bottom, 7)
-        // Keep the custom tab bar transparent so every visual theme can remain
-        // visible behind its controls and labels.
+        // Keep the bar at the original position and carry its themed surface
+        // through the home-indicator area so no black footer is exposed.
         .background {
-            // Fill the inset's home-indicator region without changing the
-            // tab content's safe-area geometry or leaving a black footer.
-            settings.themeBackgroundGradient.opacity(0.22)
+            ZStack {
+                settings.themeSurfaceColor
+                settings.themeSurfaceGradient.opacity(0.78)
+            }
                 .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
