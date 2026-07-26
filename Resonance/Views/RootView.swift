@@ -15,10 +15,6 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            // Paint behind the root safe-area inset as well as the active
-            // navigation stack so the tab bar never leaves a black footer.
-            ResonanceThemeBackdrop()
-
             activeTabContent
                 .resonanceThemeTextSurface()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -158,8 +154,10 @@ private struct ResonanceTabBar: View {
         // Keep the custom tab bar transparent so every visual theme can remain
         // visible behind its controls and labels.
         .background {
-            Color.clear
-            .ignoresSafeArea(edges: .bottom)
+            // Fill the inset's home-indicator region without changing the
+            // tab content's safe-area geometry or leaving a black footer.
+            settings.themeBackgroundGradient.opacity(0.22)
+                .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
             Rectangle()
