@@ -14,6 +14,14 @@ struct NowPlayingView: View {
     return library.isFavorite(track)
   }
 
+  private var nowPlayingPrimaryColor: Color {
+    settings.applyThemeColorToText ? settings.accentColor : .primary
+  }
+
+  private var nowPlayingSecondaryColor: Color {
+    settings.applyThemeColorToText ? settings.accentColor.opacity(0.72) : .secondary
+  }
+
   var body: some View {
     VStack(spacing: 10) {
         NowPlayingArtworkPager()
@@ -22,11 +30,12 @@ struct NowPlayingView: View {
           Text(player.currentTrack?.title ?? "Nothing Playing")
             .font(.title2.bold())
             .lineLimit(1)
+            .foregroundStyle(nowPlayingPrimaryColor)
           Text(
             player.currentTrack.map { "\($0.artist) — \($0.album)" }
               ?? "Choose music from your library"
           )
-          .foregroundStyle(.secondary)
+          .foregroundStyle(nowPlayingSecondaryColor)
           .lineLimit(1)
           Text(
             player.currentTrack.map {
@@ -34,7 +43,7 @@ struct NowPlayingView: View {
             } ?? "Length —"
           )
           .font(.caption.monospacedDigit())
-          .foregroundStyle(.secondary)
+          .foregroundStyle(nowPlayingSecondaryColor)
 
           if player.currentTrack != nil {
             Label(
@@ -43,7 +52,7 @@ struct NowPlayingView: View {
               systemImage: player.preloadedTrackTitle == nil ? "waveform" : "waveform.badge.plus"
             )
             .font(.caption2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(nowPlayingSecondaryColor)
             .lineLimit(1)
           }
         }
@@ -82,6 +91,7 @@ struct NowPlayingView: View {
         }
         .accessibilityLabel("Next track")
       }
+      .foregroundStyle(nowPlayingPrimaryColor)
       .font(.title2)
 
       HStack(spacing: 24) {
@@ -166,13 +176,14 @@ struct NowPlayingView: View {
       HStack(spacing: 8) {
         Image(systemName: "speaker.fill")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(nowPlayingSecondaryColor)
         Slider(value: $player.volume, in: 0...1)
         Image(systemName: "speaker.wave.3.fill")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(nowPlayingSecondaryColor)
       }
       .frame(maxWidth: 300)
+      .tint(settings.accentColor)
 
       if player.sleepTimerOption != .off {
         Label("Sleep timer: \(player.sleepTimerLabel)", systemImage: "moon.zzz.fill")
@@ -194,6 +205,7 @@ struct NowPlayingView: View {
         }
         .buttonStyle(.bordered)
       }
+      .tint(settings.accentColor)
     }
     .padding(.horizontal, 16)
     .padding(.top, 2)

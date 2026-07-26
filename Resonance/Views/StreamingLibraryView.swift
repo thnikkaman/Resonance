@@ -6,6 +6,7 @@ struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @State private var showingOptions = false
+    @State private var browseReady = false
     let openLibrary: () -> Void
     let openSettings: () -> Void
 
@@ -24,40 +25,45 @@ struct StreamingLibraryView: View {
                 VStack(spacing: 0) {
                     RemoteServerHeader(isExpanded: $settings.streamingConnectionInfoExpanded)
                     RemoteSearchField(text: $remote.searchText)
-                    Group {
-                        switch remote.grouping {
-                        case .artists:
-                            RemoteArtistCollectionView(
-                                artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
-                                sortDirection: remote.sortDirection
-                            )
-                        case .albumArtists:
-                            RemoteArtistCollectionView(
-                                artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
-                                sortDirection: remote.sortDirection
-                            )
-                        case .albums:
-                            RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
-                        case .songs:
-                            RemoteTrackCollectionView(tracks: remote.filteredTracks)
-                        case .favorites:
-                            RemoteTrackCollectionView(tracks: remote.favoriteTracks)
-                        case .recentlyAdded:
-                            RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
-                        case .recentlyPlayed:
-                            RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
+                    if browseReady {
+                        Group {
+                            switch remote.grouping {
+                            case .artists:
+                                RemoteArtistCollectionView(
+                                    artists: remote.artists(groupCompilationArtists: settings.groupCompilationArtists),
+                                    sortDirection: remote.sortDirection
+                                )
+                            case .albumArtists:
+                                RemoteArtistCollectionView(
+                                    artists: remote.albumArtists(groupCompilationArtists: settings.groupCompilationArtists),
+                                    sortDirection: remote.sortDirection
+                                )
+                            case .albums:
+                                RemoteAlbumCollectionView(albums: remote.albums, sortDirection: remote.sortDirection)
+                            case .songs:
+                                RemoteTrackCollectionView(tracks: remote.filteredTracks)
+                            case .favorites:
+                                RemoteTrackCollectionView(tracks: remote.favoriteTracks)
+                            case .recentlyAdded:
+                                RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
+                            case .recentlyPlayed:
+                                RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
+                            }
                         }
-                    }
-                    .overlay {
-                        if !remote.isLoading && remote.filteredTracks.isEmpty {
-                            ContentUnavailableView(
-                                "No Remote Music",
-                                systemImage: "music.note.list",
-                                description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
-                            )
+                        .overlay {
+                            if !remote.isLoading && remote.filteredTracks.isEmpty {
+                                ContentUnavailableView(
+                                    "No Remote Music",
+                                    systemImage: "music.note.list",
+                                    description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
+                                )
+                            }
                         }
+                        .refreshable { await remote.refresh(using: settings) }
+                    } else {
+                        ProgressView("Preparing Streaming…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .refreshable { await remote.refresh(using: settings) }
                 }
             }
         }
@@ -107,6 +113,12 @@ struct StreamingLibraryView: View {
         }
         .task {
             await remote.activateCachedCatalogAndCheckForChanges(using: settings)
+        }
+        .task(id: settings.streamHost) {
+            browseReady = false
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            browseReady = true
         }
         .onAppear {
             ResonanceDiagnostics.shared.recordDeferred(
@@ -1042,6 +1054,7 @@ private struct RemoteTrackCollectionView: View {
 }
 
 private struct RemoteArtistDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -1239,6 +1252,17 @@ private struct RemoteArtistDetailView: View {
         }
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
+        .resonanceDetailBottomSpace()
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 45)
+                .onEnded { value in
+                    guard value.startLocation.y < 120,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    dismiss()
+                }
+        )
     }
 }
 
@@ -1277,6 +1301,7 @@ private struct RemoteArtistActionButton: View {
 }
 
 private struct RemoteAllAlbumsTrackListView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -1342,10 +1367,22 @@ private struct RemoteAllAlbumsTrackListView: View {
             RemotePlaylistPickerSheet(items: playlistItems)
         }
         .navigationBarTitleDisplayMode(.inline)
+        .resonanceDetailBottomSpace()
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 45)
+                .onEnded { value in
+                    guard value.startLocation.y < 120,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    dismiss()
+                }
+        )
     }
 }
 
 private struct RemoteAlbumDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -1420,6 +1457,17 @@ private struct RemoteAlbumDetailView: View {
         }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
+        .resonanceDetailBottomSpace()
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 45)
+                .onEnded { value in
+                    guard value.startLocation.y < 120,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    dismiss()
+                }
+        )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

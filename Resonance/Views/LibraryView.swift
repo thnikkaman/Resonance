@@ -590,6 +590,7 @@ private struct ScrollableArtistName: View {
 }
 
 struct ArtistDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -801,6 +802,17 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(liveArtist.name)
+        .resonanceDetailBottomSpace()
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 45)
+                .onEnded { value in
+                    guard value.startLocation.y < 120,
+                          value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    dismiss()
+                }
+        )
         .sheet(item: $artistToEdit) { artist in
             ArtistMetadataEditorSheet(artist: artist)
         }

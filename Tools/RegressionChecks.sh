@@ -35,7 +35,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 77;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 78;') == 2
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
 
 # Previous current-SDK and Swift 6 fixes.
@@ -313,6 +313,13 @@ assert 'deletingFiles: Bool' in library_store
 assert 'Select Artists to Download' in streaming
 assert 'Download Artist' in streaming
 assert 'resonanceTabBottomSpace' in root_view
+assert 'resonanceDetailBottomSpace' in root_view
+assert 'dragTranslation' in root_view
+assert 'browseReady' in streaming
+assert 'startLocation.y < 120' in library_view
+assert 'startLocation.y < 120' in streaming
+assert 'private struct MetadataTextField' in smart
+assert 'Enter track title' in smart
 assert 'ScrollableArtistName' in library_view
 assert 'resumePersistedDownloads' in remote
 assert 'hasPersistedQueue' in streaming

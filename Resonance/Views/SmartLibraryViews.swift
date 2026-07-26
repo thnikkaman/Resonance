@@ -486,6 +486,25 @@ extension View {
 }
 
 
+private struct MetadataTextField: View {
+    let label: String
+    let prompt: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.roundedBorder)
+                .keyboardType(keyboardType)
+        }
+        .padding(.vertical, 3)
+    }
+}
+
 struct TrackMetadataEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var library: LibraryStore
@@ -526,19 +545,31 @@ struct TrackMetadataEditorSheet: View {
         NavigationStack {
             Form {
                 Section("Track") {
-                    TextField("Title", text: $title)
-                    TextField("Artist", text: $artist)
-                    TextField("Album Artist", text: $albumArtist)
-                    TextField("Album", text: $album)
+                    MetadataTextField(label: "Title", prompt: "Enter track title", text: $title)
+                    MetadataTextField(label: "Artist", prompt: "Enter performing artist", text: $artist)
+                    MetadataTextField(label: "Album Artist", prompt: "Enter album artist", text: $albumArtist)
+                    MetadataTextField(label: "Album", prompt: "Enter album title", text: $album)
                 }
 
                 Section("Position and Date") {
-                    TextField("Track Number", text: $trackNumber)
-                        .keyboardType(.numberPad)
-                    TextField("Disc Number", text: $discNumber)
-                        .keyboardType(.numberPad)
-                    TextField("Release Year", text: $releaseYear)
-                        .keyboardType(.numberPad)
+                    MetadataTextField(
+                        label: "Track Number",
+                        prompt: "Enter track number",
+                        text: $trackNumber,
+                        keyboardType: .numberPad
+                    )
+                    MetadataTextField(
+                        label: "Disc Number",
+                        prompt: "Enter disc number",
+                        text: $discNumber,
+                        keyboardType: .numberPad
+                    )
+                    MetadataTextField(
+                        label: "Release Year",
+                        prompt: "Enter release year",
+                        text: $releaseYear,
+                        keyboardType: .numberPad
+                    )
                 }
 
                 Section("Artwork") {
@@ -670,10 +701,14 @@ struct AlbumMetadataEditorSheet: View {
         NavigationStack {
             Form {
                 Section("Album") {
-                    TextField("Album Title", text: $albumTitle)
-                    TextField("Album Artist", text: $albumArtist)
-                    TextField("Release Year", text: $releaseYear)
-                        .keyboardType(.numberPad)
+                    MetadataTextField(label: "Album Title", prompt: "Enter album title", text: $albumTitle)
+                    MetadataTextField(label: "Album Artist", prompt: "Enter album artist", text: $albumArtist)
+                    MetadataTextField(
+                        label: "Release Year",
+                        prompt: "Enter release year",
+                        text: $releaseYear,
+                        keyboardType: .numberPad
+                    )
                 }
 
                 Section(
@@ -841,7 +876,11 @@ struct ArtistMetadataEditorSheet: View {
             Form {
                 Section(
                     content: {
-                        TextField(artist.usesAlbumArtist ? "Album Artist Name" : "Artist Name", text: $artistName)
+                        MetadataTextField(
+                            label: artist.usesAlbumArtist ? "Album Artist Name" : "Artist Name",
+                            prompt: artist.usesAlbumArtist ? "Enter album artist name" : "Enter artist name",
+                            text: $artistName
+                        )
                     },
                     header: {
                         Text(artist.usesAlbumArtist ? "Album Artist" : "Artist")

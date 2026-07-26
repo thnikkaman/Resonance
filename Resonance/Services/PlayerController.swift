@@ -715,6 +715,15 @@ final class PlayerController: NSObject, ObservableObject {
   /// Re-reads the persisted preload settings and rebuilds the future schedule
   /// without changing the selected track or its visible play position.
   func refreshNowPlayingMetadata() {
+    let showsArtwork = UserDefaults.standard.object(forKey: "showLockScreenArtwork") == nil
+      || UserDefaults.standard.bool(forKey: "showLockScreenArtwork")
+    if !showsArtwork {
+      nowPlayingArtworkTask?.cancel()
+      nowPlayingArtworkTask = nil
+      nowPlayingArtworkTrackID = nil
+      cachedNowPlayingArtworkTrackID = nil
+      cachedNowPlayingArtwork = nil
+    }
     updateNowPlaying()
   }
 
@@ -2040,7 +2049,8 @@ final class PlayerController: NSObject, ObservableObject {
           imageData: artwork.imageData,
           boundsSize: artwork.boundsSize
         )
-      } else if let data = artworkData(for: track), nowPlayingArtworkTrackID != track.id {
+      } else if let data = artworkData(for: track),
+                (nowPlayingArtworkTrackID != track.id || cachedNowPlayingArtwork == nil) {
         scheduleNowPlayingArtworkPreparation(data: data, trackID: track.id)
       }
     }

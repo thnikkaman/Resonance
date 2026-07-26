@@ -404,12 +404,16 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .tint(settings.accentColor)
         .resonanceTabBottomSpace()
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())
         .onTapGesture {
             isTextFieldFocused = false
             UIApplication.shared.endEditing()
+        }
+        .onChange(of: settings.showLockScreenArtwork) { _, _ in
+            player.refreshNowPlayingMetadata()
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 45)

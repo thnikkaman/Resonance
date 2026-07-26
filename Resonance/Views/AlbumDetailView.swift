@@ -93,6 +93,7 @@ struct AlbumDetailView: View {
         }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
+        .resonanceDetailBottomSpace()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button { dismiss() } label: {
@@ -169,6 +170,10 @@ struct AlbumDetailView: View {
                 .onEnded { value in
                     if value.startLocation.x < 36 && value.translation.width > 70 {
                         dismiss()
+                    } else if value.startLocation.y < 120,
+                              value.translation.height > 70,
+                              abs(value.translation.height) > abs(value.translation.width) {
+                        dismiss()
                     }
                 }
         )
@@ -215,6 +220,7 @@ struct AllAlbumsTrackListView: View {
         }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
+        .resonanceDetailBottomSpace()
         .safeAreaInset(edge: .top, spacing: 0) {
             Text(artistName)
                 .font(.caption)

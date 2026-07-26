@@ -221,6 +221,12 @@ extension View {
             Color.clear.frame(height: 72)
         }
     }
+
+    func resonanceDetailBottomSpace() -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: 96)
+        }
+    }
 }
 
 private struct ResonanceThemeTextSurface: ViewModifier {
@@ -273,6 +279,7 @@ private struct MiniPlayerInsets: ViewModifier {
 
 private struct MiniPlayerOverlay: View {
   @EnvironmentObject private var player: PlayerController
+  @GestureState private var dragTranslation = CGSize.zero
   let isVisible: Bool
   let dock: MiniPlayerDock
   let openNowPlaying: () -> Void
@@ -281,8 +288,12 @@ private struct MiniPlayerOverlay: View {
   var body: some View {
     if isVisible, player.currentTrack != nil {
       MiniPlayerView(openNowPlaying: openNowPlaying)
+        .offset(dragTranslation)
         .simultaneousGesture(
           DragGesture(minimumDistance: 18, coordinateSpace: .local)
+            .updating($dragTranslation) { value, state, _ in
+              state = value.translation
+            }
             .onEnded { value in
               let horizontal = abs(value.translation.width)
               let vertical = abs(value.translation.height)
