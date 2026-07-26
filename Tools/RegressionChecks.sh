@@ -36,10 +36,13 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 92;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 94;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
+assert '.zIndex(100)' in root_view
+assert 'settings.themeSecondaryColor' in root_view
+assert '.ignoresSafeArea(edges: [.top, .leading, .trailing])' in root_view
 
 # Previous current-SDK and Swift 6 fixes.
 assert '?? await' not in metadata
@@ -319,7 +322,8 @@ assert 'Download Album' in streaming
 assert 'Download Albums' in streaming
 assert 'DownloadSelectionBubble' in streaming
 assert 'downloadSelectionMode' in streaming
-assert streaming.count('DragGesture(minimumDistance: 0)') == 2
+assert streaming.count('LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)') == 2
+assert 'DragGesture(minimumDistance: 0)' not in streaming
 assert streaming.count('UIImpactFeedbackGenerator(style: .medium).impactOccurred()') == 2
 assert '.background(settings.themeBackgroundGradient)' not in streaming
 assert '.background(.background)' not in streaming
@@ -357,7 +361,7 @@ assert 'ResonanceHeroActionButton' in root_view
 assert 'ResonanceToolbarIconButton' in root_view
 assert 'themeSurfaceGradient' in root_view
 assert 'themeSurfaceGradient' in streaming
-assert 'ResonanceThemeSurfaceBackdrop' in views
+assert 'ResonanceThemeSurfaceBackdrop' in root_view
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
 surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {', 1)[1].split('private struct ResonanceHeroSurface', 1)[0]
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
@@ -368,7 +372,7 @@ assert '.opacity(0.025)' not in root_view
 assert '.opacity(0.40)' in settings_view
 assert 'textAccentColor' in settings
 assert 'applyThemeColorToTextConfigured' in settings
-assert '.onChanged' in streaming
+assert '.onEnded' in streaming
 assert streaming.count('.simultaneousGesture(') >= 2
 assert 'navigationDestination(item: $destinationArtist)' in streaming
 assert 'navigationDestination(item: $destinationAlbum)' in streaming

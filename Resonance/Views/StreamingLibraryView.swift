@@ -691,8 +691,6 @@ private struct RemoteArtistCollectionView: View {
   @State private var sections: [ArtistIndexSection<RemoteArtist>] = []
   @State private var destinationArtist: RemoteArtist?
   @State private var longPressRecognized = false
-  @State private var selectionPressActive = false
-  @State private var selectionPressToken = UUID()
 
   init(
     artists: [RemoteArtist],
@@ -792,22 +790,17 @@ private struct RemoteArtistCollectionView: View {
         .buttonStyle(.plain)
         .contentShape(Rectangle())
         .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !selectionMode, !selectionPressActive else { return }
-                    selectionPressActive = true
-                    let token = UUID()
-                    selectionPressToken = token
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        guard selectionPressActive,
-                              selectionPressToken == token,
-                              !selectionMode else { return }
-                        longPressRecognized = true
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        onBeginSelection(artist.id)
-                    }
+            // A zero-distance drag also receives the ScrollView's first touch and
+            // turns a slow scroll into a selection. LongPressGesture cancels when
+            // the finger moves beyond its small hold radius, leaving scrolling to
+            // the enclosing ScrollView.
+            LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)
+                .onEnded { _ in
+                    guard !selectionMode else { return }
+                    longPressRecognized = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    onBeginSelection(artist.id)
                 }
-                .onEnded { _ in selectionPressActive = false }
         )
     }
 
@@ -925,8 +918,6 @@ private struct RemoteAlbumCollectionView: View {
   @State private var sections: [ArtistIndexSection<RemoteAlbum>] = []
   @State private var destinationAlbum: RemoteAlbum?
   @State private var longPressRecognized = false
-  @State private var selectionPressActive = false
-  @State private var selectionPressToken = UUID()
 
   init(
     albums: [RemoteAlbum],
@@ -1037,22 +1028,13 @@ private struct RemoteAlbumCollectionView: View {
         .buttonStyle(.plain)
         .contentShape(Rectangle())
         .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !selectionMode, !selectionPressActive else { return }
-                    selectionPressActive = true
-                    let token = UUID()
-                    selectionPressToken = token
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        guard selectionPressActive,
-                              selectionPressToken == token,
-                              !selectionMode else { return }
-                        longPressRecognized = true
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        onBeginSelection(album.id)
-                    }
+            LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)
+                .onEnded { _ in
+                    guard !selectionMode else { return }
+                    longPressRecognized = true
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    onBeginSelection(album.id)
                 }
-                .onEnded { _ in selectionPressActive = false }
         )
     }
 

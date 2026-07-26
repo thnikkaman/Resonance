@@ -137,12 +137,21 @@ private struct ResonanceTabBar: View {
         .padding(.horizontal, 8)
         .padding(.top, 7)
         .padding(.bottom, 7)
-        .background(settings.themeSurfaceColor)
+        // Keep the custom tab bar opaque and above page artwork. The page backdrop
+        // intentionally ignores the safe area, so the bar must own its contrast.
+        .background {
+            ZStack {
+                settings.themeSurfaceColor
+                settings.themeSurfaceGradient.opacity(0.78)
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.primary.opacity(0.12))
                 .frame(height: 0.5)
         }
+        .zIndex(100)
         .transaction { transaction in
             transaction.animation = nil
         }
@@ -167,7 +176,7 @@ private struct ResonanceTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(selection == tab ? settings.accentColor : Color.secondary)
+        .foregroundStyle(selection == tab ? settings.accentColor : settings.themeSecondaryColor)
         .accessibilityLabel(title)
         .accessibilityAddTraits(selection == tab ? .isSelected : [])
     }
@@ -287,7 +296,9 @@ struct ResonanceThemeBackdrop: View {
                 settings.themeBackgroundGradient.opacity(0.34)
             }
         }
-        .ignoresSafeArea()
+        // Stop the decorative image at the content boundary. This keeps it from
+        // competing with the custom bottom navigation and the device home area.
+        .ignoresSafeArea(edges: [.top, .leading, .trailing])
         .allowsHitTesting(false)
     }
 }
