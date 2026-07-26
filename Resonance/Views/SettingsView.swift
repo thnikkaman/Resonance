@@ -189,13 +189,17 @@ struct SettingsView: View {
                 .autocorrectionDisabled()
 
                 if settings.streamBackend == .subsonic {
-                    TextField("Navidrome / Subsonic username", text: $settings.streamUsername)
-                        .focused($isTextFieldFocused)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    SecureField("Navidrome / Subsonic password", text: $settings.streamPassword)
-                        .focused($isTextFieldFocused)
-                        .textContentType(.password)
+                    LabeledContent("Username") {
+                        TextField("Navidrome / Subsonic", text: $settings.streamUsername)
+                            .focused($isTextFieldFocused)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                    LabeledContent("Password") {
+                        SecureField("Navidrome / Subsonic", text: $settings.streamPassword)
+                            .focused($isTextFieldFocused)
+                            .textContentType(.password)
+                    }
                     Label("The password is stored in the iOS Keychain.", systemImage: "key.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -420,6 +424,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .safeAreaPadding(.top, 84)
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
         .listRowBackground(Color.clear)

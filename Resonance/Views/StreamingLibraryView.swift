@@ -181,15 +181,12 @@ struct StreamingLibraryView: View {
                     action: openLibrary
                 )
 
-                StreamingDownloadActionsMenu(
-                    artistTracks: selectedArtists.flatMap(\.tracks),
-                    albumTracks: selectedAlbums.flatMap(\.tracks),
-                    artistCount: selectedArtistCount,
-                    albumCount: selectedAlbumCount,
-                    selectionMode: downloadSelectionMode,
-                    onClearSelection: clearDownloadSelection,
-                    onShowBrowseOptions: { showingOptions = true }
-                )
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Streaming library view and sort options",
+                    systemImage: "slider.horizontal.3"
+                ) {
+                    showingOptions = true
+                }
 
                 Menu {
                     NavigationLink {
@@ -206,11 +203,6 @@ struct StreamingLibraryView: View {
             }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Open streaming settings",
-                    systemImage: "server.rack",
-                    action: openSettings
-                )
                 ResonanceToolbarIconButton(
                     accessibilityLabel: "Refresh streaming library",
                     systemImage: "arrow.clockwise"
@@ -551,6 +543,15 @@ private struct RemoteServerHeader: View {
                         .lineLimit(1)
                 }
                 Spacer()
+                Button {
+                    Task { await remote.refresh(using: settings) }
+                } label: {
+                    Label("Reconnect", systemImage: "arrow.clockwise")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .disabled(remote.isLoading)
+                .accessibilityLabel("Reconnect to (remote.serverName)")
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(settings.streamBackend.shortName)
@@ -681,6 +682,7 @@ private struct RemoteLibraryOptionsSheet: View {
 
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
+  @Environment(\.resonanceMiniPlayerBottomInset) private var miniPlayerBottomInset
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
   @Binding var selectionMode: Bool
@@ -834,8 +836,10 @@ private struct RemoteArtistCollectionView: View {
                     }
                     .padding(.leading, 16)
                     .padding(.trailing, 36)
-                    .padding(.vertical)
+                    .padding(.top, 84)
+                    .padding(.bottom, miniPlayerBottomInset)
                 }
+                .safeAreaPadding(.bottom, miniPlayerBottomInset)
 
                 if sections.count > 1 {
                     VerticalArtistIndex(
@@ -1231,9 +1235,9 @@ private struct RemoteArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 10) {
+            VStack(spacing: 4) {
                 HStack(alignment: .center, spacing: 12) {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             Task { await remote.playArtist(artist, using: player) }
                         }
@@ -1244,7 +1248,7 @@ private struct RemoteArtistDetailView: View {
 
                     RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 158)
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
                             downloads.requestDownload(allTracks, into: library)
                         }
@@ -1256,14 +1260,11 @@ private struct RemoteArtistDetailView: View {
                 Text(artist.name)
                     .font(.title3.bold())
                     .lineLimit(1)
-                Text("\(artist.albums.count) albums • \(artist.tracks.count) tracks")
-                    .font(.caption)
-                    .foregroundStyle(settings.themeSecondaryColor)
             }
             .resonanceHeroSurface()
             .resonanceTopDownDismiss { dismiss() }
 
-            VStack(spacing: 10) {
+            VStack(spacing: 2) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
                     ForEach(ArtistAlbumSort.allCases) { sort in
                         Text(sort.rawValue).tag(sort)
@@ -1272,20 +1273,16 @@ private struct RemoteArtistDetailView: View {
                 .pickerStyle(.menu)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Picker("Album view", selection: $settings.artistAlbumLayout) {
-                    Label("Grid", systemImage: "square.grid.2x2").tag(ArtistAlbumLayout.grid)
-                    Label("List", systemImage: "list.bullet").tag(ArtistAlbumLayout.list)
-                }
-                .pickerStyle(.segmented)
+                ArtistAlbumLayoutToggle()
             }
             .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.vertical, 1)
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
             .resonanceTopDownDismiss { dismiss() }
 
-            if settings.artistAlbumLayout == .grid {
+            if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 18) {
                         NavigationLink {
@@ -1349,9 +1346,11 @@ private struct RemoteArtistDetailView: View {
                             subtitle: "\(allTracks.count) tracks, grouped by album",
                             artworkURL: artist.artworkURL,
                             artworkBase64: artist.artworkBase64,
-                            large: false
+                            large: settings.albumLayout == .large
                         )
                     }
+                    .listRowBackground(Color.clear)
+
                     ForEach(sortedAlbums) { album in
                         NavigationLink {
                             RemoteAlbumDetailView(album: album)
@@ -1361,17 +1360,16 @@ private struct RemoteArtistDetailView: View {
                                 subtitle: album.releaseYear > 0 ? String(album.releaseYear) : "Release date unavailable",
                                 artworkURL: album.artworkURL,
                                 artworkBase64: album.artworkBase64,
-                                large: false
+                                large: settings.albumLayout == .large
                             )
                         }
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.plain)
                 .listRowBackground(Color.clear)
                 .scrollContentBackground(.hidden)
-                .background {
-                    ResonanceThemeSurfaceBackdrop()
-                }
+                .background(Color.clear)
             }
         }
         .background {
@@ -1479,6 +1477,12 @@ private struct RemoteAllAlbumsTrackListView: View {
                     }
                 }
             }
+        }
+        .listStyle(.plain)
+        .listRowBackground(Color.clear)
+        .scrollContentBackground(.hidden)
+        .background {
+            ResonanceThemeBackdrop()
         }
         .navigationTitle("\(artistName) — All Albums")
         .sheet(isPresented: $showingPlaylistPicker) {
