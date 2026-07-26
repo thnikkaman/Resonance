@@ -116,6 +116,11 @@ struct AlbumDetailView: View {
                 ResonanceThemeSurfaceBackdrop()
             }
         }
+        .background {
+            // The detail destination owns its page backdrop so the image stays
+            // behind the hero and track list when pushed from Library.
+            ResonanceThemeBackdrop()
+        }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()

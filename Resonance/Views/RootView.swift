@@ -78,46 +78,58 @@ struct RootView: View {
         switch selectedTab {
         case .playing:
             NavigationStack {
-                NowPlayingView(openLibrary: { selectedTab = .library })
-                    .resonanceMiniPlayerInsets(
-                        isVisible: false,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
+                ZStack {
+                    ResonanceThemeBackdrop()
+                    NowPlayingView(openLibrary: { selectedTab = .library })
+                        .resonanceMiniPlayerInsets(
+                            isVisible: false,
+                            dock: miniPlayerDock,
+                            openNowPlaying: { selectedTab = .playing },
+                            onDock: { miniPlayerDock = $0 }
+                        )
+                }
             }
         case .library:
             NavigationStack {
-                LibraryView()
-                    .resonanceMiniPlayerInsets(
-                        isVisible: true,
-                        dock: miniPlayerDock,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
-                    )
+                ZStack {
+                    ResonanceThemeBackdrop()
+                    LibraryView()
+                        .resonanceMiniPlayerInsets(
+                            isVisible: true,
+                            dock: miniPlayerDock,
+                            openNowPlaying: { selectedTab = .playing },
+                            onDock: { miniPlayerDock = $0 }
+                        )
+                }
             }
         case .streaming:
             NavigationStack {
-                StreamingLibraryView(
-                    openLibrary: { selectedTab = .library },
-                    openSettings: { selectedTab = .settings }
-                )
-                .resonanceMiniPlayerInsets(
-                    isVisible: true,
-                    dock: miniPlayerDock,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
-                )
-            }
-        case .settings:
-            NavigationStack {
-                SettingsView(openLibrary: { selectedTab = .library })
+                ZStack {
+                    ResonanceThemeBackdrop()
+                    StreamingLibraryView(
+                        openLibrary: { selectedTab = .library },
+                        openSettings: { selectedTab = .settings }
+                    )
                     .resonanceMiniPlayerInsets(
                         isVisible: true,
                         dock: miniPlayerDock,
                         openNowPlaying: { selectedTab = .playing },
                         onDock: { miniPlayerDock = $0 }
                     )
+                }
+            }
+        case .settings:
+            NavigationStack {
+                ZStack {
+                    ResonanceThemeBackdrop()
+                    SettingsView(openLibrary: { selectedTab = .library })
+                        .resonanceMiniPlayerInsets(
+                            isVisible: true,
+                            dock: miniPlayerDock,
+                            openNowPlaying: { selectedTab = .playing },
+                            onDock: { miniPlayerDock = $0 }
+                        )
+                }
             }
         }
     }
@@ -272,12 +284,7 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // NavigationStack, Form, and List can provide opaque page
-            // backgrounds. Keep the selected image theme on the active page
-            // surface so it remains visible behind those containers.
-            .background {
-                ResonanceThemeBackdrop()
-            }
+            .background(Color.clear)
             .tint(settings.accentColor)
             .foregroundStyle(
                 settings.textAccentColor
@@ -317,9 +324,12 @@ struct ResonanceThemeSurfaceBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        // Keep reusable controls and cards gradient-only so artwork cannot
-        // expand or obscure their layout, especially inside the mini-player.
-        settings.themeSurfaceGradient
+        // Keep reusable surfaces translucent so the page-level artwork remains
+        // visible behind them. The gradient veil preserves contrast for text
+        // and controls without placing a bitmap above their content.
+        settings.themeSurfaceGradient.opacity(
+            settings.visualTheme.backgroundImageName == nil ? 1 : 0.88
+        )
         .allowsHitTesting(false)
     }
 }
