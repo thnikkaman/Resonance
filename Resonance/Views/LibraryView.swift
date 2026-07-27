@@ -377,6 +377,7 @@ struct ArtistCollectionView: View {
     @EnvironmentObject private var library: LibraryStore
     @State private var artistToRemove: Artist?
     @State private var artistToEdit: Artist?
+    @State private var presentedArtist: Artist?
     let artists: [Artist]
 
     private var gridColumns: [GridItem] {
@@ -417,7 +418,9 @@ struct ArtistCollectionView: View {
                                             .foregroundStyle(.secondary)
                                         LazyVGrid(columns: gridColumns, spacing: 18) {
                                             ForEach(section.items) { artist in
-                                                NavigationLink(value: artist) {
+                                                Button {
+                                                    presentedArtist = artist
+                                                } label: {
                                                     ArtistTile(artist: artist)
                                                 }
                                                 .buttonStyle(.plain)
@@ -446,7 +449,9 @@ struct ArtistCollectionView: View {
                             ForEach(indexedSections, id: \.key) { section in
                                 Section {
                                     ForEach(section.items) { artist in
-                                        NavigationLink(value: artist) {
+                                        Button {
+                                            presentedArtist = artist
+                                        } label: {
                                             ArtistListRow(artist: artist, large: settings.albumLayout == .large)
                                         }
                                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -526,7 +531,7 @@ struct ArtistCollectionView: View {
         .sheet(item: $artistToEdit) { artist in
             ArtistMetadataEditorSheet(artist: artist)
         }
-        .navigationDestination(for: Artist.self) { artist in
+        .fullScreenCover(item: $presentedArtist) { artist in
             ArtistDetailView(artist: artist)
         }
     }
@@ -671,6 +676,8 @@ struct ArtistDetailView: View {
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
     @State private var showingLibraryOptions = false
+    @State private var presentedAlbum: Album?
+    @State private var showingAllAlbums = false
     let artist: Artist
 
     private var liveArtist: Artist { library.refreshedArtist(artist) }
@@ -812,8 +819,8 @@ struct ArtistDetailView: View {
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 14) {
                                     LazyVGrid(columns: gridColumns, spacing: 18) {
-                                        NavigationLink {
-                                            AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+                                        Button {
+                                            showingAllAlbums = true
                                         } label: {
                                             AllAlbumsTile(artist: liveArtist)
                                         }
@@ -827,7 +834,9 @@ struct ArtistDetailView: View {
                                                 .foregroundStyle(.secondary)
                                             LazyVGrid(columns: gridColumns, spacing: 18) {
                                                 ForEach(section.items) { album in
-                                                    NavigationLink(value: album) {
+                                                    Button {
+                                                        presentedAlbum = album
+                                                    } label: {
                                                         AlbumTile(album: album)
                                                     }
                                                     .buttonStyle(.plain)
@@ -855,8 +864,8 @@ struct ArtistDetailView: View {
                             }
                         } else {
                             List {
-                                NavigationLink {
-                                    AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+                                Button {
+                                    showingAllAlbums = true
                                 } label: {
                                     HStack(spacing: 12) {
                                         PlaceholderArtwork(
@@ -876,7 +885,9 @@ struct ArtistDetailView: View {
                                 ForEach(indexedAlbumSections, id: \.key) { section in
                                     Section {
                                         ForEach(section.items) { album in
-                                            NavigationLink(value: album) {
+                                            Button {
+                                                presentedAlbum = album
+                                            } label: {
                                                 HStack(spacing: 12) {
                                                     ArtworkView(
                                                         data: album.artworkData,
@@ -994,8 +1005,11 @@ struct ArtistDetailView: View {
         } message: {
             Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
-        .navigationDestination(for: Album.self) { album in
+        .fullScreenCover(item: $presentedAlbum) { album in
             AlbumDetailView(album: album)
+        }
+        .fullScreenCover(isPresented: $showingAllAlbums) {
+            AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
         }
     }
 }
@@ -1038,6 +1052,7 @@ struct AlbumCollectionView: View {
     @EnvironmentObject private var library: LibraryStore
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
+    @State private var presentedAlbum: Album?
     let albums: [Album]
 
     private var columns: [GridItem] {
@@ -1065,7 +1080,9 @@ struct AlbumCollectionView: View {
 
     @ViewBuilder
     private func albumRow(_ album: Album) -> some View {
-        NavigationLink(value: album) {
+        Button {
+            presentedAlbum = album
+        } label: {
             if settings.albumLayout == .compact {
                 HStack(spacing: 7) {
                     ArtworkView(
@@ -1132,7 +1149,9 @@ struct AlbumCollectionView: View {
                                     .foregroundStyle(.secondary)
                                 LazyVGrid(columns: columns, spacing: 18) {
                                     ForEach(section.items) { album in
-                                        NavigationLink(value: album) {
+                                        Button {
+                                            presentedAlbum = album
+                                        } label: {
                                             AlbumTile(album: album)
                                         }
                                         .buttonStyle(.plain)
@@ -1216,7 +1235,7 @@ struct AlbumCollectionView: View {
         } message: {
             Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
-        .navigationDestination(for: Album.self) { album in
+        .fullScreenCover(item: $presentedAlbum) { album in
             AlbumDetailView(album: album)
         }
     }

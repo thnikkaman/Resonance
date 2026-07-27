@@ -928,7 +928,7 @@ private struct RemoteArtistCollectionView: View {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
                 }
             }
-            .navigationDestination(item: $destinationArtist) { artist in
+            .fullScreenCover(item: $destinationArtist) { artist in
                 RemoteArtistDetailView(artist: artist)
             }
         }
@@ -1163,7 +1163,7 @@ private struct RemoteAlbumCollectionView: View {
                 sections = Self.makeSections(albums, ascending: sortDirection == .ascending)
                 }
             }
-            .navigationDestination(item: $destinationAlbum) { album in
+            .fullScreenCover(item: $destinationAlbum) { album in
                 RemoteAlbumDetailView(album: album)
             }
         }
@@ -1251,6 +1251,8 @@ private struct RemoteArtistDetailView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: RemoteDownloadManager
+    @State private var presentedAlbum: RemoteAlbum?
+    @State private var showingAllAlbums = false
     let artist: RemoteArtist
 
     private var sortedAlbums: [RemoteAlbum] {
@@ -1364,8 +1366,8 @@ private struct RemoteArtistDetailView: View {
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 14) {
                                     LazyVGrid(columns: columns, spacing: 18) {
-                                        NavigationLink {
-                                            RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+                                        Button {
+                                            showingAllAlbums = true
                                         } label: {
                                             VStack(alignment: .leading, spacing: 6) {
                                                 ZStack {
@@ -1396,8 +1398,8 @@ private struct RemoteArtistDetailView: View {
                                                 .foregroundStyle(.secondary)
                                             LazyVGrid(columns: columns, spacing: 18) {
                                                 ForEach(section.items) { album in
-                                                    NavigationLink {
-                                                        RemoteAlbumDetailView(album: album)
+                                                    Button {
+                                                        presentedAlbum = album
                                                     } label: {
                                                         VStack(alignment: .leading, spacing: 6) {
                                                             RemoteArtwork(
@@ -1428,8 +1430,8 @@ private struct RemoteArtistDetailView: View {
                             }
                         } else {
                             List {
-                                NavigationLink {
-                                    RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+                                Button {
+                                    showingAllAlbums = true
                                 } label: {
                                     RemoteCollectionRow(
                                         title: "All Albums",
@@ -1443,8 +1445,8 @@ private struct RemoteArtistDetailView: View {
                                 ForEach(indexedAlbumSections, id: \.key) { section in
                                     Section {
                                         ForEach(section.items) { album in
-                                            NavigationLink {
-                                                RemoteAlbumDetailView(album: album)
+                                            Button {
+                                                presentedAlbum = album
                                             } label: {
                                                 RemoteCollectionRow(
                                                     title: album.title,
@@ -1501,6 +1503,12 @@ private struct RemoteArtistDetailView: View {
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
+        .fullScreenCover(item: $presentedAlbum) { album in
+            RemoteAlbumDetailView(album: album)
+        }
+        .fullScreenCover(isPresented: $showingAllAlbums) {
+            RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+        }
     }
 }
 

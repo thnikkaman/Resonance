@@ -760,3 +760,20 @@ passed. The phone app was not launched.
 Manual test: swipe left and right on Library, Streaming, and Settings to reach
 the corresponding tabs; in an album, All Albums, or artist detail surface,
 swipe downward from the content area and confirm it returns exactly one level.
+
+## Library hierarchy presentation direction — 2026-07-27 UTC
+
+Library and Streaming artist and album detail destinations now use full-screen
+hierarchy presentations. Selecting an artist or album brings the detail module
+up from the bottom; dismissing tracks back to albums or albums back to artists
+moves the module downward. The retained horizontal animation between Playing,
+Library, Streaming, and Settings is unchanged.
+
+Regression checks, `git diff --check`, strict simulator and generic-device
+preflight passed. The next Debug simulator build is for manual animation
+acceptance; the physical phone is not launched automatically.
+
+Manual test: select an artist and album in Library and Streaming, confirm each
+detail page enters from the bottom, then swipe downward or use Back and confirm
+the prior list moves down into place. Verify tab swipes still move the complete
+Playing, Library, Streaming, and Settings pages horizontally.

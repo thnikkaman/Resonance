@@ -491,8 +491,13 @@ assert 'textAccentColor' in settings
 assert 'applyThemeColorToTextConfigured' in settings
 assert '.onEnded' in streaming
 assert streaming.count('.simultaneousGesture(') >= 2
-assert 'navigationDestination(item: $destinationArtist)' in streaming
-assert 'navigationDestination(item: $destinationAlbum)' in streaming
+assert '.fullScreenCover(item: $destinationArtist)' in streaming
+assert '.fullScreenCover(item: $destinationAlbum)' in streaming
+assert '.fullScreenCover(item: $presentedArtist)' in library_view
+assert '.fullScreenCover(item: $presentedAlbum)' in library_view
+assert '.fullScreenCover(isPresented: $showingAllAlbums)' in library_view
+assert '.fullScreenCover(item: $presentedAlbum)' in streaming
+assert '.fullScreenCover(isPresented: $showingAllAlbums)' in streaming
 assert 'backgroundImageName' in settings
 assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings
@@ -559,5 +564,5 @@ assert mixed_fixture_keys == {'split album|2024'}
 
 
 
-print('Resonance Alpha 3.7.4 regression checks passed.')
+print('Resonance Beta v1.0.2 regression checks passed.')
 PY
