@@ -1,7 +1,7 @@
-# Resonance Beta v1.0.4 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.5 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
-Build: **104**
+Build: **105**
 
 Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -1180,3 +1180,45 @@ Manual test: with a track playing, tap Playing repeatedly from Library,
 Streaming, and Settings, then leave Playing for each tab. Confirm both
 directions respond without a visible pause and that the mini-player remains
 hidden on Playing and interactive on the other tabs.
+
+## Playing swipe stability — 2026-07-27 UTC
+
+The Playing-page tab swipe now measures movement in the fixed screen coordinate
+space while the page follows the finger. This removes the moving-local-frame
+feedback loop that caused the entire screen to vibrate during a held drag. The
+gesture has priority within the metadata region, preserves the album-art and
+slider gesture boundaries, and always resolves the release so slight vertical
+drift cancels cleanly instead of leaving an incomplete transition.
+
+Commit `1c69b32` records the fix. `Tools/RegressionChecks.sh`, `git diff
+--check`, the Debug simulator build, and in-place simulator installation
+passed. The simulator was not launched or interacted with, and the physical
+phone was not changed.
+
+Manual test: with a track playing, start a left-to-right or right-to-left drag
+in the Playing metadata region and hold it at roughly 80% of the screen width.
+The page should follow smoothly without vibration; releasing past halfway
+should complete the tab transition, while releasing before halfway should
+spring back. Album-art and seek/volume gestures should retain their existing
+ownership.
+
+## Resonance Beta v1.0.5 — 2026-07-27 UTC
+
+This beta includes the Playing transition performance repair and the follow-up
+gesture-geometry fix. The Playing page now measures its live tab drag in fixed
+screen coordinates, preventing the moving page from feeding its own offset back
+into the gesture and causing rapid vibration during a held swipe. The metadata
+region keeps priority for tab navigation, while album art remains dedicated to
+track changes and the seek/volume controls retain their slider gestures. Release
+handling also receives the full horizontal and vertical translation so slight
+vertical drift cancels cleanly instead of leaving a partial transition.
+
+Build 105 retains version `0.3.7.4` and is published as
+`Resonance-Beta-v1.0.5`. The source fix is commit `1c69b32`; the release commit
+and tag are recorded below after the signed build and in-place phone install.
+
+Manual test: with a track playing, swipe from the Playing metadata region and
+hold at roughly 80% of the screen width. Confirm the page follows smoothly
+without shaking, then release to complete the adjacent-tab transition. Repeat
+with a short drag to confirm it springs back, and confirm album-art, seek, and
+volume gestures remain independent.
