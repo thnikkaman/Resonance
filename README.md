@@ -209,10 +209,10 @@ xcrun devicectl device copy from \
 ## Handoff update — 2026-07-27
 
 The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`, prepared as the `Resonance-Beta-v1.0.2` Release
-Candidate 1 with version `0.3.7.4` and project build `102`. The release
-candidate source and documentation are ready for the GitHub push; generated
-build logs remain local and are not release files.
+`agent/alpha-3.7.4-source`, at commit `5796010`, prepared as the
+`Resonance-Beta-v1.0.2` Release Candidate 1 with version `0.3.7.4` and project
+build `102`. The release candidate source and documentation are pushed to
+GitHub; generated build logs remain local and are not release files.
 
 The pending changes move `RemoteDownloadOverlay` into the Streaming content
 flow with the existing 84-point title clearance, so the download banner sits
@@ -873,8 +873,8 @@ Validation passed: `Tools/RegressionChecks.sh`, Swift parsing, plist/project
 validation, strict simulator and generic-device preflight, signed arm64
 Release compilation, deep code-signature verification, and in-place install on
 SaiyanDenawa. `devicectl` verified version `0.3.7.4`, build `102`. The phone
-was not launched. The source and documentation are ready to push to
-`agent/alpha-3.7.4-source` on GitHub.
+was not launched. The source and documentation are pushed to commit `5796010`
+on `agent/alpha-3.7.4-source` on GitHub.
 
 Manual release-candidate checklist: on the phone, open Settings → Appearance
 and verify all four hero-button styles and both current-track artwork previews;
