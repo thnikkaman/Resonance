@@ -1,7 +1,7 @@
-# Resonance Beta v1.0.2 Release Candidate 1 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.3 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
-Build: **102**
+Build: **103**
 
 Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -862,6 +862,38 @@ navigation without changing their hierarchy swipe behavior.
 The Debug simulator build/install and signed Release phone build/in-place
 install passed. Neither device was launched or interacted with.
 
+## Complementary theme text colors — 2026-07-27 UTC
+
+Each visual theme now uses a complementary text accent hue, chosen from the
+opposite side of the color wheel from its background artwork. Secondary labels,
+inactive tab text, status text, alphabet indexes, and section labels use matching
+complementary variants. Existing theme control tints and custom hex behavior are
+unchanged; when Apply theme color to text is enabled, themed text uses the new
+complementary palette.
+
+`git diff --check`, the Debug simulator build, and in-place simulator
+installation passed. The simulator was not launched or interacted with, and the
+physical phone was not changed.
+
+Manual test: in Settings → Appearance, enable Apply theme color to text and
+switch through every visual theme. Confirm text, alphabet indexes, inactive tab
+labels, and status labels contrast with the background image while controls keep
+their existing themed tint.
+
+## Psychedelic neon-yellow text — 2026-07-27 UTC
+
+The Psychedelic theme's complementary primary and secondary text colors are now
+`F4FF00`, producing a vivid neon yellow against its ultraviolet background.
+
+The strict simulator/device preflight, signed arm64 Release build, deep
+code-signature verification, and in-place installation on SaiyanDenawa passed.
+The phone reports version 0.3.7.4/build 102. The requested launch was attempted,
+but iOS denied it because the phone was locked; no runtime interaction occurred.
+
+Manual test after unlocking the phone: open Settings → Appearance, select
+Psychedelic, enable Apply theme color to text, and confirm the text, alphabet
+indexes, inactive tab labels, and status labels use the neon-yellow treatment.
+
 ## Beta v1.0.2 Release Candidate 1 — 2026-07-27 UTC
 
 Build 102 is the Beta v1.0.2 Release Candidate 1. It includes the selectable
@@ -1104,3 +1136,20 @@ retains its dedicated left/right gesture for changing tracks.
 
 The Debug simulator build/install and signed Release phone build/in-place
 install passed. Neither device was launched or interacted with.
+
+## Resonance Beta v1.0.3 — 2026-07-27 UTC
+
+The Psychedelic theme now uses exact `FFFF00` neon yellow for its primary and
+secondary themed text when **Apply theme color to text** is enabled. This
+keeps the theme's alphabet indexes, section labels, inactive tab labels, and
+status text on the requested pure-neon-yellow value.
+
+Build 103 retains version `0.3.7.4` and is published as the new
+`Resonance-Beta-v1.0.3` beta release. `Tools/RegressionChecks.sh`, the signed
+arm64 Release build, deep code-signature verification, and in-place install on
+SaiyanDenawa passed. The phone reports version `0.3.7.4`, build `103`; it was
+not launched or interacted with.
+
+Manual test: open Settings → Appearance, select Psychedelic, enable **Apply
+theme color to text**, and confirm the text, alphabet indexes, section labels,
+inactive tab labels, and status text use `FFFF00`.
