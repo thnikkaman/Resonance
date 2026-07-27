@@ -209,7 +209,8 @@ xcrun devicectl device copy from \
 ## Handoff update — 2026-07-27
 
 The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`, at commit `5796010`, prepared as the
+`agent/alpha-3.7.4-source`. The source release commit is `5796010`, followed
+by handoff metadata commit `f50dd84`; it is prepared as the
 `Resonance-Beta-v1.0.2` Release Candidate 1 with version `0.3.7.4` and project
 build `102`. The release candidate source and documentation are pushed to
 GitHub; generated build logs remain local and are not release files.
