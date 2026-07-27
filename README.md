@@ -1214,8 +1214,8 @@ handling also receives the full horizontal and vertical translation so slight
 vertical drift cancels cleanly instead of leaving a partial transition.
 
 Build 105 retains version `0.3.7.4` and is published as
-`Resonance-Beta-v1.0.5`. The source fix is commit `1c69b32`; the release commit
-and tag are recorded below after the signed build and in-place phone install.
+`Resonance-Beta-v1.0.5`. The source fix is commit `1c69b32`; release metadata
+is commit `898f52a`, and the release tag is `Resonance-Beta-v1.0.5`.
 
 Manual test: with a track playing, swipe from the Playing metadata region and
 hold at roughly 80% of the screen width. Confirm the page follows smoothly
