@@ -1161,3 +1161,22 @@ not launched or interacted with.
 Manual test: open Settings → Appearance, select Psychedelic, enable **Apply
 theme color to text**, and confirm the text, alphabet indexes, section labels,
 inactive tab labels, and status text use `FFFF00`.
+
+## Playing tab transition performance — 2026-07-27 UTC
+
+The Playing tab transition no longer changes the root safe-area geometry when
+the selected tab changes. The mini-player’s space remains reserved and its
+content is hidden and noninteractive while Playing is selected, so entering or
+leaving Playing does not insert or remove a layout subtree. The Now Playing
+artwork pager now uses the shared asynchronous, downsampled artwork loader
+instead of decoding three images synchronously on the main actor.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, signed arm64 Release
+compilation, and deep code-signature verification passed. This source patch
+was compiled but not installed or launched; the installed phone remains on
+build 104 until the next explicit phone push.
+
+Manual test: with a track playing, tap Playing repeatedly from Library,
+Streaming, and Settings, then leave Playing for each tab. Confirm both
+directions respond without a visible pause and that the mini-player remains
+hidden on Playing and interactive on the other tabs.

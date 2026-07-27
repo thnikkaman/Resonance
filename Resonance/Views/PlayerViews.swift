@@ -429,7 +429,6 @@ private struct NowPlayingArtworkPager: View {
     HStack {
       Spacer(minLength: 0)
       CachedPagerArtwork(
-        trackID: track?.id,
         data: track.flatMap { player.artworkData(for: $0) },
         embedded: track.map { player.artworkIsEmbedded(for: $0) } ?? true
       )
@@ -463,44 +462,12 @@ private struct NowPlayingArtworkPager: View {
 }
 
 private struct CachedPagerArtwork: View {
-  @EnvironmentObject private var settings: AppSettings
-  let trackID: UUID?
   let data: Data?
   let embedded: Bool
-  @State private var image: UIImage?
 
   var body: some View {
-    Group {
-      if let image {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-      } else {
-        ZStack {
-          LinearGradient(
-            colors: [.secondary.opacity(0.35), .secondary.opacity(0.12)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-          )
-          Image(systemName: "music.note")
-            .font(.system(size: 90))
-            .foregroundStyle(.secondary)
-        }
-      }
-    }
-    .frame(width: 252, height: 252)
-    .clipShape(RoundedRectangle(cornerRadius: 23))
-    .overlay {
-      if settings.showArtworkWarning && data != nil && !embedded {
-        RoundedRectangle(cornerRadius: 23).stroke(.red, lineWidth: 1)
-      }
-    }
-    .onAppear(perform: decodeArtwork)
-    .onChange(of: trackID) { _, _ in decodeArtwork() }
-  }
-
-  private func decodeArtwork() {
-    image = data.flatMap(UIImage.init(data:))
+    ArtworkView(data: data, embedded: embedded, size: 252)
+      .frame(width: 252, height: 252)
   }
 }
 

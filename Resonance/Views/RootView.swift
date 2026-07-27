@@ -169,14 +169,12 @@ struct RootView: View {
                 .environment(
                     \.resonanceMiniPlayerBottomInset,
                     miniPlayerNavigation.dock == .bottom
-                        && selectedTab != .playing
                         && player.currentTrack != nil
                         ? 100
                         : 0
                 )
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if miniPlayerNavigation.dock == .bottom,
-                       selectedTab != .playing,
                        player.currentTrack != nil {
                         Color.clear.frame(height: 74)
                     }
@@ -221,7 +219,6 @@ struct RootView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             if miniPlayerNavigation.dock == .top,
-               selectedTab != .playing,
                player.currentTrack != nil {
                 MiniPlayerOverlay(
                     isVisible: true,
@@ -231,11 +228,13 @@ struct RootView: View {
                 )
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
+                .opacity(selectedTab == .playing ? 0 : 1)
+                .allowsHitTesting(selectedTab != .playing)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if miniPlayerNavigation.dock == .bottom, selectedTab != .playing {
+                if miniPlayerNavigation.dock == .bottom, player.currentTrack != nil {
                     MiniPlayerOverlay(
                         isVisible: true,
                         dock: .bottom,
@@ -244,6 +243,8 @@ struct RootView: View {
                     )
                     .padding(.horizontal, 8)
                     .padding(.bottom, 6)
+                    .opacity(selectedTab == .playing ? 0 : 1)
+                    .allowsHitTesting(selectedTab != .playing)
                 }
                 ResonanceTabBar()
             }
