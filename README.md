@@ -1,7 +1,7 @@
-# Resonance Beta v1.0.3 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.4 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
-Build: **103**
+Build: **104**
 
 Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -1137,17 +1137,25 @@ retains its dedicated left/right gesture for changing tracks.
 The Debug simulator build/install and signed Release phone build/in-place
 install passed. Neither device was launched or interacted with.
 
-## Resonance Beta v1.0.3 — 2026-07-27 UTC
+## Resonance Beta v1.0.3 — 2026-07-27 UTC (superseded)
+
+Build 103 was published as the first Beta v1.0.3 attempt, but it retained the
+previous `F4FF00` value in the Psychedelic text-color fields. It is superseded
+by the corrected build below.
+
+The v1.0.3 source and beta tag remain available in GitHub for history.
+
+## Resonance Beta v1.0.4 — 2026-07-27 UTC
 
 The Psychedelic theme now uses exact `FFFF00` neon yellow for its primary and
 secondary themed text when **Apply theme color to text** is enabled. This
 keeps the theme's alphabet indexes, section labels, inactive tab labels, and
 status text on the requested pure-neon-yellow value.
 
-Build 103 retains version `0.3.7.4` and is published as the new
-`Resonance-Beta-v1.0.3` beta release. `Tools/RegressionChecks.sh`, the signed
+Build 104 retains version `0.3.7.4` and is published as the corrected
+`Resonance-Beta-v1.0.4` beta release. `Tools/RegressionChecks.sh`, the signed
 arm64 Release build, deep code-signature verification, and in-place install on
-SaiyanDenawa passed. The phone reports version `0.3.7.4`, build `103`; it was
+SaiyanDenawa passed. The phone reports version `0.3.7.4`, build `104`; it was
 not launched or interacted with.
 
 Manual test: open Settings → Appearance, select Psychedelic, enable **Apply

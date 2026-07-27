@@ -100,7 +100,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .brushedMetal: "E9A23B"
         case .classicWood: "7FDBDA"
         case .electronic: "FF9F68"
-        case .psychedelic: "F4FF00"
+        case .psychedelic: "FFFF00"
         case .waterfall: "D7A8FF"
         }
     }
@@ -116,7 +116,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .brushedMetal: "FFC857"
         case .classicWood: "8BE9FD"
         case .electronic: "FFB86C"
-        case .psychedelic: "F4FF00"
+        case .psychedelic: "FFFF00"
         case .waterfall: "E5B8FF"
         }
     }
