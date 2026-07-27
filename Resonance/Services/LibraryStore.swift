@@ -62,7 +62,7 @@ final class LibraryStore: ObservableObject {
     var artists: [Artist] { makeArtists(useAlbumArtist: false) }
     var albumArtists: [Artist] { makeArtists(useAlbumArtist: true) }
     var albums: [Album] {
-        let allAlbums = makeAlbums(from: tracks)
+        let allAlbums = makeAlbums(from: tracks, variousAlbumKeys: Self.multiArtistAlbumKeys(in: tracks))
         guard !searchText.isEmpty else { return allAlbums }
         return allAlbums.filter { album in
             album.title.localizedCaseInsensitiveContains(searchText) ||
@@ -353,6 +353,7 @@ final class LibraryStore: ObservableObject {
 
     func applyArtworkToApp(for trackID: UUID, data: Data) {
         guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        objectWillChange.send()
         var override = metadataOverrides[trackID] ?? TrackMetadataOverride()
         override.artworkData = data
         override.hasArtworkOverride = true
@@ -362,6 +363,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func applyArtworkToApp(forAlbumTrackIDs trackIDs: [UUID], data: Data) {
+        objectWillChange.send()
         for trackID in trackIDs {
             guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { continue }
             var override = metadataOverrides[trackID] ?? TrackMetadataOverride()
@@ -375,6 +377,7 @@ final class LibraryStore: ObservableObject {
 
     func applyArtworkToApp(for artist: Artist, data: Data) {
         let key = artistOverrideKey(name: artist.name, useAlbumArtist: artist.usesAlbumArtist)
+        objectWillChange.send()
         artistMetadataOverrides[key] = ArtistMetadataOverride(artworkData: data, hasArtworkOverride: true)
         persistArtistMetadataOverrides()
     }
@@ -427,7 +430,12 @@ final class LibraryStore: ObservableObject {
         }
         guard let first = currentTracks.first else { return artist }
         let currentName = artist.usesAlbumArtist ? first.albumArtist : first.artist
-        return makeArtist(name: currentName, tracks: currentTracks, useAlbumArtist: artist.usesAlbumArtist)
+        return makeArtist(
+            name: currentName,
+            tracks: currentTracks,
+            useAlbumArtist: artist.usesAlbumArtist,
+            variousAlbumKeys: Self.multiArtistAlbumKeys(in: tracks)
+        )
     }
 
     func updateArtistMetadata(
@@ -471,11 +479,37 @@ final class LibraryStore: ObservableObject {
 
         let oldKey = artistOverrideKey(name: oldName, useAlbumArtist: artist.usesAlbumArtist)
         let newKey = artistOverrideKey(name: cleanedName, useAlbumArtist: artist.usesAlbumArtist)
-        // Artist edits are written into every writable local track. Remove
-        // any older Resonance-only artist artwork/name override so the view
-        // reflects the actual file tags after the rescan.
+
+        // Some simulator and imported-library entries have no writable local
+        // audio file. Preserve the requested artwork in Resonance instead of
+        // silently clearing it and reporting a successful file save.
+        if writableIDs.isEmpty, let artworkData, replaceArtwork, failures.isEmpty {
+            objectWillChange.send()
+            artistMetadataOverrides.removeValue(forKey: oldKey)
+            artistMetadataOverrides[newKey] = ArtistMetadataOverride(
+                artworkData: artworkData,
+                hasArtworkOverride: true
+            )
+            persistArtistMetadataOverrides()
+            return nil
+        }
+
+        // Artist edits are written into every writable local track. Keep an
+        // app artwork override when artwork was supplied so the current
+        // library reflects the saved image immediately, even if the file
+        // metadata writer or a later rescan cannot expose it yet.
+        if artworkData != nil, replaceArtwork {
+            objectWillChange.send()
+        }
         artistMetadataOverrides.removeValue(forKey: oldKey)
-        artistMetadataOverrides.removeValue(forKey: newKey)
+        if let artworkData, replaceArtwork {
+            artistMetadataOverrides[newKey] = ArtistMetadataOverride(
+                artworkData: artworkData,
+                hasArtworkOverride: true
+            )
+        } else {
+            artistMetadataOverrides.removeValue(forKey: newKey)
+        }
 
         for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
@@ -514,8 +548,33 @@ final class LibraryStore: ObservableObject {
                 failures.append(error.localizedDescription)
             }
         }
-        for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
-        persistMetadataOverrides()
+
+        let preservingArtworkOverride = replaceArtwork && artworkData != nil
+        ResonanceDiagnostics.shared.recordDeferred(
+            "library.metadata.albumSave",
+            details: [
+                "trackCount": String(ids.count),
+                "writableCount": String(writableIDs.count),
+                "failureCount": String(failures.count),
+                "preservingArtworkOverride": String(preservingArtworkOverride)
+            ]
+        )
+
+        if writableIDs.isEmpty, let artworkData, replaceArtwork, failures.isEmpty {
+            applyArtworkToApp(forAlbumTrackIDs: Array(ids), data: artworkData)
+            return nil
+        }
+
+        if let artworkData, replaceArtwork {
+            // A successful tag write does not guarantee that AVFoundation will
+            // expose the new APIC/cover frame during the immediate rescan.
+            // Keep Resonance's sidecar-backed override authoritative until a
+            // later scan can prove the embedded artwork is readable.
+            applyArtworkToApp(forAlbumTrackIDs: Array(ids), data: artworkData)
+        } else {
+            for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
+            persistMetadataOverrides()
+        }
         await scanDocuments(forceMetadataRefresh: true)
         return failures.isEmpty ? nil : failures.first
     }
@@ -817,9 +876,21 @@ final class LibraryStore: ObservableObject {
     }
 
     private func makeArtists(useAlbumArtist: Bool) -> [Artist] {
-        let groups = Dictionary(grouping: tracks) { useAlbumArtist ? $0.albumArtist : $0.artist }
-        var mapped = groups.map { name, values in
-            makeArtist(name: name, tracks: values, useAlbumArtist: useAlbumArtist)
+        let variousAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
+        var groups: [String: (name: String, tracks: [Track])] = [:]
+        for track in tracks {
+            let isVarious = variousAlbumKeys.contains(Self.albumIdentity(for: track))
+            let name = isVarious ? "Various Artists" : (useAlbumArtist ? track.albumArtist : track.artist)
+            let key = isVarious ? "various-artists" : "artist|\(name)"
+            groups[key, default: (name: name, tracks: [])].tracks.append(track)
+        }
+        var mapped = groups.values.map { group in
+            makeArtist(
+                name: group.name,
+                tracks: group.tracks,
+                useAlbumArtist: useAlbumArtist,
+                variousAlbumKeys: variousAlbumKeys
+            )
         }
         if !searchText.isEmpty {
             mapped = mapped.filter { artist in
@@ -837,7 +908,12 @@ final class LibraryStore: ObservableObject {
         }
     }
 
-    private func makeArtist(name: String, tracks: [Track], useAlbumArtist: Bool) -> Artist {
+    private func makeArtist(
+        name: String,
+        tracks: [Track],
+        useAlbumArtist: Bool,
+        variousAlbumKeys: Set<String>
+    ) -> Artist {
         let key = artistOverrideKey(name: name, useAlbumArtist: useAlbumArtist)
         let artworkOverride = artistMetadataOverrides[key]
         let hasTrackOverride = tracks.contains { track in
@@ -847,7 +923,7 @@ final class LibraryStore: ObservableObject {
         return Artist(
             id: key,
             name: name,
-            albums: makeAlbums(from: tracks),
+            albums: makeAlbums(from: tracks, variousAlbumKeys: variousAlbumKeys),
             usesAlbumArtist: useAlbumArtist,
             customArtworkData: artworkOverride?.artworkData,
             hasArtworkOverride: artworkOverride?.hasArtworkOverride ?? false,
@@ -860,19 +936,44 @@ final class LibraryStore: ObservableObject {
         return "\(useAlbumArtist ? "albumArtist" : "artist")|\(normalizedName)"
     }
 
-    private func makeAlbums(from tracks: [Track]) -> [Album] {
-        Dictionary(grouping: tracks, by: { "\($0.albumArtist)|\($0.album)" }).map { key, values in
+    private func makeAlbums(from tracks: [Track], variousAlbumKeys: Set<String> = []) -> [Album] {
+        Dictionary(grouping: tracks) { track in
+            if variousAlbumKeys.contains(Self.albumIdentity(for: track)) {
+                return "various|\(Self.albumIdentity(for: track))"
+            }
+            return "\(track.albumArtist)|\(track.album)"
+        }.map { key, values in
             let sorted = values.sorted { ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title) }
+            let isVarious = key.hasPrefix("various|")
             return Album(
                 id: key,
                 title: sorted.first?.album ?? "Unknown Album",
-                artist: sorted.first?.albumArtist ?? "Unknown Artist",
+                artist: isVarious ? "Various Artists" : (sorted.first?.albumArtist ?? "Unknown Artist"),
                 tracks: sorted
             )
         }.sorted {
             sortDirection == .ascending
                 ? $0.title.localizedStandardCompare($1.title) == .orderedAscending
                 : $0.title.localizedStandardCompare($1.title) == .orderedDescending
+        }
+    }
+
+    private nonisolated static func albumIdentity(for track: Track) -> String {
+        [
+            track.album.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            track.releaseYear > 0 ? String(track.releaseYear) : ""
+        ].joined(separator: "|")
+    }
+
+    private nonisolated static func multiArtistAlbumKeys(in tracks: [Track]) -> Set<String> {
+        Dictionary(grouping: tracks, by: { Self.albumIdentity(for: $0) }).compactMap { key, albumTracks in
+            let artistKeys = Set(
+                albumTracks.map { $0.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                    .filter { !$0.isEmpty }
+            )
+            return artistKeys.count > 1 ? key : nil
+        }.reduce(into: Set<String>()) { result, key in
+            result.insert(key)
         }
     }
 
@@ -921,21 +1022,18 @@ final class LibraryStore: ObservableObject {
     }
 
     private func persistMetadataOverrides() {
-        let snapshot = metadataOverrides
-        Task.detached(priority: .utility) {
-            var stored: [String: TrackMetadataOverride] = [:]
-            for (id, var override) in snapshot {
-                if let artworkData = override.artworkData {
-                    let fileName = "track-\(id.uuidString).jpg"
-                    try? artworkData.write(to: Self.artworkOverridesDirectoryURL.appendingPathComponent(fileName), options: .atomic)
-                    override.artworkData = nil
-                    override.artworkFileName = fileName
-                }
-                stored[id.uuidString] = override
+        var stored: [String: TrackMetadataOverride] = [:]
+        for (id, var override) in metadataOverrides {
+            if let artworkData = override.artworkData {
+                let fileName = "track-\(id.uuidString).jpg"
+                try? artworkData.write(to: Self.artworkOverridesDirectoryURL.appendingPathComponent(fileName), options: .atomic)
+                override.artworkData = nil
+                override.artworkFileName = fileName
             }
-            guard let data = try? JSONEncoder().encode(stored) else { return }
-            try? data.write(to: Self.metadataOverridesURL, options: .atomic)
+            stored[id.uuidString] = override
         }
+        guard let data = try? JSONEncoder().encode(stored) else { return }
+        try? data.write(to: Self.metadataOverridesURL, options: .atomic)
     }
 
     private static func loadMetadataOverrides() -> [UUID: TrackMetadataOverride] {

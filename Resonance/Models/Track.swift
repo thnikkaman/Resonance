@@ -108,11 +108,13 @@ struct Artist: Identifiable, Hashable {
     }
 
     var artworkData: Data? {
-        hasArtworkOverride ? customArtworkData : albums.compactMap(\.artworkData).first
+        customArtworkData ?? albums.compactMap(\.artworkData).first
     }
 
     var artworkIsEmbedded: Bool {
-        hasArtworkOverride ? false : (albums.first(where: { $0.artworkData != nil })?.artworkIsEmbedded ?? true)
+        customArtworkData == nil && !hasArtworkOverride
+            ? (albums.first(where: { $0.artworkData != nil })?.artworkIsEmbedded ?? true)
+            : false
     }
 }
 

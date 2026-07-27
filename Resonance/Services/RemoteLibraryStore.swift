@@ -376,13 +376,15 @@ final class RemoteLibraryStore: ObservableObject {
         case .albums:
             cache.albums = makeAlbums(from: cache.filteredTracks)
         case .artists, .albumArtists:
-            let compilationAlbumKeys = cache.key.groupCompilationArtists
+            let mixedArtistAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
+            let explicitCompilationAlbumKeys = cache.key.groupCompilationArtists
                 ? Self.compilationAlbumKeys(in: tracks)
                 : Set<String>()
+            let variousAlbumKeys = mixedArtistAlbumKeys.union(explicitCompilationAlbumKeys)
             let artists = remoteArtists(
                 usingAlbumArtist: need == .albumArtists,
                 from: cache.filteredTracks,
-                compilationAlbumKeys: compilationAlbumKeys
+                variousAlbumKeys: variousAlbumKeys
             )
             if need == .artists {
                 cache.artists = artists
@@ -393,14 +395,22 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     private func makeAlbums(from filteredTracks: [RemoteTrackItem]) -> [RemoteAlbum] {
-        let grouped = Dictionary(grouping: filteredTracks, by: \.albumKey)
+        let variousAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
+        let grouped = Dictionary(grouping: filteredTracks) { track in
+            if variousAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
+                return "various|\(Self.compilationAlbumIdentity(track))"
+            }
+            return track.albumKey
+        }
         let result = grouped.compactMap { key, values -> RemoteAlbum? in
             let unique = Self.uniqueTracks(values)
             let sorted = unique.sorted {
                 ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title)
             }
             guard let first = sorted.first else { return nil }
-            let artistName = Self.preferredDisplayName(sorted.map(\.albumArtist), fallback: first.albumArtist)
+            let artistName = key.hasPrefix("various|")
+                ? "Various Artists"
+                : Self.preferredDisplayName(sorted.map(\.albumArtist), fallback: first.albumArtist)
             let albumName = Self.preferredDisplayName(sorted.map(\.album), fallback: first.album)
             return RemoteAlbum(id: key, title: albumName, artist: artistName, tracks: sorted)
         }
@@ -438,7 +448,7 @@ final class RemoteLibraryStore: ObservableObject {
     private func remoteArtists(
         usingAlbumArtist: Bool,
         from filteredTracks: [RemoteTrackItem],
-        compilationAlbumKeys: Set<String>
+        variousAlbumKeys: Set<String>
     ) -> [RemoteArtist] {
         let sourceTracks = Self.uniqueTracks(filteredTracks)
         var grouped = Dictionary(grouping: sourceTracks) { track in
@@ -446,15 +456,15 @@ final class RemoteLibraryStore: ObservableObject {
             return resonanceNormalizedRemoteKey(sourceName)
         }
 
-        if !compilationAlbumKeys.isEmpty {
+        if !variousAlbumKeys.isEmpty {
             var variousTracks: [RemoteTrackItem] = []
             for key in Array(grouped.keys) {
                 guard let values = grouped[key] else { continue }
                 let regularTracks = values.filter {
-                    !compilationAlbumKeys.contains(Self.compilationAlbumIdentity($0))
+                    !variousAlbumKeys.contains(Self.compilationAlbumIdentity($0))
                 }
                 variousTracks.append(contentsOf: values.filter {
-                    compilationAlbumKeys.contains(Self.compilationAlbumIdentity($0))
+                    variousAlbumKeys.contains(Self.compilationAlbumIdentity($0))
                 })
                 if regularTracks.isEmpty {
                     grouped.removeValue(forKey: key)
@@ -475,7 +485,7 @@ final class RemoteLibraryStore: ObservableObject {
                 ? "Various Artists"
                 : Self.preferredDisplayName(names, fallback: names.first ?? "Unknown Artist")
             let albumGroupingKey: (RemoteTrackItem) -> String = { track in
-                if compilationAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
+                if variousAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
                     return Self.compilationAlbumIdentity(track)
                 }
                 return usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
@@ -506,7 +516,7 @@ final class RemoteLibraryStore: ObservableObject {
                 guard !allTracks.isEmpty else { return nil }
                 let name = Self.preferredDisplayName(artists.map(\.name), fallback: artists[0].name)
                 let albums = Dictionary(grouping: allTracks) { track in
-                    if compilationAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
+                    if variousAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
                         return Self.compilationAlbumIdentity(track)
                     }
                     return usingAlbumArtist ? track.albumKey : resonanceNormalizedRemoteKey(track.album)
@@ -541,6 +551,18 @@ final class RemoteLibraryStore: ObservableObject {
     nonisolated private static func compilationAlbumKeys(in tracks: [RemoteTrackItem]) -> Set<String> {
         Dictionary(grouping: tracks, by: compilationAlbumIdentity).compactMap { key, albumTracks in
             isVariousArtistsAlbum(albumTracks) ? key : nil
+        }.reduce(into: Set<String>()) { result, key in
+            result.insert(key)
+        }
+    }
+
+    nonisolated private static func multiArtistAlbumKeys(in tracks: [RemoteTrackItem]) -> Set<String> {
+        Dictionary(grouping: tracks, by: compilationAlbumIdentity).compactMap { key, albumTracks in
+            let artistKeys = Set(
+                albumTracks.map { resonanceNormalizedRemoteKey($0.artist) }
+                    .filter { !$0.isEmpty }
+            )
+            return artistKeys.count > 1 ? key : nil
         }.reduce(into: Set<String>()) { result, key in
             result.insert(key)
         }
@@ -1822,7 +1844,14 @@ final class RemoteDownloadManager: ObservableObject {
     private var requeueRequests: [UUID: RemoteTrackItem] = [:]
     private var activeTracksByID: [UUID: RemoteTrackItem] = [:]
     private var pendingTracks: [RemoteTrackItem] = []
+    private var artworkByAlbumKey: [String: Data] = [:]
     private weak var pendingLibrary: LibraryStore?
+
+    func rememberArtwork(_ data: Data, for tracks: [RemoteTrackItem]) {
+        for albumKey in Set(tracks.map(\.albumKey)) {
+            artworkByAlbumKey[albumKey] = data
+        }
+    }
 
     func requestDownload(_ remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
         let tracks = remoteTracks.reduce(into: [RemoteTrackItem]()) { result, track in
@@ -2068,6 +2097,9 @@ final class RemoteDownloadManager: ObservableObject {
                 completedCount += 1
                 removeProgress(track.id)
                 await library.refreshDownloadedTrack(at: result.destination)
+                if let artworkData = artworkByAlbumKey[track.albumKey] {
+                    library.applyArtworkToApp(for: track.id, data: artworkData)
+                }
                 removePersistedTrack(track.id)
                 ResonanceDiagnostics.shared.recordDeferred(
                     "download.track.completed",

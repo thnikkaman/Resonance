@@ -7,6 +7,8 @@ struct AlbumDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var showingPlaylistPicker = false
     @State private var showingMetadataEditor = false
+    @State private var showingArtworkSearch = false
+    @State private var didOfferArtworkSearch = false
     @State private var showingRemovalOptions = false
     @State private var showingAlbumOptions = false
     let album: Album
@@ -33,6 +35,8 @@ struct AlbumDetailView: View {
             tracks: tracks
         )
     }
+
+    private var displayedTracks: [Track] { liveAlbum.tracks }
 
     private var albumHero: some View {
         VStack(spacing: 4) {
@@ -90,23 +94,29 @@ struct AlbumDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private func trackRow(_ track: Track) -> some View {
+        let leadingNumber = track.trackNumber > 0 ? "\(track.trackNumber)" : "–"
+        Button { player.play(track, in: liveAlbum.tracks) } label: {
+            TrackListRow(
+                track: track,
+                leadingNumber: leadingNumber,
+                showsArtwork: true,
+                large: false,
+                showsAlbum: false
+            )
+        }
+        .buttonStyle(.plain)
+        .trackLibraryActions(track)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             albumHero
             List {
                 Section("Tracks") {
-                    ForEach(liveAlbum.tracks) { track in
-                        Button { player.play(track, in: liveAlbum.tracks) } label: {
-                            TrackListRow(
-                                track: track,
-                                leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–",
-                                showsArtwork: true,
-                                large: false,
-                                showsAlbum: false
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .trackLibraryActions(track)
+                    ForEach(displayedTracks, id: \.id) { track in
+                        trackRow(track)
                     }
                     .listRowBackground(Color.clear)
                 }
@@ -170,6 +180,35 @@ struct AlbumDetailView: View {
         }
         .sheet(isPresented: $showingMetadataEditor) {
             AlbumMetadataEditorSheet(album: liveAlbum)
+        }
+        .sheet(isPresented: $showingArtworkSearch) {
+            OnlineArtworkSearchSheet(
+                artist: liveAlbum.artist,
+                albumArtist: liveAlbum.artist,
+                album: liveAlbum.title,
+                onApplyToApp: { data in
+                    library.applyArtworkToApp(forAlbumTrackIDs: liveAlbum.tracks.map(\.id), data: data)
+                },
+                onSaveToFiles: { data in
+                    let error = await library.updateAlbumMetadata(
+                        trackIDs: liveAlbum.tracks.map(\.id),
+                        album: liveAlbum.title,
+                        albumArtist: liveAlbum.artist,
+                        releaseYear: liveAlbum.releaseYear,
+                        artworkData: data,
+                        replaceArtwork: true
+                    )
+                    if error == nil {
+                        library.applyArtworkToApp(forAlbumTrackIDs: liveAlbum.tracks.map(\.id), data: data)
+                    }
+                    return error
+                }
+            )
+        }
+        .task(id: "\(liveAlbum.id)|\(liveAlbum.artworkData == nil)") {
+            guard liveAlbum.artworkData == nil, !didOfferArtworkSearch else { return }
+            didOfferArtworkSearch = true
+            showingArtworkSearch = true
         }
         .confirmationDialog(
             "Album Options",

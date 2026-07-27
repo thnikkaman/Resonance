@@ -1,7 +1,7 @@
 # Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
 
 Version: **0.3.7.4**  
-Build: **92**
+Build: **101**
 
 Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -74,7 +74,7 @@ Each top-level Settings category is independently collapsible. Its expanded or c
 
 ## Compilation-only artist grouping
 
-The Streaming Library options include **Group compilation-only artists**. When enabled, artists whose remote tracks appear only on compilation or Various Artists albums are grouped under one synthetic artist named **Various Artists**. Artists who also have regular albums remain visible separately, with only their compilation tracks moved into the grouped entry. The setting is stored locally and is off by default to preserve the existing view until enabled.
+Albums containing tracks by more than one distinct artist are now always grouped under one synthetic **Various Artists** entry in local Library and Streaming Artists, Album Artists, and album listings. The album is consolidated once under that entry, while regular single-artist albums remain under their existing artists. The existing **Group compilation-only artists** option continues to additionally group explicit compilation/Various Artists albums that do not contain multiple track artists.
 
 ## Validation performed here
 
@@ -205,3 +205,138 @@ xcrun devicectl device copy from \
   --source Documents/Resonance-Diagnostics.log \
   --destination /Users/brian/Resonance/diagnostics/Resonance-Diagnostics.log
 ```
+
+## Handoff update — 2026-07-26
+
+The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
+`agent/alpha-3.7.4-source`, at commit `c6d0aed` (`Resonance-Beta-v1.0.1`), with
+version `0.3.7.4` and project build `101`. The working tree intentionally has
+uncommitted changes in `Track.swift`, `ArtworkSearchService.swift`,
+`LibraryStore.swift`, `RemoteLibraryStore.swift`, `AlbumDetailView.swift`,
+`OnlineArtworkSearchView.swift`, `SmartLibraryViews.swift`,
+`StreamingLibraryView.swift`, `Tools/RegressionChecks.sh`, and
+`Assets.xcassets/AppIcon.appiconset`.
+
+The pending changes move `RemoteDownloadOverlay` into the Streaming content
+flow with the existing 84-point title clearance, so the download banner sits
+below the “Streaming Library” navigation title instead of behind navigation
+buttons. A temporary DEBUG-only position preview was used in the simulator and
+removed before the final check; the non-downloading state uses `EmptyView` so
+it does not create a blank spacer.
+
+Online artwork saves now retain an app artwork override when an artist or album
+has no writable local audio file, refresh SwiftUI immediately, persist sidecar
+artwork, and keep the override after the metadata editor closes. Atmosphere was
+verified in the signed-in iPhone 17 Pro simulator: the override JSON and 600×600
+JPEG sidecar were present, and the artist page displayed the saved artwork.
+Artist sidecar persistence remains utility-priority and detached from the main
+actor to preserve the build-92 performance protection.
+
+The mixed-artist grouping requirement is implemented in both `LibraryStore` and
+`RemoteLibraryStore`. Album identity is normalized by album title and release
+year; an album with more than one distinct track artist is assigned to
+**Various Artists**, with all of its tracks kept together and regular albums
+left unchanged. Regression checks, including the deterministic split-album
+contract, and the clean Swift 6 simulator/generic-device preflight passed on
+this tree. The configured simulator also opened an existing Various Artists
+album and showed two differently credited tracks together; that verifies the
+runtime display path but is not a substitute for a fresh non-explicit fixture.
+The preflight retained the known non-blocking no-scheme/empty-destination and
+AppIntents metadata-skip warnings. The physical device was not launched or
+updated; a fresh representative mixed-artist runtime fixture remains the next
+manual check.
+
+The artwork workflow is now shared across artist, album, and individual-track
+editing. `ArtworkSearchService` queries Apple iTunes, Deezer, and MusicBrainz/
+Cover Art Archive candidates, scores them by normalized artist/album/title
+matches, and presents multiple choices in `OnlineArtworkSearchView`. The best
+available candidate starts selected with a red outline; selecting another card
+moves the outline, and failed image loads advance to the next candidate.
+Album and track app overrides now publish immediately, persist when local files
+are unavailable, and remain active after the metadata editor closes.
+
+Album detail views automatically offer the picker when no usable local or
+remote artwork is available. Streaming album selections are shown with the red
+override outline and are remembered by the download manager so the selected
+cover can be applied when downloaded. This uses the same candidate picker and
+apply/save callbacks as artist, album, and track artwork editing.
+
+Validation for this artwork update passed `Tools/RegressionChecks.sh`, the
+strict simulator build, and the warnings-as-errors iPhoneOS preflight. In the
+configured simulator, the album editor displayed multiple online candidates,
+marked the recommended candidate with a red outline, and applying a different
+candidate produced the expected Resonance metadata override. The physical
+device was not launched or updated.
+
+The app icon is now the generated ToneVault mark in
+`Assets.xcassets/AppIcon.appiconset/ToneVault-AppIcon-1024.png`: a midnight
+vault door with a cyan-and-amber audio waveform. The asset catalog references
+the 1024×1024 source as the universal iOS AppIcon. The strict simulator build,
+asset compilation, simulator install/launch, and visual inspection of the
+compiled 60×60@2x icon all passed. The physical device was not updated.
+
+Artwork search refinement now sends artist, album artist, album name, and—when
+needed—individual song title metadata to the providers. Candidates are filtered
+unless the returned artist/album-artist identity and album title are credible
+matches, while multiple strong versions from the providers remain available for
+selection. If album-level results fail but a song-level query produces usable
+art, the first valid image is cached under the album identity and promoted to
+the artist identity, so every song row, the album, and the artist display the
+same artwork. The existing red-outline preference applies to these automatic
+fallbacks.
+
+The refined search passed `Tools/RegressionChecks.sh`, the strict simulator
+build, and simulator build/install/launch. The physical device was not updated.
+
+The Streaming artwork display is now driven by one `RemoteArtworkContext` in
+`StreamingLibraryView.swift`. Track, album, artist, and playlist models create
+the context once; grid tiles, list rows, detail heroes, and track rows all pass
+that same context to the shared `RemoteArtwork` resolver. The context carries
+all available direct artwork sources from related tracks, deduplicated and
+bounded to twelve candidates, before falling back to the shared online search
+cache. This removes repeated metadata wiring and prevents one layout from
+silently omitting album/artist fallback metadata.
+
+The context refactor was validated with `Tools/RegressionChecks.sh`, the strict
+warnings-as-errors simulator build, simulator installation/launch, and manual
+navigation through the signed-in Streaming tab's Atmosphere artist and Se7en
+album. The known non-blocking no-scheme destination and AppIntents metadata-skip
+warnings remain. The physical device was not updated or launched.
+
+Album artwork editor persistence was verified for the local Bob Marley / Catch A
+Fire album in the configured simulator. The Search Online Artwork callback and
+the editor's final Save now both retain the selected sidecar-backed artwork
+override for every album track, even when the MP3 tag writer succeeds but the
+immediate AVFoundation rescan does not expose its APIC frame. Track artwork
+override persistence is synchronous before the editor dismisses, and the
+privacy-safe `library.metadata.albumSave` diagnostic records the preservation
+decision and write counts. The final Save, app relaunch, override JSON, sidecar
+files, and visible album/track artwork all passed. The physical device was not
+updated or launched.
+
+Streaming album artwork now uses the same authoritative fallback principle. The
+shared `RemoteArtwork` resolver searches credible artist/album candidates before
+accepting a server-provided cover image for album and track contexts. This is
+important for Navidrome catalogs where a `coverArtID` can resolve to a generic
+blue-disc placeholder even though the album has no usable artwork. Direct server
+art remains the fallback when online search cannot produce a valid image, and
+server placeholders are no longer seeded into the automatic-art cache. The
+configured simulator showed Catch A Fire's album grid tile, album hero, and
+track rows using the selected online cover with the red warning outline. The
+physical device was not updated or launched.
+
+The streaming artist fallback now searches the distinct albums represented by
+the artist's tracks when an artist-only query has no credible result. This fixes
+catalogs such as Atmosphere, where the Se7en album search succeeds but the
+artist-only search does not: Se7en's artwork is now promoted through the shared
+resolver to the Atmosphere artist tile, hero, and All Albums tile. The automatic
+art remains marked with the red outline when that preference is enabled. The
+fix passed `Tools/RegressionChecks.sh`, the strict warnings-as-errors simulator
+build, and manual simulator verification of Atmosphere > Se7en. The physical
+device was not updated or launched.
+
+The current source was then built and signed for the physical device with
+development team `98CWMFS26R`, verified with strict code-signature checks, and
+installed in place on `SaiyanDenwa` using `devicectl`. The device reports bundle
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `101`. The app was
+not launched; no playback or physical-device runtime acceptance was performed.

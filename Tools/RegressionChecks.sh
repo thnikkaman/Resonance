@@ -120,7 +120,18 @@ assert 'RemoteLibraryOptionsSheet' in streaming
 assert 'groupCompilationArtists' in settings
 assert 'Group compilation-only artists' in streaming
 assert 'compilationAlbumKeys' in remote
+assert 'multiArtistAlbumKeys' in remote
+assert 'variousAlbumKeys' in remote
+assert 'multiArtistAlbumKeys(in: tracks)' in library_store
+assert 'variousAlbumKeys: Set<String>' in library_store
 assert 'Various Artists' in remote
+assert 'various-artists' in library_store
+assert 'various|' in library_store
+assert 'various|' in remote
+assert 'library.metadata.albumSave' in library_store
+assert 'preservingArtworkOverride' in library_store
+assert "Keep Resonance's sidecar-backed override authoritative" in library_store
+assert 'try? data.write(to: Self.metadataOverridesURL, options: .atomic)' in library_store
 assert 'RemotePlaylistCollectionView' in streaming
 assert 'RemotePlaylistPickerSheet' in streaming
 assert 'struct RemoteArtistActionButton' in streaming
@@ -220,12 +231,44 @@ assert 'if !forceCheck, !tracks.isEmpty { return }' in remote
 assert 'scheduleNowPlayingArtworkPreparation' in player
 assert 'prepareNowPlayingArtwork(data: data)' in player
 artwork = (root / 'Resonance/Views/ArtworkView.swift').read_text()
+artwork_search = (root / 'Resonance/Services/ArtworkSearchService.swift').read_text()
+artwork_picker = (root / 'Resonance/Views/OnlineArtworkSearchView.swift').read_text()
 assert 'LocalArtworkLoader' in artwork
 assert 'CGImageSourceCreateThumbnailAtIndex' in artwork
 assert 'artwork.local.thumbnail' in artwork
 assert 'UIImage(data: data)' not in artwork
+assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artwork_search
+assert 'StreamingArtworkCache' in artwork_search
+assert 'trackQueries' in artwork_search
+assert 'func seed(' in artwork_search
+assert 'aliases: [String] = []' in artwork_search
+assert 'albumArtist: String? = nil' in artwork_search
+assert 'isCredibleMatch' in artwork_search
+assert 'queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track)' in artwork_search
+assert 'recommendedSuggestionID' in artwork_picker
+assert '.stroke(isSelected ? .red' in artwork_picker
+assert 'onImageAvailabilityChanged' in artwork_picker
+assert 'showingArtworkSearch' in album_detail
+assert 'rememberArtwork' in remote
+assert 'resolvedArtworkData' in streaming
+assert 'fallbackTrackQueries' in streaming
+assert 'StreamingArtworkTrackQuery' in streaming
+assert 'Choose Album Artwork' in streaming
+assert 'struct RemoteArtworkSource' in streaming
+assert 'struct RemoteArtworkContext' in streaming
+assert 'sources(from tracks: [RemoteTrackItem])' in streaming
+assert 'RemoteArtwork(context:' in streaming
+assert 'let artwork: RemoteArtworkContext' in streaming
+assert 'let preferOnlineSearch: Bool' in streaming
+assert 'preferOnlineSearch: true' in streaming
+assert 'fallbackArtist: artist.name' in streaming
+assert 'context.preferOnlineSearch' in streaming
+assert 'album: $0.album' in streaming
+assert 'searchedAlbums' in artwork_search
+assert 'StreamingArtworkCache.shared.artwork' in streaming
+assert 'seedSharedArtwork' not in streaming
 
-assert 'SecureField("Navidrome / Subsonic password"' in settings_view
+assert 'SecureField("Navidrome / Subsonic"' in settings_view
 assert 'Backend in use' in settings_view
 assert 'NSAllowsArbitraryLoads' in plist
 assert '<key>CFBundleIdentifier</key>' in plist
@@ -331,7 +374,8 @@ assert 'DragGesture(minimumDistance: 0)' not in streaming
 assert streaming.count('UIImpactFeedbackGenerator(style: .medium).impactOccurred()') == 2
 assert '.background(settings.themeBackgroundGradient)' not in streaming
 assert '.background(.background)' not in streaming
-assert '.overlay(alignment: .top)' in streaming
+assert 'RemoteDownloadOverlay()' in streaming
+assert '.padding(.top, 84)' in streaming
 assert 'backgroundImageName' in root_view
 assert 'resonanceTabBottomSpace' in root_view
 assert 'resonanceDetailBottomSpace' in root_view
@@ -432,6 +476,19 @@ def mapped_index(y, top, row_height, count):
 assert mapped_index(0, 8, 10, 26) == 0
 assert mapped_index(8 + 12 * 10 + 5, 8, 10, 26) == 12
 assert mapped_index(10_000, 8, 10, 26) == 25
+
+# Deterministic mixed-artist grouping contract: the split album is one
+# Various Artists album, while the regular album remains outside the set.
+fixture = [
+    ('Split Album', 2024, 'Artist A'),
+    ('Split Album', 2024, 'Artist B'),
+    ('Regular Album', 2024, 'Artist C'),
+]
+by_album = {}
+for album, year, artist in fixture:
+    by_album.setdefault((album.strip().lower(), year), set()).add(artist.strip().lower())
+mixed_fixture_keys = {f'{album}|{year}' for (album, year), artists in by_album.items() if len(artists) > 1}
+assert mixed_fixture_keys == {'split album|2024'}
 
 
 

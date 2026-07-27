@@ -4,11 +4,28 @@ struct OnlineArtworkSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
     let artist: String
+    let albumArtist: String?
     let album: String?
     let onApplyToApp: (Data) -> Void
     let onSaveToFiles: (Data) async -> String?
 
+    init(
+        artist: String,
+        albumArtist: String? = nil,
+        album: String?,
+        onApplyToApp: @escaping (Data) -> Void,
+        onSaveToFiles: @escaping (Data) async -> String?
+    ) {
+        self.artist = artist
+        self.albumArtist = albumArtist
+        self.album = album
+        self.onApplyToApp = onApplyToApp
+        self.onSaveToFiles = onSaveToFiles
+    }
+
     @State private var suggestions: [ArtworkSearchSuggestion] = []
+    @State private var selectedSuggestionID: String?
+    @State private var recommendedSuggestionID: String?
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -38,7 +55,16 @@ struct OnlineArtworkSearchSheet: View {
                             ForEach(suggestions) { suggestion in
                                 OnlineArtworkSuggestionCard(
                                     suggestion: suggestion,
+                                    isSelected: selectedSuggestionID == suggestion.id,
+                                    isRecommended: recommendedSuggestionID == suggestion.id,
                                     isSaving: isSaving,
+                                    onSelect: { selectedSuggestionID = suggestion.id },
+                                    onImageAvailabilityChanged: { id, available in
+                                        guard !available, recommendedSuggestionID == id else { return }
+                                        let next = suggestions.first { $0.id != id }
+                                        recommendedSuggestionID = next?.id
+                                        if selectedSuggestionID == id { selectedSuggestionID = next?.id }
+                                    },
                                     onApplyToApp: chooseForApp,
                                     onSaveToFiles: saveToFiles
                                 )
@@ -72,7 +98,13 @@ struct OnlineArtworkSearchSheet: View {
     private func search() async {
         isLoading = true
         do {
-            suggestions = try await ArtworkSearchService.search(artist: artist, album: album)
+            suggestions = try await ArtworkSearchService.search(
+                artist: artist,
+                album: album,
+                albumArtist: albumArtist
+            )
+            selectedSuggestionID = suggestions.first?.id
+            recommendedSuggestionID = suggestions.first?.id
             isLoading = false
         } catch {
             isLoading = false
@@ -101,7 +133,11 @@ struct OnlineArtworkSearchSheet: View {
 
 private struct OnlineArtworkSuggestionCard: View {
     let suggestion: ArtworkSearchSuggestion
+    let isSelected: Bool
+    let isRecommended: Bool
     let isSaving: Bool
+    let onSelect: () -> Void
+    let onImageAvailabilityChanged: (String, Bool) -> Void
     let onApplyToApp: (Data) -> Void
     let onSaveToFiles: (Data) -> Void
     @State private var imageData: Data?
@@ -110,19 +146,27 @@ private struct OnlineArtworkSuggestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Group {
-                if let imageData {
-                    ArtworkView(data: imageData, embedded: false, size: 150, showWarningBorder: false)
-                } else if isLoading {
-                    ProgressView().frame(width: 150, height: 150)
-                } else {
-                    Image(systemName: "photo.badge.exclamationmark")
-                        .font(.largeTitle)
-                        .frame(width: 150, height: 150)
+            Button(action: onSelect) {
+                Group {
+                    if let imageData {
+                        ArtworkView(data: imageData, embedded: false, size: 150, showWarningBorder: false)
+                    } else if isLoading {
+                        ProgressView().frame(width: 150, height: 150)
+                    } else {
+                        Image(systemName: "photo.badge.exclamationmark")
+                            .font(.largeTitle)
+                            .frame(width: 150, height: 150)
+                    }
                 }
             }
+            .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
 
+            if isSelected {
+                Text(isRecommended ? "Recommended match" : "Selected cover")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.red)
+            }
             Text(suggestion.title)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2)
@@ -154,7 +198,7 @@ private struct OnlineArtworkSuggestionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.accentColor.opacity(0.22), lineWidth: 1)
+                .stroke(isSelected ? .red : Color.accentColor.opacity(0.22), lineWidth: isSelected ? 3 : 1)
         }
         .task { await loadImage() }
     }
@@ -163,9 +207,11 @@ private struct OnlineArtworkSuggestionCard: View {
         do {
             imageData = try await ArtworkSearchService.imageData(from: suggestion.imageURL)
             isLoading = false
+            onImageAvailabilityChanged(suggestion.id, true)
         } catch {
             loadError = true
             isLoading = false
+            onImageAvailabilityChanged(suggestion.id, false)
         }
     }
 }

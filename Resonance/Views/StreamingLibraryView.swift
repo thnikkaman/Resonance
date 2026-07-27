@@ -105,6 +105,8 @@ struct StreamingLibraryView: View {
                 }
             } else {
                 VStack(spacing: 0) {
+                    RemoteDownloadOverlay()
+                        .padding(.top, 84)
                     if remote.hasConnectionIssue {
                         RemoteServerHeader()
                     }
@@ -178,10 +180,6 @@ struct StreamingLibraryView: View {
         .navigationBarTitleDisplayMode(.large)
         .background {
             Color.clear
-        }
-        .overlay(alignment: .top) {
-            RemoteDownloadOverlay()
-                .zIndex(20)
         }
         .onChange(of: selectedArtistIDs) { _, ids in
             if ids.isEmpty && selectedAlbumIDs.isEmpty { downloadSelectionMode = false }
@@ -403,6 +401,8 @@ private struct RemoteDownloadOverlay: View {
                 .background(settings.themeSurfaceGradient)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("A download is ready to resume")
+            } else {
+                EmptyView()
             }
         }
         .alert(
@@ -839,9 +839,8 @@ private struct RemoteArtistCollectionView: View {
                     RemoteCollectionRow(
                         title: artist.name,
                         subtitle: "\(artist.albums.count) albums • \(artist.tracks.count) tracks",
-                        artworkURL: artist.artworkURL,
-                        artworkBase64: artist.artworkBase64,
-                        large: settings.albumLayout == .large
+                        artwork: RemoteArtworkContext(artist),
+                        large: settings.albumLayout == .large,
                     )
                     if selectionMode {
                         DownloadSelectionBubble(isSelected: selectedIDs.contains(artist.id))
@@ -956,9 +955,8 @@ private struct RemoteArtistTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             RemoteArtwork(
-                url: artist.artworkURL,
-                base64: artist.artworkBase64,
-                size: settings.libraryThumbnailSize.gridArtworkPoints
+                context: RemoteArtworkContext(artist),
+                size: settings.libraryThumbnailSize.gridArtworkPoints,
             )
             .frame(maxWidth: .infinity)
             Text(artist.name)
@@ -1042,9 +1040,8 @@ private struct RemoteAlbumCollectionView: View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 6) {
                 RemoteArtwork(
-                    url: album.artworkURL,
-                    base64: album.artworkBase64,
-                    size: settings.libraryThumbnailSize.gridArtworkPoints
+                    context: RemoteArtworkContext(album),
+                    size: settings.libraryThumbnailSize.gridArtworkPoints,
                 )
                 Text(album.title)
                     .font(settings.libraryTextSize.font.weight(.semibold))
@@ -1079,9 +1076,8 @@ private struct RemoteAlbumCollectionView: View {
                     RemoteCollectionRow(
                         title: album.title,
                         subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
-                        artworkURL: album.artworkURL,
-                        artworkBase64: album.artworkBase64,
-                        large: settings.albumLayout == .large
+                        artwork: RemoteArtworkContext(album),
+                        large: settings.albumLayout == .large,
                     )
                     if selectionMode {
                         DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
@@ -1308,7 +1304,10 @@ private struct RemoteArtistDetailView: View {
                         }
                     }
 
-                    RemoteArtwork(url: artist.artworkURL, base64: artist.artworkBase64, size: 158)
+                    RemoteArtwork(
+                        context: RemoteArtworkContext(artist),
+                        size: 158,
+                    )
 
                     VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
@@ -1353,9 +1352,8 @@ private struct RemoteArtistDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack {
                                     RemoteArtwork(
-                                        url: artist.artworkURL,
-                                        base64: artist.artworkBase64,
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints
+                                        context: RemoteArtworkContext(artist),
+                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
                                     )
                                     Color.black.opacity(0.28)
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -1378,9 +1376,8 @@ private struct RemoteArtistDetailView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 6) {
                                     RemoteArtwork(
-                                        url: album.artworkURL,
-                                        base64: album.artworkBase64,
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints
+                                        context: RemoteArtworkContext(album),
+                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
                                     )
                                     Text(album.title)
                                         .font(settings.libraryTextSize.font.weight(.semibold))
@@ -1406,9 +1403,8 @@ private struct RemoteArtistDetailView: View {
                         RemoteCollectionRow(
                             title: "All Albums",
                             subtitle: "\(allTracks.count) tracks, grouped by album",
-                            artworkURL: artist.artworkURL,
-                            artworkBase64: artist.artworkBase64,
-                            large: settings.albumLayout == .large
+                            artwork: RemoteArtworkContext(artist),
+                            large: settings.albumLayout == .large,
                         )
                     }
                     .listRowBackground(Color.clear)
@@ -1417,13 +1413,12 @@ private struct RemoteArtistDetailView: View {
                         NavigationLink {
                             RemoteAlbumDetailView(album: album)
                         } label: {
-                            RemoteCollectionRow(
-                                title: album.title,
-                                subtitle: album.releaseYear > 0 ? String(album.releaseYear) : "Release date unavailable",
-                                artworkURL: album.artworkURL,
-                                artworkBase64: album.artworkBase64,
-                                large: settings.albumLayout == .large
-                            )
+                        RemoteCollectionRow(
+                            title: album.title,
+                            subtitle: album.releaseYear > 0 ? String(album.releaseYear) : "Release date unavailable",
+                            artwork: RemoteArtworkContext(album),
+                            large: settings.albumLayout == .large,
+                        )
                         }
                         .listRowBackground(Color.clear)
                     }
@@ -1575,6 +1570,10 @@ private struct RemoteAlbumDetailView: View {
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     @State private var showingAlbumOptions = false
+    @State private var showingArtworkSearch = false
+    @State private var artworkData: Data?
+    @State private var resolvedArtworkData: Data?
+    @State private var isAutomaticallySelectedArtwork = false
     let album: RemoteAlbum
 
     private var albumHero: some View {
@@ -1589,7 +1588,12 @@ private struct RemoteAlbumDetailView: View {
                     }
                 }
 
-                RemoteArtwork(url: album.artworkURL, base64: album.artworkBase64, size: 176)
+                RemoteArtwork(
+                    context: RemoteArtworkContext(album),
+                    size: 176,
+                    overrideData: artworkData ?? resolvedArtworkData,
+                    showWarningBorder: artworkData != nil || isAutomaticallySelectedArtwork
+                )
 
                 VStack(spacing: 10) {
                     ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
@@ -1613,41 +1617,49 @@ private struct RemoteAlbumDetailView: View {
         .resonanceTopDownDismiss { dismiss() }
     }
 
+    @ViewBuilder
+    private func trackRow(_ track: RemoteTrackItem) -> some View {
+        Button {
+            Task { await remote.play(track, in: album.tracks, using: player) }
+        } label: {
+            RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
+        }
+        .buttonStyle(.plain)
+        .remoteTrackSwipeActions(track)
+        .contextMenu {
+            Button { Task { await remote.playNext([track], using: player) } } label: {
+                Label("Play Next", systemImage: "text.insert")
+            }
+            Button { Task { await remote.addToQueue([track], using: player) } } label: {
+                Label("Add to End of Queue", systemImage: "text.append")
+            }
+            Button { downloads.requestDownload([track], into: library) } label: {
+                Label("Download Track", systemImage: "arrow.down.circle")
+            }
+            if settings.streamBackend == .subsonic {
+                Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
+                    Label(
+                        track.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                        systemImage: track.isFavorite ? "heart.slash" : "heart"
+                    )
+                }
+                Button {
+                    playlistItems = [track]
+                    showingPlaylistPicker = true
+                } label: {
+                    Label("Add to Server Playlist", systemImage: "music.note.list")
+                }
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             albumHero
             List {
                 Section("Tracks") {
                     ForEach(album.tracks) { track in
-                        Button {
-                            Task { await remote.play(track, in: album.tracks, using: player) }
-                        } label: {
-                            RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
-                        }
-                        .buttonStyle(.plain)
-                        .remoteTrackSwipeActions(track)
-                        .contextMenu {
-                            Button { Task { await remote.playNext([track], using: player) } } label: {
-                                Label("Play Next", systemImage: "text.insert")
-                            }
-                            Button { Task { await remote.addToQueue([track], using: player) } } label: {
-                                Label("Add to End of Queue", systemImage: "text.append")
-                            }
-                            Button { downloads.requestDownload([track], into: library) } label: {
-                                Label("Download Track", systemImage: "arrow.down.circle")
-                            }
-                            if settings.streamBackend == .subsonic {
-                                Button { Task { await remote.toggleFavorite(track, using: settings) } } label: {
-                                    Label(track.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: track.isFavorite ? "heart.slash" : "heart")
-                                }
-                                Button {
-                                    playlistItems = [track]
-                                    showingPlaylistPicker = true
-                                } label: {
-                                    Label("Add to Server Playlist", systemImage: "music.note.list")
-                                }
-                            }
-                        }
+                        trackRow(track)
                     }
                     .listRowBackground(Color.clear)
                 }
@@ -1691,6 +1703,9 @@ private struct RemoteAlbumDetailView: View {
             Button("Download Album") {
                 downloads.requestDownload(album.tracks, into: library)
             }
+            Button("Choose Album Artwork") {
+                showingArtworkSearch = true
+            }
             if settings.streamBackend == .subsonic {
                 Button("Add Album to Server Playlist") {
                     playlistItems = album.tracks
@@ -1701,6 +1716,39 @@ private struct RemoteAlbumDetailView: View {
         }
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)
+        }
+        .sheet(isPresented: $showingArtworkSearch) {
+            OnlineArtworkSearchSheet(
+                artist: album.artist,
+                albumArtist: album.artist,
+                album: album.title,
+                onApplyToApp: { data in
+                    artworkData = data
+                    downloads.rememberArtwork(data, for: album.tracks)
+                },
+                onSaveToFiles: { data in
+                    artworkData = data
+                    downloads.rememberArtwork(data, for: album.tracks)
+                    return nil
+                }
+            )
+        }
+        .task(id: "\(album.id)|\(album.artworkURL?.absoluteString ?? "")|\(album.artworkBase64 != nil)") {
+            let automaticArtwork = await StreamingArtworkCache.shared.artwork(
+                artist: album.artist,
+                album: album.title,
+                trackQueries: streamingArtworkQueries(album.tracks)
+            )
+            guard !Task.isCancelled else { return }
+            if let automaticArtwork {
+                resolvedArtworkData = automaticArtwork
+                isAutomaticallySelectedArtwork = true
+                downloads.rememberArtwork(automaticArtwork, for: album.tracks)
+            } else if let firstTrack = album.tracks.first,
+                      let existingArtwork = await remote.artworkData(for: firstTrack) {
+                resolvedArtworkData = existingArtwork
+                isAutomaticallySelectedArtwork = false
+            }
         }
     }
 }
@@ -1740,8 +1788,7 @@ private struct RemotePlaylistCollectionView: View {
                             RemoteCollectionRow(
                                 title: playlist.name,
                                 subtitle: "\(playlist.tracks.count) tracks • \(formatDuration(playlist.duration))",
-                                artworkURL: playlist.artworkURL,
-                                artworkBase64: playlist.artworkBase64,
+                                artwork: RemoteArtworkContext(playlist),
                                 large: false
                             )
                         }
@@ -1849,7 +1896,7 @@ private struct RemotePlaylistDetailView: View {
                 List {
                     Section {
                         HStack(alignment: .top, spacing: 14) {
-                            RemoteArtwork(url: playlist.artworkURL, base64: playlist.artworkBase64, size: 116)
+                            RemoteArtwork(context: RemoteArtworkContext(playlist), size: 116)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(playlist.name).font(.title2.bold())
                                 Text("\(playlist.tracks.count) tracks")
@@ -1980,8 +2027,7 @@ private struct RemotePlaylistPickerSheet: View {
                                 RemoteCollectionRow(
                                     title: playlist.name,
                                     subtitle: "\(playlist.tracks.count) tracks",
-                                    artworkURL: playlist.artworkURL,
-                                    artworkBase64: playlist.artworkBase64,
+                                    artwork: RemoteArtworkContext(playlist),
                                     large: false
                                 )
                             }
@@ -2024,16 +2070,26 @@ private struct RemoteCollectionRow: View {
     @EnvironmentObject private var settings: AppSettings
     let title: String
     let subtitle: String
-    let artworkURL: URL?
-    let artworkBase64: String?
+    let artwork: RemoteArtworkContext
     let large: Bool
+
+    init(
+        title: String,
+        subtitle: String,
+        artwork: RemoteArtworkContext,
+        large: Bool
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.artwork = artwork
+        self.large = large
+    }
 
     var body: some View {
         HStack(spacing: large ? 12 : 8) {
             RemoteArtwork(
-                url: artworkURL,
-                base64: artworkBase64,
-                size: large ? max(76, settings.libraryThumbnailSize.points * 2) : settings.libraryThumbnailSize.points
+                context: artwork,
+                size: large ? max(76, settings.libraryThumbnailSize.points * 2) : settings.libraryThumbnailSize.points,
             )
             VStack(alignment: .leading, spacing: large ? 4 : 1) {
                 Text(title)
@@ -2065,7 +2121,10 @@ private struct RemoteTrackRow: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
             }
-            RemoteArtwork(url: track.artworkURL, base64: track.artworkBase64, size: 42)
+            RemoteArtwork(
+                context: RemoteArtworkContext(track),
+                size: 42,
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).lineLimit(1)
                 Text("\(track.artist) • \(track.album)")
@@ -2106,6 +2165,7 @@ private actor RemoteArtworkLoader {
     static let shared = RemoteArtworkLoader()
 
     private let thumbnails = NSCache<NSString, RemoteArtworkImageBox>()
+    private let sourceData = NSCache<NSString, NSData>()
 
     init() {
         thumbnails.countLimit = 600
@@ -2113,6 +2173,7 @@ private actor RemoteArtworkLoader {
     }
 
     func image(
+        data: Data?,
         url: URL?,
         base64: String?,
         sourceKey: String,
@@ -2122,10 +2183,37 @@ private actor RemoteArtworkLoader {
         let thumbnailKey = "\(sourceKey)|\(boundedPixelSize)" as NSString
         if let cached = thumbnails.object(forKey: thumbnailKey) { return cached }
 
-        let data: Data
-        if let base64 {
+        guard let imageData = await self.data(
+            data: data,
+            url: url,
+            base64: base64,
+            sourceKey: sourceKey
+        ) else { return nil }
+
+        let box = await Task.detached(priority: .utility) {
+            Self.downsample(data: imageData, maxPixelSize: boundedPixelSize)
+        }.value
+        guard let box else { return nil }
+        let cost = max(1, box.image.bytesPerRow * box.image.height)
+        thumbnails.setObject(box, forKey: thumbnailKey, cost: cost)
+        return box
+    }
+
+    func data(
+        data: Data?,
+        url: URL?,
+        base64: String?,
+        sourceKey: String
+    ) async -> Data? {
+        let key = sourceKey as NSString
+        if let cached = sourceData.object(forKey: key) { return cached as Data }
+
+        let imageData: Data
+        if let data {
+            imageData = data
+        } else if let base64 {
             guard let decoded = Data(base64Encoded: base64) else { return nil }
-            data = decoded
+            imageData = decoded
         } else if let url {
             do {
                 var request = URLRequest(url: url)
@@ -2134,21 +2222,16 @@ private actor RemoteArtworkLoader {
                 let (downloaded, response) = try await URLSession.shared.data(for: request)
                 guard let http = response as? HTTPURLResponse,
                       (200..<300).contains(http.statusCode) else { return nil }
-                data = downloaded
+                imageData = downloaded
             } catch {
                 return nil
             }
         } else {
             return nil
         }
-
-        let box = await Task.detached(priority: .utility) {
-            Self.downsample(data: data, maxPixelSize: boundedPixelSize)
-        }.value
-        guard let box else { return nil }
-        let cost = max(1, box.image.bytesPerRow * box.image.height)
-        thumbnails.setObject(box, forKey: thumbnailKey, cost: cost)
-        return box
+        guard !imageData.isEmpty else { return nil }
+        sourceData.setObject(imageData as NSData, forKey: key, cost: imageData.count)
+        return imageData
     }
 
     nonisolated private static func downsample(data: Data, maxPixelSize: Int) -> RemoteArtworkImageBox? {
@@ -2166,30 +2249,145 @@ private actor RemoteArtworkLoader {
     }
 }
 
-private struct RemoteArtwork: View {
-    @Environment(\.displayScale) private var displayScale
-
+private struct RemoteArtworkSource: Hashable {
     let url: URL?
     let base64: String?
+
+    var cacheKey: String {
+        if let url { return url.absoluteString }
+        if let base64 {
+            return "base64:\(base64.prefix(32)):\(base64.hashValue)"
+        }
+        return "empty"
+    }
+}
+
+private struct RemoteArtworkContext: Hashable {
+    let sources: [RemoteArtworkSource]
+    let fallbackArtist: String?
+    let fallbackAlbum: String?
+    let fallbackTrackQueries: [StreamingArtworkTrackQuery]
+    let preferOnlineSearch: Bool
+
+    init(
+        url: URL?,
+        base64: String?,
+        fallbackArtist: String? = nil,
+        fallbackAlbum: String? = nil,
+        fallbackTrackQueries: [StreamingArtworkTrackQuery] = [],
+        preferOnlineSearch: Bool = false
+    ) {
+        self.sources = [RemoteArtworkSource(url: url, base64: base64)]
+            .filter { $0.url != nil || $0.base64 != nil }
+        self.fallbackArtist = fallbackArtist
+        self.fallbackAlbum = fallbackAlbum
+        self.fallbackTrackQueries = fallbackTrackQueries
+        self.preferOnlineSearch = preferOnlineSearch
+    }
+
+    private init(
+        sources: [RemoteArtworkSource],
+        fallbackArtist: String?,
+        fallbackAlbum: String?,
+        fallbackTrackQueries: [StreamingArtworkTrackQuery],
+        preferOnlineSearch: Bool
+    ) {
+        self.sources = sources
+        self.fallbackArtist = fallbackArtist
+        self.fallbackAlbum = fallbackAlbum
+        self.fallbackTrackQueries = fallbackTrackQueries
+        self.preferOnlineSearch = preferOnlineSearch
+    }
+
+    private static func sources(from tracks: [RemoteTrackItem]) -> [RemoteArtworkSource] {
+        var seen = Set<RemoteArtworkSource>()
+        var result: [RemoteArtworkSource] = []
+        for track in tracks {
+            let source = RemoteArtworkSource(url: track.artworkURL, base64: track.artworkBase64)
+            guard (source.url != nil || source.base64 != nil), seen.insert(source).inserted else { continue }
+            result.append(source)
+            if result.count == 12 { break }
+        }
+        return result
+    }
+
+    init(_ track: RemoteTrackItem) {
+        self.init(sources: Self.sources(from: [track]),
+            fallbackArtist: track.albumArtist.isEmpty ? track.artist : track.albumArtist,
+            fallbackAlbum: track.album,
+            fallbackTrackQueries: streamingArtworkQueries([track]),
+            preferOnlineSearch: true
+        )
+    }
+
+    init(_ album: RemoteAlbum) {
+        self.init(sources: Self.sources(from: album.tracks),
+            fallbackArtist: album.artist,
+            fallbackAlbum: album.title,
+            fallbackTrackQueries: streamingArtworkQueries(album.tracks),
+            preferOnlineSearch: true
+        )
+    }
+
+    init(_ artist: RemoteArtist) {
+        self.init(sources: Self.sources(from: artist.tracks),
+            fallbackArtist: artist.name,
+            fallbackAlbum: nil,
+            fallbackTrackQueries: streamingArtworkQueries(artist.tracks),
+            preferOnlineSearch: true
+        )
+    }
+
+    init(_ playlist: RemotePlaylist) {
+        self.init(
+            sources: Self.sources(from: playlist.tracks),
+            fallbackArtist: nil,
+            fallbackAlbum: nil,
+            fallbackTrackQueries: [],
+            preferOnlineSearch: false
+        )
+    }
+}
+
+private struct RemoteArtwork: View {
+    @Environment(\.displayScale) private var displayScale
+    @EnvironmentObject private var settings: AppSettings
+
+    let context: RemoteArtworkContext
     let size: CGFloat
+    let overrideData: Data?
+    let showWarningBorder: Bool
+
+    init(
+        context: RemoteArtworkContext,
+        size: CGFloat,
+        overrideData: Data? = nil,
+        showWarningBorder: Bool = false
+    ) {
+        self.context = context
+        self.size = size
+        self.overrideData = overrideData
+        self.showWarningBorder = showWarningBorder
+    }
 
     @State private var image: UIImage?
     @State private var isLoading = false
     @State private var didFail = false
+    @State private var automaticallySelectedData: Data?
 
     private var sourceKey: String {
-        if let url { return url.absoluteString }
-        if let base64 {
-            // Embedded artwork is rare for the remote backend. The prefix plus
-            // the stable String hash avoids retaining the complete image text
-            // as an image-cache key.
-            return "base64:\(base64.prefix(32)):\(base64.hashValue)"
+        if let overrideData {
+            return "override:\(overrideData.count):\(overrideData.prefix(16).base64EncodedString())"
         }
+        if let automaticallySelectedData {
+            return "automatic:\(automaticallySelectedData.count):\(automaticallySelectedData.prefix(16).base64EncodedString())"
+        }
+        if let source = context.sources.first { return source.cacheKey }
         return "placeholder"
     }
 
     private var taskKey: String {
-        "\(sourceKey)|\(Int((size * displayScale).rounded(.up)))"
+        "\(context.sources.hashValue)|\(overrideData?.count ?? 0)|\(context.fallbackArtist ?? "")|\(context.fallbackAlbum ?? "")|\(context.fallbackTrackQueries.hashValue)|\(Int((size * displayScale).rounded(.up)))"
     }
 
     var body: some View {
@@ -2206,31 +2404,113 @@ private struct RemoteArtwork: View {
         .frame(width: size, height: size)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: max(7, size * 0.09)))
+        .overlay {
+            if settings.showArtworkWarning && (showWarningBorder || automaticallySelectedData != nil) {
+                RoundedRectangle(cornerRadius: max(7, size * 0.09)).stroke(.red, lineWidth: 2)
+            }
+        }
         .task(id: taskKey) { await loadArtwork() }
     }
 
     @MainActor
     private func loadArtwork() async {
-        guard url != nil || base64 != nil else {
-            image = nil
-            didFail = false
-            return
-        }
-
         isLoading = true
         didFail = false
+        automaticallySelectedData = nil
         defer { isLoading = false }
 
         let pixels = Int((size * displayScale).rounded(.up))
-        let loaded = await RemoteArtworkLoader.shared.image(
-            url: url,
-            base64: base64,
-            sourceKey: sourceKey,
-            maxPixelSize: pixels
-        )
+        var loaded: RemoteArtworkImageBox?
+        if let overrideData {
+            let overrideLoadedData = await RemoteArtworkLoader.shared.data(
+                data: overrideData,
+                url: nil,
+                base64: nil,
+                sourceKey: sourceKey
+            )
+            if overrideLoadedData != nil {
+                loaded = await RemoteArtworkLoader.shared.image(
+                    data: overrideLoadedData,
+                    url: nil,
+                    base64: nil,
+                    sourceKey: sourceKey,
+                    maxPixelSize: pixels
+                )
+            }
+        } else {
+            if context.preferOnlineSearch {
+                let automaticData = await StreamingArtworkCache.shared.artwork(
+                    artist: context.fallbackArtist ?? "",
+                    album: context.fallbackAlbum,
+                    trackQueries: context.fallbackTrackQueries
+                )
+                guard !Task.isCancelled else { return }
+                if let automaticData {
+                    automaticallySelectedData = automaticData
+                    let automaticKey = sourceKey
+                    if let automaticImage = await RemoteArtworkLoader.shared.image(
+                        data: automaticData,
+                        url: nil,
+                        base64: nil,
+                        sourceKey: automaticKey,
+                        maxPixelSize: pixels
+                    ) {
+                        image = UIImage(cgImage: automaticImage.image, scale: displayScale, orientation: .up)
+                        return
+                    }
+                    automaticallySelectedData = nil
+                }
+            }
+
+            for source in context.sources {
+                let candidateData = await RemoteArtworkLoader.shared.data(
+                    data: nil,
+                    url: source.url,
+                    base64: source.base64,
+                    sourceKey: source.cacheKey
+                )
+                let candidateImage = await RemoteArtworkLoader.shared.image(
+                    data: candidateData,
+                    url: nil,
+                    base64: nil,
+                    sourceKey: source.cacheKey,
+                    maxPixelSize: pixels
+                )
+                if let candidateImage {
+                    loaded = candidateImage
+                    break
+                }
+            }
+        }
         guard !Task.isCancelled else { return }
         if let loaded {
             image = UIImage(cgImage: loaded.image, scale: displayScale, orientation: .up)
+            return
+        }
+
+        guard let fallbackArtist = context.fallbackArtist,
+              !fallbackArtist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            image = nil
+            didFail = true
+            return
+        }
+
+        let fallbackData = await StreamingArtworkCache.shared.artwork(
+            artist: fallbackArtist,
+            album: context.fallbackAlbum,
+            trackQueries: context.fallbackTrackQueries
+        )
+        guard !Task.isCancelled else { return }
+        automaticallySelectedData = fallbackData
+        if let fallbackData,
+           let fallbackImage = await RemoteArtworkLoader.shared.image(
+                data: fallbackData,
+                url: nil,
+                base64: nil,
+                sourceKey: sourceKey,
+                maxPixelSize: pixels
+           ) {
+            image = UIImage(cgImage: fallbackImage.image, scale: displayScale, orientation: .up)
         } else {
             image = nil
             didFail = true
@@ -2242,6 +2522,17 @@ private struct RemoteArtwork: View {
             RoundedRectangle(cornerRadius: max(7, size * 0.09)).fill(.secondary.opacity(0.15))
             Image(systemName: "music.note").foregroundStyle(.secondary)
         }
+    }
+}
+
+private func streamingArtworkQueries(_ tracks: [RemoteTrackItem]) -> [StreamingArtworkTrackQuery] {
+    tracks.map {
+        StreamingArtworkTrackQuery(
+            artist: $0.artist,
+            albumArtist: $0.albumArtist,
+            album: $0.album,
+            title: $0.title
+        )
     }
 }
 

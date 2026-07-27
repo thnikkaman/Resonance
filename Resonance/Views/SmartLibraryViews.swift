@@ -668,6 +668,7 @@ struct TrackMetadataEditorSheet: View {
             .sheet(isPresented: $showingArtworkSearch) {
                 OnlineArtworkSearchSheet(
                     artist: artist,
+                    albumArtist: albumArtist,
                     album: album,
                     onApplyToApp: { data in
                         artworkData = data
@@ -675,7 +676,9 @@ struct TrackMetadataEditorSheet: View {
                         library.applyArtworkToApp(for: track.id, data: data)
                     },
                     onSaveToFiles: { data in
-                        await library.updateTrackMetadata(
+                        artworkData = data
+                        replaceArtwork = true
+                        let error = await library.updateTrackMetadata(
                             trackID: track.id,
                             title: title,
                             artist: artist,
@@ -687,6 +690,10 @@ struct TrackMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
+                        if error == nil {
+                            library.applyArtworkToApp(for: track.id, data: data)
+                        }
+                        return error
                     }
                 )
             }
@@ -847,6 +854,7 @@ struct AlbumMetadataEditorSheet: View {
             .sheet(isPresented: $showingArtworkSearch) {
                 OnlineArtworkSearchSheet(
                     artist: albumArtist,
+                    albumArtist: albumArtist,
                     album: albumTitle,
                     onApplyToApp: { data in
                         artworkData = data
@@ -854,7 +862,9 @@ struct AlbumMetadataEditorSheet: View {
                         library.applyArtworkToApp(forAlbumTrackIDs: album.tracks.map(\.id), data: data)
                     },
                     onSaveToFiles: { data in
-                        await library.updateAlbumMetadata(
+                        artworkData = data
+                        replaceArtwork = true
+                        let error = await library.updateAlbumMetadata(
                             trackIDs: album.tracks.map(\.id),
                             album: albumTitle,
                             albumArtist: albumArtist,
@@ -862,6 +872,10 @@ struct AlbumMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
+                        if error == nil {
+                            library.applyArtworkToApp(forAlbumTrackIDs: album.tracks.map(\.id), data: data)
+                        }
+                        return error
                     }
                 )
             }
@@ -1103,13 +1117,20 @@ struct ArtistMetadataEditorSheet: View {
                         library.applyArtworkToApp(for: artist, data: data)
                     },
                     onSaveToFiles: { data in
-                        await library.updateArtistMetadata(
+                        artworkData = data
+                        replaceArtwork = true
+                        clearArtworkOverride = false
+                        let error = await library.updateArtistMetadata(
                             artist: artist,
                             name: artistName,
                             artworkData: data,
                             replaceArtwork: true,
                             clearArtworkOverride: false
                         )
+                        if error == nil {
+                            library.applyArtworkToApp(for: artist, data: data)
+                        }
+                        return error
                     }
                 )
             }
