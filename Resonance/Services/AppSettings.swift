@@ -46,7 +46,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .galleryLight: "Warm ivory with editorial terracotta"
         case .colorBloom: "Deep navy with luminous color"
         case .brushedMetal: "Cool steel with a soft silver sheen"
-        case .classicWood: "Warm walnut with brass highlights"
+        case .classicWood: "Warm cherry with flowing flame grain"
         case .electronic: "Midnight circuitry with electric cyan"
         case .psychedelic: "Ultraviolet color with acid-lime energy"
         case .waterfall: "Mountain waterfall with purple and orange flowers"
@@ -94,14 +94,30 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var secondaryHex: String {
         switch self {
-        case .nocturne: "95A3C6"
-        case .galleryLight: "596477"
-        case .colorBloom: "79D9FF"
-        case .brushedMetal: "D7E3ED"
-        case .classicWood: "F1D0A3"
-        case .electronic: "75F0FF"
-        case .psychedelic: "7CFF7A"
-        case .waterfall: "B7E4C7"
+        case .nocturne: "F4C95D"
+        case .galleryLight: "0B7285"
+        case .colorBloom: "F6D365"
+        case .brushedMetal: "E9A23B"
+        case .classicWood: "7FDBDA"
+        case .electronic: "FF9F68"
+        case .psychedelic: "F4FF00"
+        case .waterfall: "D7A8FF"
+        }
+    }
+
+    /// Text accents intentionally use a complementary hue to the theme artwork.
+    /// Keeping this separate from `accentHex` preserves each theme's control tint
+    /// while making labels and section markers readable over its background.
+    var textAccentHex: String {
+        switch self {
+        case .nocturne: "FFD166"
+        case .galleryLight: "006D77"
+        case .colorBloom: "FFD166"
+        case .brushedMetal: "FFC857"
+        case .classicWood: "8BE9FD"
+        case .electronic: "FFB86C"
+        case .psychedelic: "F4FF00"
+        case .waterfall: "E5B8FF"
         }
     }
 
@@ -332,7 +348,7 @@ final class AppSettings: ObservableObject {
 
     var textAccentColor: Color {
         if applyThemeColorToText {
-            return accentColor
+            return Color(hex: visualTheme.textAccentHex) ?? accentColor
         }
         return Color(hex: normalizedAccentHex) ?? .purple
     }

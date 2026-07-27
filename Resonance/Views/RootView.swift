@@ -647,6 +647,13 @@ extension View {
         modifier(ResonanceThemeTextSurface())
     }
 
+    /// Keeps the final Library/Streaming item above the custom bottom controls.
+    /// The mini-player value already includes its larger bottom clearance when
+    /// it is docked below the browse surface.
+    func resonanceBrowseBottomClearance() -> some View {
+        modifier(ResonanceBrowseBottomClearance())
+    }
+
     fileprivate func resonanceMiniPlayerInsets(
         isVisible: Bool,
         dock: MiniPlayerDock,
@@ -693,6 +700,14 @@ extension View {
 
     func resonanceHeroSurface() -> some View {
         modifier(ResonanceHeroSurface())
+    }
+}
+
+private struct ResonanceBrowseBottomClearance: ViewModifier {
+    @Environment(\.resonanceMiniPlayerBottomInset) private var miniPlayerBottomInset
+
+    func body(content: Content) -> some View {
+        content.safeAreaPadding(.bottom, max(72, miniPlayerBottomInset))
     }
 }
 

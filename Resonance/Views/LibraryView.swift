@@ -336,7 +336,7 @@ struct VerticalArtistIndex: View {
     @State private var hideTask: Task<Void, Never>?
 
     private let indexColumnWidth: CGFloat = 32
-    private let bubbleSize: CGFloat = 58
+    private let bubbleSize: CGFloat = 86
     private let verticalInset: CGFloat = 8
 
     var body: some View {
@@ -361,12 +361,53 @@ struct VerticalArtistIndex: View {
 
                 if let selectedKey {
                     Text(selectedKey)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundStyle(settings.textAccentColor)
+                        .minimumScaleFactor(0.55)
                         .frame(width: bubbleSize, height: bubbleSize)
-                        .background(.black.opacity(0.84), in: RoundedRectangle(cornerRadius: 16))
+                        .background {
+                            ZStack {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.32),
+                                                Color.cyan.opacity(0.28),
+                                                Color.blue.opacity(0.18)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                Ellipse()
+                                    .fill(Color.white.opacity(0.28))
+                                    .frame(width: bubbleSize * 0.52, height: bubbleSize * 0.18)
+                                    .blur(radius: 4)
+                                    .offset(x: -bubbleSize * 0.12, y: -bubbleSize * 0.25)
+                            }
+                            .clipShape(Circle())
+                        }
+                        .overlay {
+                            Circle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.7),
+                                            Color.cyan.opacity(0.75),
+                                            Color.blue.opacity(0.5)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.25
+                                )
+                        }
+                        .shadow(color: Color.cyan.opacity(0.28), radius: 8)
+                        .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
                         .offset(
-                            x: -(indexColumnWidth + 10),
+                            x: -(bubbleSize + indexColumnWidth + 10),
                             y: topInset + CGFloat(selectedRow) * rowHeight + (rowHeight - bubbleSize) / 2
                         )
                         .transition(.opacity.combined(with: .scale(scale: 0.92)))
@@ -541,6 +582,7 @@ struct ArtistCollectionView: View {
                             .padding(.top, 84)
                             .padding(.bottom)
                         }
+                        .resonanceBrowseBottomClearance()
 
                     case .compact, .large:
                         List {
@@ -594,6 +636,7 @@ struct ArtistCollectionView: View {
                         .listRowBackground(Color.clear)
                         .scrollContentBackground(.hidden)
                         .safeAreaPadding(.top, 84)
+                        .resonanceBrowseBottomClearance()
                     }
                 }
 
@@ -957,6 +1000,7 @@ struct ArtistDetailView: View {
                                 .padding(.trailing, 40)
                                 .padding(.bottom)
                             }
+                            .resonanceBrowseBottomClearance()
                             .background {
                                 ResonanceThemeSurfaceBackdrop()
                             }
@@ -1026,6 +1070,7 @@ struct ArtistDetailView: View {
                             .listRowBackground(Color.clear)
                             .scrollContentBackground(.hidden)
                             .safeAreaPadding(.trailing, 36)
+                            .resonanceBrowseBottomClearance()
                             .background(Color.clear)
                         }
                     }
@@ -1284,6 +1329,7 @@ struct AlbumCollectionView: View {
                     .padding(.top, 84)
                     .padding(.bottom)
                 }
+                .resonanceBrowseBottomClearance()
             } else {
                 List {
                     ForEach(indexedSections, id: \.key) { section in
@@ -1303,6 +1349,7 @@ struct AlbumCollectionView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .safeAreaPadding(.top, 84)
+                .resonanceBrowseBottomClearance()
             }
                 }
 
@@ -1419,6 +1466,7 @@ struct TrackCollectionView: View {
                     }
                     .padding()
                 }
+                .resonanceBrowseBottomClearance()
             } else {
                 List(tracks) { track in
                     Button { player.play(track, in: tracks) } label: {
@@ -1444,6 +1492,7 @@ struct TrackCollectionView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .resonanceBrowseBottomClearance()
             }
         }
     }

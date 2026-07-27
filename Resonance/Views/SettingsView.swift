@@ -96,7 +96,7 @@ struct SettingsView: View {
                     )
                 }
 
-                Toggle("Apply theme color to text", isOn: $settings.applyThemeColorToText)
+                Toggle("Apply theme color to text", isOn: applyThemeColorToTextBinding)
                 Toggle("Red outline for cached artwork", isOn: $settings.showArtworkWarning)
 
                 ThemePreview()
@@ -405,11 +405,14 @@ struct SettingsView: View {
                             Label("Copy Errors", systemImage: "doc.on.doc")
                         }
                         Spacer()
-                        Button(role: .destructive) {
+                        Button {
                             errorLog.clear()
                         } label: {
                             Label("Clear", systemImage: "trash")
                         }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .accessibilityLabel("Delete reported errors")
                     }
                 }
             }
@@ -533,7 +536,8 @@ struct SettingsView: View {
             guard value.count == 6 else { return }
             accentHexCommitter.schedule(value) { [weak settings] value in
                 guard let settings else { return }
-                if settings.accentHex != value { settings.accentHex = value }
+                guard settings.accentHex != value else { return }
+                settings.accentHex = value
                 settings.applyThemeColorToText = false
             }
         }
@@ -544,6 +548,18 @@ struct SettingsView: View {
         accentHexDraft = value
         settings.accentHex = value
         settings.applyThemeColorToText = false
+    }
+
+    private var applyThemeColorToTextBinding: Binding<Bool> {
+        Binding(
+            get: { settings.applyThemeColorToText },
+            set: { value in
+                // A pending hex edit must not finish after the user changes
+                // this preference during a tab transition.
+                accentHexCommitter.cancel()
+                settings.applyThemeColorToText = value
+            }
+        )
     }
 }
 

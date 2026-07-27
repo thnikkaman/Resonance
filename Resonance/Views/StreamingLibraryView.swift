@@ -744,7 +744,6 @@ private struct RemoteLibraryOptionsSheet: View {
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
-  @Environment(\.resonanceMiniPlayerBottomInset) private var miniPlayerBottomInset
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
   @Binding var selectionMode: Bool
@@ -905,9 +904,8 @@ private struct RemoteArtistCollectionView: View {
                     .padding(.leading, 16)
                     .padding(.trailing, 36)
                     .padding(.top, 84)
-                    .padding(.bottom, miniPlayerBottomInset)
                 }
-                .safeAreaPadding(.bottom, miniPlayerBottomInset)
+                .resonanceBrowseBottomClearance()
 
                 if sections.count > 1 {
                     VerticalArtistIndex(
@@ -1150,6 +1148,7 @@ private struct RemoteAlbumCollectionView: View {
                     .padding(.trailing, 36)
                     .padding(.vertical)
                 }
+                .resonanceBrowseBottomClearance()
 
                 if sections.count > 1 {
                     VerticalArtistIndex(
@@ -1258,6 +1257,7 @@ private struct RemoteTrackCollectionView: View {
             }
         }
         .scrollIndicators(.hidden)
+        .resonanceBrowseBottomClearance()
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)
         }

@@ -51,8 +51,9 @@ final class AppErrorLog: ObservableObject {
     }
 
     func clear() {
+        guard !entries.isEmpty else { return }
         entries.removeAll()
-        UserDefaults.standard.removeObject(forKey: Self.persistenceKey)
+        persist()
     }
 
     func copyText() -> String {
