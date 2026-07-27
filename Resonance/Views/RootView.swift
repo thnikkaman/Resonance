@@ -280,11 +280,15 @@ struct RootView: View {
                 tabPage(.playing, width: proxy.size.width) {
                     NowPlayingView(
                         openLibrary: { tabNavigation.select(.library) },
-                        onHorizontalTabSwipeChanged: { translation in
-                            updateTabSwipe(translation)
+                        onHorizontalTabSwipeChanged: { horizontal, vertical in
+                            updateTabSwipe(horizontal, vertical: vertical)
                         },
-                        onHorizontalTabSwipeEnded: { translation in
-                            finishTabSwipe(translation, width: proxy.size.width)
+                        onHorizontalTabSwipeEnded: { horizontal, vertical in
+                            finishTabSwipe(
+                                horizontal,
+                                vertical: vertical,
+                                width: proxy.size.width
+                            )
                         }
                     )
                 }

@@ -8,13 +8,13 @@ struct NowPlayingView: View {
   @State private var showingBookmarks = false
   @State private var showingPlaylistPicker = false
   let openLibrary: () -> Void
-  let onHorizontalTabSwipeChanged: (CGFloat) -> Void
-  let onHorizontalTabSwipeEnded: (CGFloat) -> Void
+  let onHorizontalTabSwipeChanged: (CGFloat, CGFloat) -> Void
+  let onHorizontalTabSwipeEnded: (CGFloat, CGFloat) -> Void
 
   init(
     openLibrary: @escaping () -> Void,
-    onHorizontalTabSwipeChanged: @escaping (CGFloat) -> Void = { _ in },
-    onHorizontalTabSwipeEnded: @escaping (CGFloat) -> Void = { _ in }
+    onHorizontalTabSwipeChanged: @escaping (CGFloat, CGFloat) -> Void = { _, _ in },
+    onHorizontalTabSwipeEnded: @escaping (CGFloat, CGFloat) -> Void = { _, _ in }
   ) {
     self.openLibrary = openLibrary
     self.onHorizontalTabSwipeChanged = onHorizontalTabSwipeChanged
@@ -80,19 +80,26 @@ struct NowPlayingView: View {
         }
 
         .contentShape(Rectangle())
-        .gesture(
-          DragGesture(minimumDistance: 5, coordinateSpace: .local)
+        .highPriorityGesture(
+          // The page itself is translated during a live tab swipe. A local
+          // coordinate space therefore moves with the gesture's view and can
+          // feed back into translation, producing the visible vibration on
+          // Playing. Global coordinates remain fixed to the screen.
+          DragGesture(minimumDistance: 5, coordinateSpace: .global)
             .onChanged { value in
-              guard abs(value.translation.width) >= 8,
-                    abs(value.translation.width) > abs(value.translation.height) + 4
-              else { return }
-              onHorizontalTabSwipeChanged(value.translation.width)
+              onHorizontalTabSwipeChanged(
+                value.translation.width,
+                value.translation.height
+              )
             }
             .onEnded { value in
-              guard abs(value.translation.width) >= 8,
-                    abs(value.translation.width) > abs(value.translation.height) + 4
-              else { return }
-              onHorizontalTabSwipeEnded(value.translation.width)
+              // Always notify the root on release. If the gesture became
+              // vertical near the end, the root must cancel the live offset
+              // instead of leaving the transition in an indeterminate state.
+              onHorizontalTabSwipeEnded(
+                value.translation.width,
+                value.translation.height
+              )
             }
         )
       }
