@@ -800,6 +800,7 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func play(_ selected: RemoteTrackItem, in context: [RemoteTrackItem], using player: PlayerController) async {
+        player.requestNowPlayingPresentation()
         let requestGeneration = beginPlaybackPreparation()
         let ordered = context.isEmpty ? [selected] : context
         let prepared = await preparePlaybackTracks(ordered, priority: selected)
@@ -811,10 +812,11 @@ final class RemoteLibraryStore: ObservableObject {
             return
         }
         guard let target = prepared.first(where: { $0.id == selected.id }) else { return }
-        player.play(target, in: prepared)
+        player.play(target, in: prepared, presentsNowPlaying: false)
     }
 
     func playAlbum(_ album: RemoteAlbum, using player: PlayerController, shuffle: Bool = false) async {
+        player.requestNowPlayingPresentation()
         let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(album.tracks, priority: album.tracks.first)
         guard requestGeneration == playbackPreparationGeneration else {
@@ -826,13 +828,14 @@ final class RemoteLibraryStore: ObservableObject {
         }
         guard !prepared.isEmpty else { return }
         if shuffle {
-            player.shuffleAndPlay(prepared)
+            player.shuffleAndPlay(prepared, presentsNowPlaying: false)
         } else if let first = prepared.first {
-            player.play(first, in: prepared)
+            player.play(first, in: prepared, presentsNowPlaying: false)
         }
     }
 
     func playArtist(_ artist: RemoteArtist, using player: PlayerController, shuffle: Bool = false) async {
+        player.requestNowPlayingPresentation()
         let requestGeneration = beginPlaybackPreparation()
         let ordered = artist.albums.flatMap(\.tracks)
         let prepared = await preparePlaybackTracks(ordered, priority: ordered.first)
@@ -845,9 +848,9 @@ final class RemoteLibraryStore: ObservableObject {
         }
         guard !prepared.isEmpty else { return }
         if shuffle {
-            player.shuffleAndPlay(prepared)
+            player.shuffleAndPlay(prepared, presentsNowPlaying: false)
         } else if let first = prepared.first {
-            player.play(first, in: prepared)
+            player.play(first, in: prepared, presentsNowPlaying: false)
         }
     }
 
@@ -1039,6 +1042,7 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func playPlaylist(_ playlist: RemotePlaylist, using player: PlayerController, shuffle: Bool = false) async {
+        player.requestNowPlayingPresentation()
         let requestGeneration = beginPlaybackPreparation()
         let prepared = await preparePlaybackTracks(playlist.tracks, priority: playlist.tracks.first)
         guard requestGeneration == playbackPreparationGeneration else {
@@ -1050,9 +1054,9 @@ final class RemoteLibraryStore: ObservableObject {
         }
         guard !prepared.isEmpty else { return }
         if shuffle {
-            player.shuffleAndPlay(prepared)
+            player.shuffleAndPlay(prepared, presentsNowPlaying: false)
         } else if let first = prepared.first {
-            player.play(first, in: prepared)
+            player.play(first, in: prepared, presentsNowPlaying: false)
         }
     }
 

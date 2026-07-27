@@ -1,9 +1,9 @@
-# Resonance Alpha 3.7.4 — Playback and Streaming Stabilization
+# Resonance Beta v1.0.2 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
 Build: **101**
 
-Install directly over Alpha 3.7.3 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
+Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
 ## Observed problems
 
@@ -206,16 +206,13 @@ xcrun devicectl device copy from \
   --destination /Users/brian/Resonance/diagnostics/Resonance-Diagnostics.log
 ```
 
-## Handoff update — 2026-07-26
+## Handoff update — 2026-07-27
 
 The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`, at commit `c6d0aed` (`Resonance-Beta-v1.0.1`), with
+`agent/alpha-3.7.4-source`, at the `Resonance-Beta-v1.0.2` release commit, with
 version `0.3.7.4` and project build `101`. The working tree intentionally has
-uncommitted changes in `Track.swift`, `ArtworkSearchService.swift`,
-`LibraryStore.swift`, `RemoteLibraryStore.swift`, `AlbumDetailView.swift`,
-`OnlineArtworkSearchView.swift`, `SmartLibraryViews.swift`,
-`StreamingLibraryView.swift`, `Tools/RegressionChecks.sh`, and
-`Assets.xcassets/AppIcon.appiconset`.
+the complete Beta v1.0.2 source and documentation committed; no uncommitted
+release changes remain.
 
 The pending changes move `RemoteDownloadOverlay` into the Streaming content
 flow with the existing 84-point title clearance, so the download banner sits
@@ -340,3 +337,426 @@ development team `98CWMFS26R`, verified with strict code-signature checks, and
 installed in place on `SaiyanDenwa` using `devicectl`. The device reports bundle
 `com.example.ResonancePrototype`, version `0.3.7.4`, build `101`. The app was
 not launched; no playback or physical-device runtime acceptance was performed.
+
+The local Albums library now uses the shared vertical alphabet index for both
+grid and list layouts. Album titles are grouped into the same numeric, Roman,
+Unicode, and punctuation sections used by artist browsing, and the index jumps
+to `album-section-*` anchors while preserving ascending or descending order.
+Streaming artwork warnings now distinguish searched fallback art from a stream
+that already provides artwork: existing server/file artwork is not outlined in
+red or overwritten by an automatic cache entry. `Tools/RegressionChecks.sh`
+passed, the strict warnings-as-errors simulator build passed, and the configured
+simulator showed the local Albums index and the Streaming index without red
+outlines around existing artwork. The physical device was not updated or
+launched.
+
+Feature-complete turning point — Resonance Beta v1.0.2
+--------------------------------------------------------------------------
+
+The repaired library, streaming artwork inheritance/search, artwork editing,
+download workflow, artwork provenance warnings, alphabet navigation, tab
+transitions, hierarchy swipes, and interface polish are now considered complete
+for the Beta v1.0.2 build. The user reports that all installed features are
+fully functional. Preserve the current module boundaries and working behavior;
+the next phase is limited to a small set of interface-polish improvements.
+
+## Streaming gapless experiment — 2026-07-27
+
+The signed-in simulator reproduced the current remote boundary on Tool / 10,000 Days. The stable path logs a completed
+`AVPlayer` item followed by a new remote playback request, which explains the audible interruption. The existing
+dual-`AVPlayer` preloader was enabled only in a temporary simulator build; it reported a ready preloaded item and an
+`advanced` boundary, but it was not accepted as a gapless fix. A DEBUG-only test then sought directly to five seconds
+before the end (`421.684` of `426.684` seconds, and `443.627` of `448.627` seconds on the next track); the remote
+session did not produce a reliable boundary completion after that seek. The DEBUG-only seek hook was removed. The
+old dual-player flag was later disabled after the sample-contiguous experiment replaced it.
+
+Apple's documented behavior indicates that true sample-contiguous remote playback requires one continuous timeline:
+an appropriately authored HLS/fMP4 stream, or a client-side streamed decode into one PCM scheduling/rendering path.
+Separate raw Subsonic file URLs and separate `AVPlayer` instances cannot guarantee that property. Do not treat the
+phone experiment as a verified release fix. The exact next implementation point remains a new playback-only remote
+sample pipeline, with local `GaplessAudioEngine`, artwork, navigation, and interface modules left unchanged.
+
+## Remote sample-contiguous playback experiment — 2026-07-27
+
+The current playback-only experiment now downloads the current and next
+same-album remote tracks into `Library/Caches/RemoteGapless`, validates that
+their decoded sample rate and channel count match, and schedules both through
+the existing single-node `GaplessAudioEngine`. The older dual-`AVPlayer`
+experiment is disabled. The sample-contiguous path is enabled in simulator and
+device builds; different albums, incompatible decoded formats, failed
+preparation, and missing next tracks retain the existing remote fallback.
+
+The signed-in simulator cached two Tool tracks, prepared 44.1 kHz stereo audio,
+and recorded `remote.gapless.prepared` followed by
+`playback.gapless.boundary.end result=advanced`. The simulator then showed the
+next track playing. This verifies the shared decoded timeline and boundary
+control flow, but it still requires both tracks to download before playback
+starts and is not yet a low-latency streaming architecture.
+
+Validation passed `Tools/PreflightBuild.sh`, `Tools/RegressionChecks.sh`,
+`git diff --check`, strict Debug simulator compilation, signed arm64 Release
+compilation, and strict deep code-signature verification. The known no-scheme
+destination, harmless AppIntents metadata-skip, and stale prior `/tmp` build
+artifact warnings remained non-blocking. The signed build was installed in
+place on `SaiyanDenwa` as bundle `com.example.ResonancePrototype`, version
+`0.3.7.4`, build `101`; the phone was not launched.
+
+Manual phone test: start a same-album remote pair, seek to approximately five
+seconds before the first track ends, and listen for truncation or a residual
+gap. Also test a different-album transition, preparation cancellation/restart,
+and a failed remote download. Do not treat the experiment as fully accepted
+until audible phone behavior is confirmed.
+
+## Device runtime log review — 2026-07-27 UTC
+
+The installed build's credential-free device diagnostics were copied after a
+manual runtime session. The log recorded three successful sample-contiguous
+preparations: one stereo pair decoded at 44.1 kHz and two six-channel pairs
+decoded at 96 kHz. Each preparation published a nonzero gapless render meter;
+the stereo pair and both six-channel pairs reached
+`playback.gapless.boundary.end result=advanced`. A different-album transition
+reported `preloadedTarget=false`, used the normal remote fallback, and did not
+change the local engine path.
+
+This confirms device-side preparation, rendering, and boundary control flow,
+but not audible zero-gap behavior or channel-routing correctness. The log has
+no user listening result or recording correlation, and it does not yet prove
+preparation cancellation/restart or failed-download recovery. The physical
+app was not relaunched or reinstalled by this review; build 101 remains the
+installed package, and the current working tree still contains the intentional
+uncommitted experiment plus the local Albums/artwork-provenance changes.
+
+Next continuation: obtain the user's audible result or a time-correlated
+recording for the stereo and six-channel boundaries, then test cancellation
+and restart during the two-file preparation and an unreachable/failed remote
+download. Keep the sample path experimental until those results are known.
+
+## Remote album preload continuation — 2026-07-27 UTC
+
+The sample-contiguous remote path previously prepared only the initial two
+same-album tracks. At the second-track boundary, its continuation scheduler
+used the local-file preload check, so the third remote album track was not
+scheduled and the UI reported end of queue. `PlayerController` now downloads
+the next same-album remote track into the existing gapless cache while the
+current track plays, appends it to the same `GaplessAudioEngine` timeline, and
+repeats that process after every album boundary. A late or failed continuation
+preload falls back to normal next-track loading rather than stopping playback.
+
+`Tools/RegressionChecks.sh`, strict simulator preflight, and strict generic
+device preflight passed. A fresh Debug simulator build was installed in place
+on the booted iPhone 17 Pro simulator; it was not launched automatically. The
+physical phone was not changed or launched. Known no-scheme destination and
+AppIntents metadata-skip warnings remain non-blocking.
+
+Manual simulator test: launch the installed app, play an album with at least
+four remote tracks, and verify playback continues from track two through the
+remaining album tracks without an end-of-queue state. Also test a slow or
+interrupted next-track download and confirm it loads normally, then verify the
+final album boundary and a different-album transition.
+
+## Previous-track preload restart — 2026-07-27 UTC
+
+Pressing Previous could reopen a cached earlier album track through the local
+gapless path while its remote successor was not cached. That path then showed
+`End of queue` because it only considered local preload candidates. It now
+detects the remote same-album successor immediately, starts the continuation
+download again, and reports ordinary next-track loading for real non-gapless
+queue successors instead of mislabeling them as the end.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. The updated Debug build was installed in the booted iPhone
+17 Pro simulator and was not launched automatically. The physical phone was
+not changed or launched.
+
+## Artist album alphabet indexes — 2026-07-27 UTC
+
+Local `ArtistDetailView` and Streaming `RemoteArtistDetailView` now group
+albums into title-letter sections and expose the same right-side
+`VerticalArtistIndex` used by the main Library and Streaming album browsers.
+The index works in both grid and list layouts, scrolls the artist's album
+content to the selected letter, leaves the All Albums entry at the top, and
+keeps the existing album sort order within each letter section.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on the
+booted iPhone 17 Pro simulator; it was not launched automatically. The
+physical phone was not changed or launched.
+
+Manual simulator test: open an artist with albums spanning several letters in
+Library and Streaming, verify the right-side index appears in grid and list
+layouts, tap and drag across letters, and confirm normal album taps and
+scrolling still work.
+
+## Alphabet index direct-tap commit — 2026-07-27 UTC
+
+The shared `VerticalArtistIndex` now commits the final touch location in
+the drag gesture's `onEnded` callback as well as during `onChanged`. This
+makes a direct tap on an earlier alphabet letter reliably scroll back to
+that section after the content has been scrolled down. Dragging through
+letters remains supported across Library, Streaming, local artist album
+views, and Streaming artist album views.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: scroll deep into Library, Streaming, a local artist
+album view, and a Streaming artist album view; tap an earlier letter
+directly and then drag across letters, confirming both jump directions.
+
+## Alphabet index release retry — 2026-07-27 UTC
+
+Simulator diagnostics showed that the first touch emitted the selection and
+`scrollTo` request during `DragGesture.onChanged`, but the release path did
+not reissue the callback because the selected key was already recorded. The
+shared index now repeats the final scroll after yielding to the main actor
+when the gesture ends. This lets the scroll view finish its touch handling
+before the direct-tap jump is applied, while preserving continuous dragging.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: from a deep section, tap an earlier letter once in
+Library, Streaming, a local artist album view, and a Streaming artist album
+view. Repeat with forward jumps and drag gestures.
+
+## Hex channel sliders — 2026-07-27 UTC
+
+The RGB hex editor keeps its intentional 80% visual width but no longer
+relies on the native Slider's hidden thumb insets while drawing separate
+hex-nibble tick marks. Each channel now uses an explicit track and thumb
+geometry, maps the complete visible track directly to 0...255, and exposes
+matching accessibility values and increment/decrement actions. This removes
+visual tick/indicator drift and prevents the value mapping from depending on
+platform Slider geometry.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: in Settings → Appearance, select Red, Green, and
+Blue fields; tap and drag each custom slider from both endpoints through
+the nibble marks, confirm exact 00/FF endpoints and intermediate values,
+edit the two-character fields, switch palettes, and relaunch to confirm
+the combined six-character accent persists.
+
+## Tappable volume slider — 2026-07-27 UTC
+
+The Now Playing volume control now uses the same explicit track geometry as
+the RGB channel controls. Tapping anywhere along the visible volume bar sets
+the value immediately, and dragging continues to update it across the full
+0...1 range. Accessibility exposes the percentage and five-percent
+increment/decrement adjustments.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: open Now Playing, tap at several positions on the
+volume bar without grabbing the thumb, drag from both endpoints, confirm the
+speaker icons and volume response, and verify accessibility adjustments.
+
+## Tab persistence, bottom mini-player, and play navigation — 2026-07-27 UTC
+
+The mini-player now defaults to bottom docking. The root retains a separate
+NavigationStack for Playing, Library, Streaming, and Settings inside a hidden
+native TabView while the existing themed tab bar remains visible. Switching
+from Library or Streaming to Settings or Playing therefore preserves the
+selected detail page and its scroll position when returning. Explicit local
+and remote play requests emit a low-frequency presentation event that selects
+the Playing tab immediately; automatic track changes do not switch tabs.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on the
+iPhone 17 Pro simulator. Runtime testing was stopped at the user's request
+after confirming a local detail page survived a Settings → Library switch; the
+play-navigation and bottom-docking checks remain for manual testing. The
+physical phone was not changed or launched.
+
+Manual test: confirm the mini-player opens at the bottom; scroll or open a
+local and Streaming detail page, visit Settings or Playing, and return to
+verify the same page and position. Tap Play on local and remote track, album,
+artist, and playlist controls and confirm the Playing tab opens immediately.
+Confirm automatic next/previous playback does not unexpectedly change tabs.
+
+## Disable top-of-list bounce — 2026-07-27 UTC
+
+Resonance now disables UIKit scroll-view bouncing app-wide, including vertical
+page and list surfaces. Swiping downward from the top no longer translates the
+content and springs it back; horizontal scrolling remains available for
+horizontal controls and names.
+
+Regression checks, `git diff --check`, and an XcodeBuildMCP simulator build and
+install passed. The simulator was not launched after installation, and the
+physical phone was not changed.
+
+Manual test: on Library, Streaming, artist/album detail, Settings, and Now
+Playing lists, drag downward from the top edge and confirm the content stays
+stationary instead of bouncing. Confirm ordinary vertical scrolling and
+horizontal name/control scrolling still work.
+
+## Streaming All Albums themed background — 2026-07-27 UTC
+
+The Streaming All Albums collection now owns the shared themed backdrop, so
+its album grid/list no longer exposes the default black scroll surface.
+
+Regression checks, `git diff --check`, XcodeBuildMCP simulator build, and
+in-place simulator installation passed. The simulator was not launched and
+the physical phone was not changed.
+
+Manual test: open Streaming → Albums → All Albums in each visual theme and
+confirm the grid and list backgrounds match the rest of the themed interface.
+
+## Isolate inactive tab content — 2026-07-27 UTC
+
+The retained Playing, Library, Streaming, and Settings navigation stacks now
+live in a layered ZStack. Only the selected page is opaque, hit-testable, and
+accessible; inactive pages are fully transparent and non-interactive. This
+prevents the Playing scrubber/time bubble from appearing over other tabs or
+blocking their controls while preserving each tab's navigation position.
+
+Regression checks, `git diff --check`, XcodeBuildMCP simulator build, and
+in-place simulator installation passed. The simulator was not launched and
+the physical phone was not changed.
+
+Manual test: start playback, switch among Library, Streaming, and Settings,
+and confirm the Playing scrubber is absent and all controls remain tappable;
+return to Playing and confirm its scrubber remains usable.
+
+## Transparent Streaming All Albums track list — 2026-07-27 UTC
+
+The Streaming All Albums track list now applies clear backgrounds to both the
+Play All Albums row and every track row, allowing the active theme backdrop to
+show through instead of the default black list surface.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Streaming → Albums → All Albums and confirm the Play All
+Albums row and track list are transparent in each visual theme.
+
+## Library All Albums theme parity — 2026-07-27 UTC
+
+The local Library All Albums track list now uses the same transparent row and
+themed-surface treatment as Streaming All Albums. The Play All Albums row,
+track rows, and artist header no longer use opaque black or system-bar grey
+backgrounds.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Library → an artist → All Albums in each visual theme and
+confirm the header, Play All Albums row, and track list match Streaming.
+
+## Interactive horizontal tab transitions — 2026-07-27 UTC
+
+The retained tab pages now support an app-switcher-style horizontal swipe.
+Dragging left or right reveals the adjacent page and moves the complete page
+surface with the finger; releasing past the threshold completes the tab change
+with a short eased transition. Vertical drags and nested vertical scrolling do
+not switch tabs, and each tab's navigation state remains retained.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: swipe left and right across Library, Streaming, Settings, and
+Playing; confirm the whole page moves together, edge tabs resist the swipe,
+vertical scrolling remains normal, and returning to a tab preserves its page.
+
+## Hex slider keyboard focus — 2026-07-27 UTC
+
+Touching or dragging an RGB hex slider now focuses the selected two-character
+hex field and presents its ASCII keyboard. Slider changes continue updating
+the selected channel, while the field's Done accessory remains available for
+dismissing the keyboard.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Settings → Appearance, tap and drag each RGB slider, confirm
+the keyboard appears, edit the selected two-character value, and use Done to
+dismiss it.
+
+## Playing gesture ownership — 2026-07-27 UTC
+
+Now Playing keeps horizontal album-art swipes dedicated to previous/next track
+paging. The seek and volume sliders take priority for scrubbing, while a
+horizontal swipe on the remaining page surface drives the adjacent-tab
+transition. This prevents the tab animation from stealing album-art or slider
+gestures.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: on Playing, swipe the artwork left/right to change tracks, drag
+the seek and volume bars, and swipe elsewhere on the page to move between tabs.
+
+## Preserve track-list horizontal actions — 2026-07-27 UTC
+
+The horizontal tab transition is now a lower-priority page gesture rather than
+a simultaneous gesture. Track-list rows and list scrolling therefore retain
+ownership of horizontal touches for Edit Metadata, Play Next, Add to Queue,
+and playlist actions; page swiping remains available above the track list.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: in local and Streaming track lists, swipe a row and use metadata,
+queue, and playlist actions; then swipe above the list to change tabs.
+
+## Keep hex keyboard visible — 2026-07-27 UTC
+
+Hex field and slider focus now clears Settings’ page-level keyboard-dismiss
+state before presenting the custom field keyboard. The Done accessory no longer
+leaves the editor with no keyboard, and the keyboard remains interactively
+dismissable by swiping down.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Settings → Appearance, tap a hex field and each RGB slider,
+confirm the keyboard remains visible, swipe it down to dismiss, and repeat.
+
+## Restore track-list artwork tab swipes — 2026-07-27 UTC
+
+Track-list album artwork in local Album/All Albums views and Streaming album,
+All Albums, and playlist views now has a scoped horizontal tab-swipe gesture.
+The page transition can begin from the artwork thumbnail again, while the rest
+of each row remains available for metadata, Play Next, Add to Queue, and
+playlist swipe actions.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: in local and Streaming Album and All Albums track lists, swipe on
+the album artwork to change tabs; swipe on the text/action area to confirm the
+row actions still work.
+
+## Directional hierarchy navigation — 2026-07-27 UTC
+
+Horizontal swipes continue to move to the corresponding adjacent tab. A
+predominantly downward swipe now dismisses the active detail level throughout
+the local and Streaming artist, album, and all-albums surfaces: tracks return
+to the album/artist collection, and album collections return to the artist
+view. The vertical gesture is simultaneous with list scrolling and does not
+claim horizontal row actions.
+
+Regression checks, `git diff --check`, and the signed phone build/install
+passed. The phone app was not launched.
+
+Manual test: swipe left and right on Library, Streaming, and Settings to reach
+the corresponding tabs; in an album, All Albums, or artist detail surface,
+swipe downward from the content area and confirm it returns exactly one level.

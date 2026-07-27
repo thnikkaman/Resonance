@@ -3,16 +3,59 @@ import UIKit
 
 enum AppTab: Hashable {
   case playing, library, streaming, settings
+
+  static let allCases: [AppTab] = [.playing, .library, .streaming, .settings]
 }
 
 private struct ResonanceMiniPlayerBottomInsetKey: EnvironmentKey {
   static let defaultValue: CGFloat = 0
 }
 
+struct ResonanceTabSwipeActions: @unchecked Sendable {
+  let onChanged: (CGFloat, CGFloat) -> Void
+  let onEnded: (CGFloat, CGFloat) -> Void
+
+  static let inactive = ResonanceTabSwipeActions(
+    onChanged: { _, _ in },
+    onEnded: { _, _ in }
+  )
+}
+
+private struct ResonanceTabSwipeActionsKey: EnvironmentKey {
+  static let defaultValue = ResonanceTabSwipeActions.inactive
+}
+
 extension EnvironmentValues {
   var resonanceMiniPlayerBottomInset: CGFloat {
     get { self[ResonanceMiniPlayerBottomInsetKey.self] }
     set { self[ResonanceMiniPlayerBottomInsetKey.self] = newValue }
+  }
+
+  var resonanceTabSwipeActions: ResonanceTabSwipeActions {
+    get { self[ResonanceTabSwipeActionsKey.self] }
+    set { self[ResonanceTabSwipeActionsKey.self] = newValue }
+  }
+}
+
+struct ResonanceTabSwipeGesture: ViewModifier {
+  @Environment(\.resonanceTabSwipeActions) private var actions
+
+  func body(content: Content) -> some View {
+    content.simultaneousGesture(
+      DragGesture(minimumDistance: 18, coordinateSpace: .local)
+        .onChanged { value in
+          actions.onChanged(value.translation.width, value.translation.height)
+        }
+        .onEnded { value in
+          actions.onEnded(value.translation.width, value.translation.height)
+        }
+    )
+  }
+}
+
+extension View {
+  func resonanceTabSwipeGesture() -> some View {
+    modifier(ResonanceTabSwipeGesture())
   }
 }
 
@@ -23,7 +66,9 @@ enum MiniPlayerDock: String {
 struct RootView: View {
     @EnvironmentObject private var player: PlayerController
   @State private var selectedTab: AppTab = .library
-  @State private var miniPlayerDock: MiniPlayerDock = .top
+  @State private var miniPlayerDock: MiniPlayerDock = .bottom
+  @State private var tabSwipeOffset: CGFloat = 0
+  @State private var isCompletingTabSwipe = false
 
     var body: some View {
         ZStack {
@@ -123,43 +168,161 @@ struct RootView: View {
                 }
             }
         }
+        .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
+            selectedTab = .playing
+        }
     }
 
     @ViewBuilder
     private var activeTabContent: some View {
-        switch selectedTab {
-        case .playing:
-            NavigationStack {
-                ZStack {
-                    ResonanceThemeBackdrop()
-                    NowPlayingView(openLibrary: { selectedTab = .library })
+        GeometryReader { proxy in
+            ZStack {
+                tabPage(.playing, width: proxy.size.width) {
+                    NowPlayingView(
+                        openLibrary: { selectedTab = .library },
+                        onHorizontalTabSwipeChanged: { translation in
+                            updateTabSwipe(translation)
+                        },
+                        onHorizontalTabSwipeEnded: { translation in
+                            finishTabSwipe(translation, width: proxy.size.width)
+                        }
+                    )
                 }
-            }
-        case .library:
-            NavigationStack {
-                ZStack {
-                    ResonanceThemeBackdrop()
+                tabPage(.library, width: proxy.size.width) {
                     LibraryView()
                 }
-            }
-        case .streaming:
-            NavigationStack {
-                ZStack {
-                    ResonanceThemeBackdrop()
+                tabPage(.streaming, width: proxy.size.width) {
                     StreamingLibraryView(
                         openLibrary: { selectedTab = .library },
                         openSettings: { selectedTab = .settings }
                     )
                 }
-            }
-        case .settings:
-            NavigationStack {
-                ZStack {
-                    ResonanceThemeBackdrop()
+                tabPage(.settings, width: proxy.size.width) {
                     SettingsView(openLibrary: { selectedTab = .library })
                 }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .contentShape(Rectangle())
+            .environment(
+                \.resonanceTabSwipeActions,
+                ResonanceTabSwipeActions(
+                    onChanged: { horizontal, vertical in
+                        updateTabSwipe(horizontal, vertical: vertical)
+                    },
+                    onEnded: { horizontal, vertical in
+                        finishTabSwipe(
+                            horizontal,
+                            vertical: vertical,
+                            width: proxy.size.width
+                        )
+                    }
+                )
+            )
+            .gesture(tabSwipeGesture(width: proxy.size.width))
         }
+    }
+
+    @ViewBuilder
+    private func tabPage<Content: View>(
+        _ tab: AppTab,
+        width: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        NavigationStack {
+            ZStack {
+                ResonanceThemeBackdrop()
+                content()
+            }
+        }
+        .frame(width: width)
+        .offset(x: tabPageOffset(tab, width: width))
+        .opacity(tabPageIsVisible(tab) ? 1 : 0)
+        .allowsHitTesting(tab == selectedTab)
+        .accessibilityHidden(tab != selectedTab)
+    }
+
+    private func tabSwipeGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 18, coordinateSpace: .local)
+            .onChanged { value in
+                guard selectedTab != .playing else { return }
+                updateTabSwipe(value.translation.width, vertical: value.translation.height)
+            }
+            .onEnded { value in
+                guard selectedTab != .playing else { return }
+                finishTabSwipe(
+                    value.translation.width,
+                    vertical: value.translation.height,
+                    width: width
+                )
+            }
+    }
+
+    private func updateTabSwipe(_ horizontal: CGFloat, vertical: CGFloat = 0) {
+        guard !isCompletingTabSwipe,
+              abs(horizontal) > abs(vertical)
+        else { return }
+        let direction = horizontal < 0 ? 1 : -1
+        let targetIndex = tabIndex(selectedTab) + direction
+        guard AppTab.allCases.indices.contains(targetIndex) else {
+            tabSwipeOffset = horizontal * 0.18
+            return
+        }
+        tabSwipeOffset = horizontal
+    }
+
+    private func finishTabSwipe(
+        _ horizontal: CGFloat,
+        vertical: CGFloat = 0,
+        width: CGFloat
+    ) {
+        guard !isCompletingTabSwipe,
+              abs(horizontal) > abs(vertical)
+        else {
+            cancelTabSwipe()
+            return
+        }
+
+        let direction = horizontal < 0 ? 1 : -1
+        let targetIndex = tabIndex(selectedTab) + direction
+        let threshold = max(72, width * 0.2)
+        guard AppTab.allCases.indices.contains(targetIndex),
+              abs(horizontal) >= threshold
+        else {
+            cancelTabSwipe()
+            return
+        }
+
+        isCompletingTabSwipe = true
+        withAnimation(.easeOut(duration: 0.2)) {
+            tabSwipeOffset = direction > 0 ? -width : width
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(210))
+            guard !Task.isCancelled else { return }
+            selectedTab = AppTab.allCases[targetIndex]
+            tabSwipeOffset = 0
+            isCompletingTabSwipe = false
+        }
+    }
+
+    private func cancelTabSwipe() {
+        withAnimation(.easeOut(duration: 0.16)) {
+            tabSwipeOffset = 0
+        }
+    }
+
+    private func tabIndex(_ tab: AppTab) -> Int {
+        AppTab.allCases.firstIndex(of: tab) ?? 0
+    }
+
+    private func tabPageIsVisible(_ tab: AppTab) -> Bool {
+        let distance = abs(tabIndex(tab) - tabIndex(selectedTab))
+        return distance == 0 || (tabSwipeOffset != 0 && distance == 1)
+    }
+
+    private func tabPageOffset(_ tab: AppTab, width: CGFloat) -> CGFloat {
+        let baseOffset = CGFloat(tabIndex(tab) - tabIndex(selectedTab)) * width
+        return baseOffset + (tabPageIsVisible(tab) ? tabSwipeOffset : 0)
     }
 }
 
@@ -295,6 +458,18 @@ extension View {
                 .onEnded { value in
                     guard value.startLocation.y < 150,
                           value.translation.height > 70,
+                          abs(value.translation.height) > abs(value.translation.width)
+                    else { return }
+                    action()
+                }
+        )
+    }
+
+    func resonanceHierarchySwipeBack(_ action: @escaping () -> Void) -> some View {
+        simultaneousGesture(
+            DragGesture(minimumDistance: 45, coordinateSpace: .local)
+                .onEnded { value in
+                    guard value.translation.height > 70,
                           abs(value.translation.height) > abs(value.translation.width)
                     else { return }
                     action()

@@ -294,17 +294,32 @@ struct VerticalArtistIndex: View {
                             rowHeight: rowHeight
                         )
                     }
-                    .onEnded { _ in
-                        ResonanceDiagnostics.shared.recordDeferred(
-                            "alphabet.gesture.end",
-                            details: [
-                                "surface": diagnosticSurface,
-                                "selected": selectedKey ?? "none"
-                            ]
-                        )
-                        gestureStarted = false
-                        gestureKey = nil
-                        scheduleBubbleHide()
+                    .onEnded { value in
+                        let releaseY = value.location.y
+                        // Reissue the final selection after the gesture has
+                        // ended. The initial onChanged callback can be
+                        // consumed while the scroll view is still handling
+                        // the touch; force the release callback so a direct
+                        // tap never needs a second touch.
+                        Task { @MainActor in
+                            await Task.yield()
+                            selectRow(
+                                at: releaseY,
+                                topInset: topInset,
+                                rowHeight: rowHeight,
+                                repeatSelection: true
+                            )
+                            ResonanceDiagnostics.shared.recordDeferred(
+                                "alphabet.gesture.end",
+                                details: [
+                                    "surface": diagnosticSurface,
+                                    "selected": selectedKey ?? "none"
+                                ]
+                            )
+                            gestureStarted = false
+                            gestureKey = nil
+                            scheduleBubbleHide()
+                        }
                     }
             )
         }
@@ -313,7 +328,12 @@ struct VerticalArtistIndex: View {
         .accessibilityLabel("Alphabet index")
     }
 
-    private func selectRow(at y: CGFloat, topInset: CGFloat, rowHeight: CGFloat) {
+    private func selectRow(
+        at y: CGFloat,
+        topInset: CGFloat,
+        rowHeight: CGFloat,
+        repeatSelection: Bool = false
+    ) {
         guard !keys.isEmpty else { return }
         hideTask?.cancel()
         let relativeY = min(
@@ -324,7 +344,8 @@ struct VerticalArtistIndex: View {
         let key = keys[index]
         selectedRow = index
         selectedKey = key
-        if gestureKey != key {
+        let selectionChanged = gestureKey != key
+        if selectionChanged {
             gestureKey = key
             ResonanceDiagnostics.shared.recordDeferred(
                 "alphabet.selection",
@@ -335,6 +356,8 @@ struct VerticalArtistIndex: View {
                 ]
             )
             UISelectionFeedbackGenerator().selectionChanged()
+        }
+        if selectionChanged || repeatSelection {
             onSelect(key)
         }
     }
@@ -686,6 +709,18 @@ struct ArtistDetailView: View {
         }
     }
 
+    private var indexedAlbumSections: [ArtistIndexSection<Album>] {
+        let grouped = Dictionary(grouping: sortedAlbums) { resonanceArtistIndexKey($0.title) }
+        let order = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: true
+        )
+        return order.compactMap { key in
+            guard let values = grouped[key], !values.isEmpty else { return nil }
+            return ArtistIndexSection(key: key, items: values)
+        }
+    }
+
     private var gridColumns: [GridItem] {
         Array(
             repeating: GridItem(.flexible(), spacing: 12),
@@ -770,89 +805,132 @@ struct ArtistDetailView: View {
             }
             .resonanceTopDownDismiss { dismiss() }
 
-            if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
-                ScrollView {
-                    LazyVGrid(columns: gridColumns, spacing: 18) {
-                        NavigationLink {
-                            AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
-                        } label: {
-                            AllAlbumsTile(artist: liveArtist)
-                        }
-                        .buttonStyle(.plain)
+            ScrollViewReader { proxy in
+                ZStack(alignment: .trailing) {
+                    Group {
+                        if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 14) {
+                                    LazyVGrid(columns: gridColumns, spacing: 18) {
+                                        NavigationLink {
+                                            AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+                                        } label: {
+                                            AllAlbumsTile(artist: liveArtist)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
 
-                        ForEach(sortedAlbums) { album in
-                            NavigationLink(value: album) {
-                                AlbumTile(album: album)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button { albumToEdit = album } label: {
-                                    Label("Edit Album Metadata", systemImage: "pencil")
+                                    ForEach(indexedAlbumSections, id: \.key) { section in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(section.key)
+                                                .font(.headline)
+                                                .foregroundStyle(.secondary)
+                                            LazyVGrid(columns: gridColumns, spacing: 18) {
+                                                ForEach(section.items) { album in
+                                                    NavigationLink(value: album) {
+                                                        AlbumTile(album: album)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                    .contextMenu {
+                                                        Button { albumToEdit = album } label: {
+                                                            Label("Edit Album Metadata", systemImage: "pencil")
+                                                        }
+                                                        Divider()
+                                                        Button { albumToRemove = album } label: {
+                                                            Label("Remove or Delete Album", systemImage: "trash")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .id("artist-album-section-\(section.key)")
+                                    }
                                 }
-                                Divider()
-                                Button { albumToRemove = album } label: {
-                                    Label("Remove or Delete Album", systemImage: "trash")
+                                .padding(.leading)
+                                .padding(.trailing, 40)
+                                .padding(.bottom)
+                            }
+                            .background {
+                                ResonanceThemeSurfaceBackdrop()
+                            }
+                        } else {
+                            List {
+                                NavigationLink {
+                                    AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        PlaceholderArtwork(
+                                            symbol: "square.stack.3d.up.fill",
+                                            size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
+                                        )
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text("All Albums").font(.headline)
+                                            Text("\(allTracks.count) tracks, grouped by album")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    }
-                    .padding()
-                }
-                .background {
-                    ResonanceThemeSurfaceBackdrop()
-                }
-            } else {
-                List {
-                    NavigationLink {
-                        AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
-                    } label: {
-                        HStack(spacing: 12) {
-                            PlaceholderArtwork(
-                                symbol: "square.stack.3d.up.fill",
-                                size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
-                            )
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("All Albums").font(.headline)
-                                Text("\(allTracks.count) tracks, grouped by album")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .listRowBackground(Color.clear)
+                                .listRowBackground(Color.clear)
 
-                    ForEach(sortedAlbums) { album in
-                        NavigationLink(value: album) {
-                            HStack(spacing: 12) {
-                                ArtworkView(
-                                    data: album.artworkData,
-                                    embedded: album.artworkIsEmbedded,
-                                    size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
-                                )
-                                VStack(alignment: .leading, spacing: settings.albumLayout == .compact ? 1 : 3) {
-                                    Text(album.title).font(settings.libraryTextSize.font.weight(.semibold)).lineLimit(1)
-                                    Text(album.yearLabel)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                ForEach(indexedAlbumSections, id: \.key) { section in
+                                    Section {
+                                        ForEach(section.items) { album in
+                                            NavigationLink(value: album) {
+                                                HStack(spacing: 12) {
+                                                    ArtworkView(
+                                                        data: album.artworkData,
+                                                        embedded: album.artworkIsEmbedded,
+                                                        size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
+                                                    )
+                                                    VStack(alignment: .leading, spacing: settings.albumLayout == .compact ? 1 : 3) {
+                                                        Text(album.title).font(settings.libraryTextSize.font.weight(.semibold)).lineLimit(1)
+                                                        Text(album.yearLabel)
+                                                            .font(.caption)
+                                                            .foregroundStyle(.secondary)
+                                                    }
+                                                }
+                                            }
+                                            .listRowBackground(Color.clear)
+                                            .contextMenu {
+                                                Button { albumToEdit = album } label: {
+                                                    Label("Edit Album Metadata", systemImage: "pencil")
+                                                }
+                                                Divider()
+                                                Button { albumToRemove = album } label: {
+                                                    Label("Remove or Delete Album", systemImage: "trash")
+                                                }
+                                            }
+                                        }
+                                    } header: {
+                                        Text(section.key)
+                                    }
+                                    .id("artist-album-section-\(section.key)")
                                 }
                             }
-                        }
-                        .listRowBackground(Color.clear)
-                        .contextMenu {
-                            Button { albumToEdit = album } label: {
-                                Label("Edit Album Metadata", systemImage: "pencil")
-                            }
-                            Divider()
-                            Button { albumToRemove = album } label: {
-                                Label("Remove or Delete Album", systemImage: "trash")
-                            }
+                            .listStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .scrollContentBackground(.hidden)
+                            .safeAreaPadding(.trailing, 36)
+                            .background(Color.clear)
                         }
                     }
+
+                    if indexedAlbumSections.count > 1 {
+                        VerticalArtistIndex(
+                            keys: indexedAlbumSections.map(\.key),
+                            diagnosticSurface: "library-artist-albums"
+                        ) { key in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                proxy.scrollTo("artist-album-section-\(key)", anchor: .top)
+                            }
+                        }
+                        .zIndex(2)
+                        .padding(.trailing, 1)
+                        .padding(.vertical, 4)
+                    }
                 }
-                .listStyle(.plain)
-                .listRowBackground(Color.clear)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
+                .scrollIndicators(.hidden)
             }
         }
         .background {
@@ -860,6 +938,7 @@ struct ArtistDetailView: View {
             // visible when an artist is pushed from the library list.
             ResonanceThemeBackdrop()
         }
+        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(liveArtist.name)
         .resonanceDetailBottomSpace()
         .toolbar {
@@ -968,85 +1047,146 @@ struct AlbumCollectionView: View {
         )
     }
 
+    private var indexedSections: [ArtistIndexSection<Album>] {
+        let grouped = Dictionary(grouping: albums) { resonanceArtistIndexKey($0.title) }
+        let preferredOrder = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: library.sortDirection == .ascending
+        )
+        return preferredOrder.compactMap { key in
+            guard let values = grouped[key], !values.isEmpty else { return nil }
+            let sorted = values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+            return ArtistIndexSection(
+                key: key,
+                items: library.sortDirection == .ascending ? sorted : Array(sorted.reversed())
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func albumRow(_ album: Album) -> some View {
+        NavigationLink(value: album) {
+            if settings.albumLayout == .compact {
+                HStack(spacing: 7) {
+                    ArtworkView(
+                        data: album.artworkData,
+                        embedded: album.artworkIsEmbedded,
+                        size: settings.libraryThumbnailSize.points
+                    )
+                    Text(album.title)
+                        .font(settings.libraryTextSize.font.weight(.medium))
+                        .lineLimit(1)
+                    Text("— \(album.artist)")
+                        .font(settings.libraryTextSize.font)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.vertical, 0)
+            } else {
+                HStack(spacing: 12) {
+                    ArtworkView(
+                        data: album.artworkData,
+                        embedded: album.artworkIsEmbedded,
+                        size: max(76, settings.libraryThumbnailSize.points * 2)
+                    )
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(album.title).font(settings.libraryTextSize.font.weight(.semibold))
+                        Text(album.artist).foregroundStyle(.secondary)
+                        Text(album.yearLabel).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .contextMenu {
+            Button { albumToEdit = album } label: {
+                Label("Edit Album Metadata", systemImage: "pencil")
+            }
+            Divider()
+            Button { albumToRemove = album } label: {
+                Label("Remove or Delete Album", systemImage: "trash")
+            }
+        }
+        .listRowInsets(
+            EdgeInsets(
+                top: settings.albumLayout == .compact ? 2 : 8,
+                leading: 16,
+                bottom: settings.albumLayout == .compact ? 2 : 8,
+                trailing: 40
+            )
+        )
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
     var body: some View {
-        Group {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .trailing) {
+                Group {
             if settings.albumLayout == .grid {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 18) {
-                        ForEach(albums) { album in
-                            NavigationLink(value: album) {
-                                AlbumTile(album: album)
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button { albumToEdit = album } label: {
-                                    Label("Edit Album Metadata", systemImage: "pencil")
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        ForEach(indexedSections, id: \.key) { section in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(section.key)
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                LazyVGrid(columns: columns, spacing: 18) {
+                                    ForEach(section.items) { album in
+                                        NavigationLink(value: album) {
+                                            AlbumTile(album: album)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .contextMenu {
+                                            Button { albumToEdit = album } label: {
+                                                Label("Edit Album Metadata", systemImage: "pencil")
+                                            }
+                                            Divider()
+                                            Button { albumToRemove = album } label: {
+                                                Label("Remove or Delete Album", systemImage: "trash")
+                                            }
+                                        }
+                                    }
                                 }
-                                Divider()
-                                Button { albumToRemove = album } label: {
-                                    Label("Remove or Delete Album", systemImage: "trash")
-                                }
                             }
+                            .id("album-section-\(section.key)")
                         }
                     }
-                    .padding()
+                    .padding(.leading)
+                    .padding(.trailing, 40)
+                    .padding(.top, 84)
+                    .padding(.bottom)
                 }
             } else {
-                List(albums) { album in
-                    NavigationLink(value: album) {
-                        if settings.albumLayout == .compact {
-                            HStack(spacing: 7) {
-                                ArtworkView(
-                                    data: album.artworkData,
-                                    embedded: album.artworkIsEmbedded,
-                                    size: settings.libraryThumbnailSize.points
-                                )
-                                Text(album.title)
-                                    .font(settings.libraryTextSize.font.weight(.medium))
-                                    .lineLimit(1)
-                                Text("— \(album.artist)")
-                                    .font(settings.libraryTextSize.font)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+                List {
+                    ForEach(indexedSections, id: \.key) { section in
+                        Section {
+                            ForEach(section.items) { album in
+                                albumRow(album)
                             }
-                            .padding(.vertical, 0)
-                        } else {
-                            HStack(spacing: 12) {
-                                ArtworkView(
-                                    data: album.artworkData,
-                                    embedded: album.artworkIsEmbedded,
-                                    size: max(76, settings.libraryThumbnailSize.points * 2)
-                                )
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(album.title).font(settings.libraryTextSize.font.weight(.semibold))
-                                    Text(album.artist).foregroundStyle(.secondary)
-                                    Text(album.yearLabel).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
+                        } header: {
+                            Text(section.key)
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .id("album-section-\(section.key)")
                     }
-                    .contextMenu {
-                        Button { albumToEdit = album } label: {
-                            Label("Edit Album Metadata", systemImage: "pencil")
-                        }
-                        Divider()
-                        Button { albumToRemove = album } label: {
-                            Label("Remove or Delete Album", systemImage: "trash")
-                        }
-                    }
-                    .listRowInsets(
-                        EdgeInsets(
-                            top: settings.albumLayout == .compact ? 2 : 8,
-                            leading: 16,
-                            bottom: settings.albumLayout == .compact ? 2 : 8,
-                            trailing: 16
-                        )
-                    )
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .safeAreaPadding(.top, 84)
+            }
+                }
+
+                if indexedSections.count > 1 {
+                    VerticalArtistIndex(
+                        keys: indexedSections.map(\.key),
+                        diagnosticSurface: "albums"
+                    ) { key in
+                        proxy.scrollTo("album-section-\(key)", anchor: .top)
+                    }
+                    .padding(.trailing, 1)
+                    .padding(.vertical, 4)
+                }
             }
         }
         .sheet(item: $albumToEdit) { album in

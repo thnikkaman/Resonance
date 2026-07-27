@@ -71,7 +71,10 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Hex Color Code")
                         .font(.subheadline.weight(.semibold))
-                    RGBHexField(hex: $accentHexDraft)
+                    RGBHexField(
+                        hex: $accentHexDraft,
+                        onBeginEditing: { isTextFieldFocused = false }
+                    )
                 }
 
                 Toggle("Apply theme color to text", isOn: $settings.applyThemeColorToText)
@@ -808,10 +811,12 @@ private struct SettingsCategory<Content: View>: View {
 
 private struct RGBHexField: View {
     @Binding var hex: String
+    let onBeginEditing: () -> Void
     @State private var red = "A8"
     @State private var green = "55"
     @State private var blue = "F7"
     @State private var selected: Channel = .red
+    @State private var focusedChannel: Channel?
 
     private enum Channel { case red, green, blue }
 
@@ -842,40 +847,19 @@ private struct RGBHexField: View {
 
             GeometryReader { proxy in
                 let controlWidth = proxy.size.width * 0.8
-
-                VStack(spacing: 3) {
-                    ZStack(alignment: .topLeading) {
-                        let thumbRadius: CGFloat = 14
-                        let usableWidth = max(0, controlWidth - (thumbRadius * 2))
-                        ForEach(0..<16, id: \.self) { value in
-                            let highNibbleValue = CGFloat(value * 16)
-                            let x = thumbRadius + usableWidth * (highNibbleValue / 255)
-                            VStack(spacing: 1) {
-                                Text(String(format: "%X", value))
-                                    .font(.system(size: 8, weight: .medium, design: .monospaced))
-                                Rectangle()
-                                    .fill(selectedColor.opacity(0.65))
-                                    .frame(width: 1, height: 4)
-                            }
-                            .frame(width: 16)
-                            .position(x: x, y: 7)
-                        }
+                HexChannelSlider(
+                    value: Binding(
+                        get: { selectedInteger },
+                        set: { setSelectedInteger($0) }
+                    ),
+                    color: selectedColor,
+                    accessibilityLabel: selectedLabel + " channel",
+                    onBeginEditing: {
+                        onBeginEditing()
+                        focusedChannel = selected
                     }
-                    .foregroundStyle(.secondary)
-                    .frame(width: controlWidth, height: 14)
-                    .accessibilityHidden(true)
-
-                    Slider(
-                        value: Binding(
-                            get: { Double(selectedInteger) },
-                            set: { setSelectedInteger(Int($0.rounded())) }
-                        ),
-                        in: 0...255,
-                        step: 1
-                    )
-                    .tint(selectedColor)
-                    .frame(width: controlWidth)
-                }
+                )
+                .frame(width: controlWidth, height: 55)
                 .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(height: 55)
@@ -899,8 +883,22 @@ private struct RGBHexField: View {
     ) -> some View {
         HexChannelTextField(
             text: text,
+            isFocused: Binding(
+                get: { focusedChannel == channel },
+                set: { focused in
+                    if focused {
+                        selected = channel
+                        focusedChannel = channel
+                    } else if focusedChannel == channel {
+                        focusedChannel = nil
+                    }
+                }
+            ),
             textColor: channel == .red ? .systemRed : (channel == .green ? .systemGreen : .systemBlue),
-            onBeginEditing: { selected = channel }
+            onBeginEditing: {
+                onBeginEditing()
+                selected = channel
+            }
         )
         .frame(width: 43, height: 32)
         .background(
@@ -954,8 +952,92 @@ private struct RGBHexField: View {
     }
 }
 
+private struct HexChannelSlider: View {
+    @Binding var value: Int
+    let color: Color
+    let accessibilityLabel: String
+    let onBeginEditing: () -> Void
+
+    private let thumbDiameter: CGFloat = 24
+    private let trackHeight: CGFloat = 4
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, thumbDiameter)
+            let thumbRadius = thumbDiameter / 2
+            let usableWidth = max(1, width - thumbDiameter)
+            let clampedValue = min(255, max(0, value))
+            let ratio = CGFloat(clampedValue) / 255
+            let thumbCenterX = thumbRadius + usableWidth * ratio
+
+            VStack(spacing: 2) {
+                ZStack(alignment: .topLeading) {
+                    ForEach(0..<16, id: \.self) { nibble in
+                        let x = thumbRadius + usableWidth * CGFloat(nibble * 16) / 255
+                        VStack(spacing: 1) {
+                            Text(String(format: "%X", nibble))
+                                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                            Rectangle()
+                                .fill(color.opacity(0.65))
+                                .frame(width: 1, height: 4)
+                        }
+                        .frame(width: 16)
+                        .position(x: x, y: 7)
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .frame(height: 16)
+                .accessibilityHidden(true)
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(.secondary.opacity(0.28))
+                        .frame(width: usableWidth, height: trackHeight)
+                        .offset(x: thumbRadius)
+
+                    Capsule()
+                        .fill(color)
+                        .frame(width: max(0, usableWidth * ratio), height: trackHeight)
+                        .offset(x: thumbRadius)
+
+                    Circle()
+                        .fill(color)
+                        .frame(width: thumbDiameter, height: thumbDiameter)
+                        .shadow(radius: 1)
+                        .offset(x: thumbCenterX - thumbRadius)
+                }
+                .frame(height: 28)
+            }
+            .frame(width: width, height: 46, alignment: .top)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { gesture in
+                        onBeginEditing()
+                        let x = min(max(0, gesture.location.x - thumbRadius), usableWidth)
+                        let nextValue = Int((x / usableWidth * 255).rounded())
+                        if nextValue != value {
+                            value = nextValue
+                        }
+                    }
+            )
+            .accessibilityElement()
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(String(format: "%02X", clampedValue))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: value = min(255, value + 1)
+                case .decrement: value = max(0, value - 1)
+                @unknown default: break
+                }
+            }
+        }
+    }
+}
+
 private struct HexChannelTextField: UIViewRepresentable {
     @Binding var text: String
+    @Binding var isFocused: Bool
     let textColor: UIColor
     let onBeginEditing: () -> Void
 
@@ -990,6 +1072,11 @@ private struct HexChannelTextField: UIViewRepresentable {
     func updateUIView(_ uiView: UITextField, context: Context) {
         context.coordinator.parent = self
         uiView.textColor = textColor
+        if isFocused, !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
+        } else if !isFocused, uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
         if uiView.text != text {
             uiView.text = text
             if uiView.isFirstResponder {
@@ -1012,11 +1099,16 @@ private struct HexChannelTextField: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.isFocused = true
             parent.onBeginEditing()
             DispatchQueue.main.async {
                 let end = textField.endOfDocument
                 textField.selectedTextRange = textField.textRange(from: end, to: end)
             }
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFocused = false
         }
 
         func textField(

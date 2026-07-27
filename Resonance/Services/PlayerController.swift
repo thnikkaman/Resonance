@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import Foundation
 import MediaPlayer
 import UIKit
 
@@ -71,6 +72,7 @@ private struct PreparedNowPlayingArtwork: Sendable {
 final class PlayerController: NSObject, ObservableObject {
   let progress = PlaybackProgress()
   @Published private(set) var currentTrack: Track?
+  @Published private(set) var nowPlayingPresentationRequest = 0
   @Published private(set) var isPlaying = false
   private(set) var elapsed = 0.0 {
     didSet { progress.update(elapsed: elapsed) }
@@ -125,6 +127,9 @@ final class PlayerController: NSObject, ObservableObject {
   private var remotePreloadReady = false
   private var remotePreloadTask: Task<Void, Never>?
   private var remoteExperimentalSession = false
+  private var remoteGaplessPreparationTask: Task<Void, Never>?
+  private var remoteGaplessContinuationTask: Task<Void, Never>?
+  private var remoteGaplessPreparedURLs: [UUID: URL] = [:]
   private lazy var remoteObserver = RemotePlayerObserver(owner: self)
   private var playbackTimerTask: Task<Void, Never>?
   private var sleepTimerTask: Task<Void, Never>?
@@ -164,10 +169,22 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private var remoteGaplessExperimentalEnabled: Bool {
-    // Streaming gapless is intentionally unavailable during alpha. Keep the
-    // old preference key readable for upgrades, but always use the stable
-    // single-item AVPlayer path until a sample-contiguous decoder is ready.
+    // The older dual-AVPlayer experiment is disabled. Separate AVPlayers do
+    // not provide a sample-contiguous timeline and remain only as an explicit
+    // fallback implementation detail for future diagnostics.
     false
+  }
+
+  private var remoteSampleContiguousExperimentEnabled: Bool {
+    // Download adjacent same-album remote tracks, validate their decoded
+    // formats, and schedule them through one AVAudioPlayerNode. This is the
+    // current experimental remote path for both simulator and device builds.
+    true
+  }
+
+  private var remoteGaplessCacheDirectory: URL {
+    FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("RemoteGapless", isDirectory: true)
   }
 
   private func makeGaplessEngine() -> GaplessAudioEngine {
@@ -230,8 +247,11 @@ final class PlayerController: NSObject, ObservableObject {
     return artworkSource(for: track)?.artworkIsEmbedded ?? true
   }
 
-  func play(_ track: Track, in tracks: [Track]) {
+  func play(_ track: Track, in tracks: [Track], presentsNowPlaying: Bool = true) {
     guard tracks.contains(track) else { return }
+    if presentsNowPlaying {
+      requestNowPlayingPresentation()
+    }
     sourceQueue = tracks
 
     if shuffleEnabled {
@@ -246,11 +266,15 @@ final class PlayerController: NSObject, ObservableObject {
     _ = loadAndPlay(track)
   }
 
-  func shuffleAndPlay(_ tracks: [Track]) {
+  func shuffleAndPlay(_ tracks: [Track], presentsNowPlaying: Bool = true) {
     let candidates = uniqueTracks(tracks)
     guard let first = candidates.randomElement() else { return }
     shuffleEnabled = true
-    play(first, in: candidates)
+    play(first, in: candidates, presentsNowPlaying: presentsNowPlaying)
+  }
+
+  func requestNowPlayingPresentation() {
+    nowPlayingPresentationRequest &+= 1
   }
 
   func playQueueItem(_ track: Track) {
@@ -537,6 +561,10 @@ final class PlayerController: NSObject, ObservableObject {
     playbackGeneration += 1
     playbackTimerTask?.cancel()
     playbackTimerTask = nil
+    remoteGaplessPreparationTask?.cancel()
+    remoteGaplessPreparationTask = nil
+    remoteGaplessContinuationTask?.cancel()
+    remoteGaplessContinuationTask = nil
     sleepTimerTask?.cancel()
     sleepTimerTask = nil
     tearDownActiveBackend()
@@ -563,6 +591,7 @@ final class PlayerController: NSObject, ObservableObject {
     engineDurations.removeAll()
     engineChannelCounts.removeAll()
     partialPreloadFrames.removeAll()
+    remoteGaplessPreparedURLs.removeAll()
     playbackEngineStatus = "Ready"
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
   }
@@ -825,6 +854,259 @@ final class PlayerController: NSObject, ObservableObject {
       break
     }  }
 
+  private func cachedRemotePlaybackURL(for track: Track) -> URL? {
+    guard let url = remoteGaplessPreparedURLs[track.id],
+      url.isFileURL,
+      let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+      let size = attributes[.size] as? NSNumber,
+      size.int64Value > 0
+    else { return nil }
+    return url
+  }
+
+  private func playbackURL(for track: Track) -> URL? {
+    cachedRemotePlaybackURL(for: track) ?? track.fileURL
+  }
+
+  private func isRemoteURL(_ url: URL) -> Bool {
+    let scheme = url.scheme?.lowercased()
+    return scheme == "http" || scheme == "https"
+  }
+
+  private func isSameAlbum(_ lhs: Track, _ rhs: Track) -> Bool {
+    lhs.album.caseInsensitiveCompare(rhs.album) == .orderedSame
+      && lhs.albumArtist.caseInsensitiveCompare(rhs.albumArtist) == .orderedSame
+  }
+
+  private func remoteGaplessCandidate(after index: Int) -> Track? {
+    guard remoteSampleContiguousExperimentEnabled,
+      shouldPreloadNextTrack,
+      let candidateIndex = preloadQueueIndex(after: index),
+      queue.indices.contains(index),
+      queue.indices.contains(candidateIndex)
+    else { return nil }
+
+    let current = queue[index]
+    let candidate = queue[candidateIndex]
+    guard isSameAlbum(current, candidate),
+      let url = candidate.fileURL,
+      isRemoteURL(url)
+    else { return nil }
+    return candidate
+  }
+
+  private func cacheRemoteTrack(_ track: Track, remoteURL: URL) async throws -> URL {
+    try Task.checkCancellation()
+    try FileManager.default.createDirectory(
+      at: remoteGaplessCacheDirectory,
+      withIntermediateDirectories: true
+    )
+    let destination = remoteGaplessCacheDirectory
+      .appendingPathComponent("track-\(track.id.uuidString).audio")
+    if let attributes = try? FileManager.default.attributesOfItem(atPath: destination.path),
+      let size = attributes[.size] as? NSNumber,
+      size.int64Value > 0
+    {
+      return destination
+    }
+
+    let (downloadedURL, _) = try await URLSession.shared.download(from: remoteURL)
+    try Task.checkCancellation()
+    if FileManager.default.fileExists(atPath: destination.path) {
+      try FileManager.default.removeItem(at: destination)
+    }
+    try FileManager.default.moveItem(at: downloadedURL, to: destination)
+    return destination
+  }
+
+  @discardableResult
+  private func beginRemoteSampleContiguousPreparation(
+    _ track: Track,
+    remoteURL: URL,
+    following: Track,
+    followingRemoteURL: URL,
+    at targetIndex: Int,
+    startTime: TimeInterval,
+    autoPlay: Bool,
+    notifyTrackStarted: Bool,
+    generation: Int
+  ) -> Bool {
+    currentQueueIndex = targetIndex
+    currentTrack = track
+    duration = max(0, track.duration)
+    elapsed = safeSeekPosition(startTime, duration: duration)
+    playbackEngineStatus = "Preparing remote album for gapless playback…"
+    preloadDetail = "Downloading current and next album tracks"
+    networkBufferStatus = "Preparing two remote tracks for one audio timeline…"
+    audioFormatStatus = "Waiting for decoded audio format"
+    downmixRoutingStatus = "Waiting for decoded audio format"
+    isPlaying = false
+
+    remoteGaplessPreparationTask?.cancel()
+    remoteGaplessPreparationTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      do {
+        let currentURL = try await self.cacheRemoteTrack(track, remoteURL: remoteURL)
+        let followingURL = try await self.cacheRemoteTrack(following, remoteURL: followingRemoteURL)
+        try Task.checkCancellation()
+        guard self.playbackGeneration == generation else { return }
+
+        self.remoteGaplessPreparedURLs[track.id] = currentURL
+        self.remoteGaplessPreparedURLs[following.id] = followingURL
+        self.remoteGaplessPreparationTask = nil
+        ResonanceDiagnostics.shared.recordDeferred(
+          "remote.gapless.cache.ready",
+          details: ["trackCount": "2"]
+        )
+        _ = self.startPreparedRemoteSampleContiguousPlayback(
+          track,
+          currentURL: currentURL,
+          following: following,
+          followingURL: followingURL,
+          at: targetIndex,
+          startTime: startTime,
+          autoPlay: autoPlay,
+          notifyTrackStarted: notifyTrackStarted,
+          generation: generation,
+          fallbackRemoteURL: remoteURL
+        )
+      } catch is CancellationError {
+        self.remoteGaplessPreparationTask = nil
+      } catch {
+        guard self.playbackGeneration == generation else { return }
+        self.remoteGaplessPreparationTask = nil
+        self.reportRuntimeError("Remote gapless preparation failed: \(error.localizedDescription)")
+        self.playbackEngineStatus = "Remote gapless preparation failed — using streaming playback"
+        ResonanceDiagnostics.shared.recordDeferred(
+          "remote.gapless.cache.failed",
+          details: ["reason": error.localizedDescription]
+        )
+        _ = self.loadWithRemotePlayer(
+          track,
+          url: remoteURL,
+          at: targetIndex,
+          startTime: startTime,
+          autoPlay: autoPlay,
+          notifyTrackStarted: notifyTrackStarted
+        )
+      }
+    }
+    return true
+  }
+
+  @discardableResult
+  private func startPreparedRemoteSampleContiguousPlayback(
+    _ track: Track,
+    currentURL: URL,
+    following: Track,
+    followingURL: URL,
+    at targetIndex: Int,
+    startTime: TimeInterval,
+    autoPlay: Bool,
+    notifyTrackStarted: Bool,
+    generation: Int,
+    fallbackRemoteURL: URL
+  ) -> Bool {
+    guard generation == playbackGeneration else { return false }
+    do {
+      let currentFile = try AVAudioFile(forReading: currentURL)
+      let followingFile = try AVAudioFile(forReading: followingURL)
+      let currentFormat = currentFile.processingFormat
+      let followingFormat = followingFile.processingFormat
+      guard currentFormat.sampleRate == followingFormat.sampleRate,
+        currentFormat.channelCount == followingFormat.channelCount
+      else {
+        throw NSError(
+          domain: "Resonance.RemoteGapless",
+          code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "The adjacent album tracks use different decoded formats."]
+        )
+      }
+
+      let prepared = try gaplessEngine.prepare(
+        currentTrackID: track.id,
+        currentURL: currentURL,
+        startTime: startTime,
+        followingTrackID: following.id,
+        followingURL: followingURL,
+        preloadBudgetBytes: localPreloadBudgetBytes,
+        generation: generation
+      )
+      guard let followingSchedule = prepared.following else {
+        throw NSError(
+          domain: "Resonance.RemoteGapless",
+          code: 2,
+          userInfo: [NSLocalizedDescriptionKey: "The next album track could not be scheduled in the shared audio graph."]
+        )
+      }
+
+      gaplessEngine.volume = Float(min(max(volume, 0), 1))
+      activeBackend = .gapless
+      currentQueueIndex = targetIndex
+      currentTrack = track
+      duration = prepared.current.duration
+      engineDurations[track.id] = prepared.current.duration
+      engineChannelCounts[track.id] = prepared.current.channelCount
+      engineDurations[following.id] = followingSchedule.duration
+      engineChannelCounts[following.id] = followingSchedule.channelCount
+      audioFormatStatus = Self.audioFormatDescription(
+        sourceChannels: prepared.current.channelCount,
+        outputChannels: gaplessEngine.outputChannelCount
+      )
+      downmixRoutingStatus = gaplessEngine.downmixRoutingDescription
+      preloadedTrackID = following.id
+      preloadedTrackTitle = following.title
+      partialPreloadFrames[following.id] = followingSchedule.remainingStartFrame
+      preloadDetail = "Two album tracks decoded and scheduled on one audio timeline"
+      playbackEngineStatus = "Remote gapless experiment — shared audio timeline"
+      networkBufferStatus = "Current and next album tracks prepared from remote cache"
+      elapsed = min(max(0, startTime), max(0, duration - 0.05))
+      playbackAnchorElapsed = elapsed
+      playbackAnchorDate = autoPlay ? Date() : nil
+      isPlaying = autoPlay
+      if !autoPlay { gaplessEngine.pause() }
+      if notifyTrackStarted {
+        ResonanceDiagnostics.shared.record("playback.trackStarted.callback.begin")
+        onTrackStarted?(track)
+        ResonanceDiagnostics.shared.record("playback.trackStarted.callback.end")
+      }
+      lastNowPlayingProgressUpdate = 0
+      hasRecordedFirstPlaybackTick = false
+      ResonanceDiagnostics.shared.record(
+        "remote.gapless.prepared",
+        details: [
+          "sourceChannels": String(prepared.current.channelCount),
+          "sourceSampleRate": String(format: "%.0f", prepared.sourceSampleRate),
+          "currentFrames": String(prepared.sourceFrameLength),
+          "currentDuration": String(format: "%.3f", prepared.current.duration),
+          "nextDuration": String(format: "%.3f", followingSchedule.duration)
+        ]
+      )
+      markPlaybackRuntimeStage("Publishing Lock Screen metadata")
+      updateNowPlaying()
+      markPlaybackRuntimeStage("Lock Screen metadata published; scheduling playback timer")
+      startPlaybackTimer()
+      markPlaybackStartupStage("Remote sample-contiguous playback started successfully")
+      return true
+    } catch {
+      gaplessEngine.stop(resetEngine: true)
+      playbackEngineStatus = "Remote gapless preparation failed — using streaming playback"
+      reportRuntimeError("Remote sample-contiguous playback failed: \(error.localizedDescription)")
+      ResonanceDiagnostics.shared.recordDeferred(
+        "remote.gapless.prepared.failed",
+        details: ["reason": error.localizedDescription]
+      )
+      return loadWithRemotePlayer(
+        track,
+        url: fallbackRemoteURL,
+        at: targetIndex,
+        startTime: startTime,
+        autoPlay: autoPlay,
+        notifyTrackStarted: notifyTrackStarted
+      )
+    }
+  }
+
   @discardableResult
   private func loadAndPlay(
     _ track: Track,
@@ -833,15 +1115,16 @@ final class PlayerController: NSObject, ObservableObject {
     autoPlay: Bool = true,
     notifyTrackStarted: Bool = true
   ) -> Bool {
-    guard let url = track.fileURL else {
+    guard let requestedURL = track.fileURL else {
       clearUnplayableTrack()
       return false
     }
+    let url = playbackURL(for: track) ?? requestedURL
     if url.isFileURL && !FileManager.default.fileExists(atPath: url.path) {
       clearUnplayableTrack()
       return false
     }
-    if !url.isFileURL && !(url.scheme == "http" || url.scheme == "https") {
+    if !url.isFileURL && !isRemoteURL(url) {
       clearUnplayableTrack()
       return false
     }
@@ -859,6 +1142,10 @@ final class PlayerController: NSObject, ObservableObject {
     markPlaybackStartupStage(url.isFileURL ? "Local request accepted" : "Remote request accepted")
     playbackGeneration += 1
     let generation = playbackGeneration
+    remoteGaplessPreparationTask?.cancel()
+    remoteGaplessPreparationTask = nil
+    remoteGaplessContinuationTask?.cancel()
+    remoteGaplessContinuationTask = nil
     playbackTimerTask?.cancel()
     playbackTimerTask = nil
     tearDownActiveBackend()
@@ -883,6 +1170,24 @@ final class PlayerController: NSObject, ObservableObject {
     clearRemoteClockHold()
 
     if !url.isFileURL {
+      if remoteSampleContiguousExperimentEnabled,
+        let following = remoteGaplessCandidate(after: resolvedIndex),
+        let followingURL = following.fileURL,
+        isRemoteURL(requestedURL)
+      {
+        markPlaybackStartupStage("Preparing adjacent remote album tracks")
+        return beginRemoteSampleContiguousPreparation(
+          track,
+          remoteURL: requestedURL,
+          following: following,
+          followingRemoteURL: followingURL,
+          at: resolvedIndex,
+          startTime: startTime,
+          autoPlay: autoPlay,
+          notifyTrackStarted: notifyTrackStarted,
+          generation: generation
+        )
+      }
       markPlaybackStartupStage("Creating stable remote player")
       return loadWithRemotePlayer(
         track,
@@ -909,6 +1214,9 @@ final class PlayerController: NSObject, ObservableObject {
     }
 
     let following = preloadCandidate(after: resolvedIndex)
+    let remoteFollowing = following == nil
+      ? remoteGaplessCandidate(after: resolvedIndex)
+      : nil
     do {
       markPlaybackStartupStage("Preparing local audio engine")
       let preparationStartedAt = Date()
@@ -917,7 +1225,7 @@ final class PlayerController: NSObject, ObservableObject {
         currentURL: url,
         startTime: startTime,
         followingTrackID: following?.id,
-        followingURL: following?.fileURL,
+        followingURL: following.flatMap(playbackURL),
         preloadBudgetBytes: localPreloadBudgetBytes,
         generation: generation
       )
@@ -964,6 +1272,16 @@ final class PlayerController: NSObject, ObservableObject {
       } else if following != nil {
         preloadDetail = "The next file could not be opened by the gapless engine"
         playbackEngineStatus = "Next track will load normally"
+      } else if remoteFollowing != nil {
+        preloadDetail = "Downloading next album track"
+        playbackEngineStatus = "Preparing next album track for gapless playback…"
+      } else if nextQueueIndex(after: resolvedIndex) != nil {
+        preloadDetail = shouldPreloadNextTrack
+          ? "Next track will load normally"
+          : "Preloading disabled"
+        playbackEngineStatus = shouldPreloadNextTrack
+          ? "Playing — next track loads normally"
+          : "Gapless preload off"
       } else {
         preloadDetail = shouldPreloadNextTrack ? "End of queue" : "Preloading disabled"
         playbackEngineStatus = shouldPreloadNextTrack ? "Playing — end of queue" : "Gapless preload off"
@@ -984,6 +1302,11 @@ final class PlayerController: NSObject, ObservableObject {
       updateNowPlaying()
       markPlaybackRuntimeStage("Lock Screen metadata published; scheduling playback timer")
       startPlaybackTimer()
+      if let remoteFollowing,
+        let remoteURL = remoteFollowing.fileURL
+      {
+        scheduleRemoteTrackAfterCurrentBoundary(remoteFollowing, remoteURL: remoteURL)
+      }
       markPlaybackRuntimeStage("Playback timer scheduled")
       markPlaybackStartupStage("Local playback started successfully")
       return true
@@ -1615,7 +1938,10 @@ final class PlayerController: NSObject, ObservableObject {
       queue.indices.contains(candidateIndex)
     else { return nil }
     let candidate = queue[candidateIndex]
-    guard let url = candidate.fileURL, FileManager.default.fileExists(atPath: url.path) else {
+    guard let url = playbackURL(for: candidate),
+      url.isFileURL,
+      FileManager.default.fileExists(atPath: url.path)
+    else {
       return nil
     }
     return candidate
@@ -1785,7 +2111,7 @@ final class PlayerController: NSObject, ObservableObject {
     preloadedTrackTitle = nil
 
     if let remainingStartFrame = partialPreloadFrames.removeValue(forKey: target.id),
-      let targetURL = target.fileURL
+      let targetURL = playbackURL(for: target)
     {
       do {
         _ = try gaplessEngine.appendRemainder(
@@ -1810,17 +2136,35 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private func scheduleTrackAfterCurrentBoundary() {
-    guard activeBackend == .gapless,
-      let candidate = preloadCandidate(after: currentQueueIndex),
-      let url = candidate.fileURL
-    else {
-      preloadedTrackID = nil
-      preloadedTrackTitle = nil
-      preloadDetail = shouldPreloadNextTrack ? "End of queue" : "Preloading disabled"
-      playbackEngineStatus = shouldPreloadNextTrack ? "Playing — end of queue" : "Gapless preload off"
+    guard activeBackend == .gapless else { return }
+
+    if let candidate = preloadCandidate(after: currentQueueIndex),
+      let url = playbackURL(for: candidate)
+    {
+      scheduleLocalTrackAfterCurrentBoundary(candidate, url: url)
       return
     }
 
+    if remoteSampleContiguousExperimentEnabled,
+      let candidate = remoteGaplessCandidate(after: currentQueueIndex),
+      let remoteURL = candidate.fileURL
+    {
+      scheduleRemoteTrackAfterCurrentBoundary(candidate, remoteURL: remoteURL)
+      return
+    }
+
+    let hasNextTrack = nextQueueIndex(after: currentQueueIndex) != nil
+    preloadedTrackID = nil
+    preloadedTrackTitle = nil
+    preloadDetail = hasNextTrack && shouldPreloadNextTrack
+      ? "Next track will load normally"
+      : (shouldPreloadNextTrack ? "End of queue" : "Preloading disabled")
+    playbackEngineStatus = hasNextTrack && shouldPreloadNextTrack
+      ? "Playing — next track loads normally"
+      : (shouldPreloadNextTrack ? "Playing — end of queue" : "Gapless preload off")
+  }
+
+  private func scheduleLocalTrackAfterCurrentBoundary(_ candidate: Track, url: URL) {
     do {
       let scheduled = try gaplessEngine.appendPreloaded(
         trackID: candidate.id,
@@ -1861,6 +2205,66 @@ final class PlayerController: NSObject, ObservableObject {
     }
   }
 
+  private func scheduleRemoteTrackAfterCurrentBoundary(_ candidate: Track, remoteURL: URL) {
+    remoteGaplessContinuationTask?.cancel()
+    let generation = playbackGeneration
+    preloadDetail = "Downloading next album track"
+    playbackEngineStatus = "Preparing next album track for gapless playback…"
+    remoteGaplessContinuationTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      do {
+        let cachedURL = try await self.cacheRemoteTrack(candidate, remoteURL: remoteURL)
+        try Task.checkCancellation()
+        guard self.playbackGeneration == generation,
+          self.activeBackend == .gapless
+        else { return }
+
+        let scheduled = try self.gaplessEngine.appendPreloaded(
+          trackID: candidate.id,
+          url: cachedURL,
+          preloadBudgetBytes: self.localPreloadBudgetBytes,
+          generation: generation
+        )
+        self.remoteGaplessPreparedURLs[candidate.id] = cachedURL
+        self.engineDurations[candidate.id] = scheduled.duration
+        self.engineChannelCounts[candidate.id] = scheduled.channelCount
+        self.preloadedTrackID = candidate.id
+        self.preloadedTrackTitle = candidate.title
+        self.remoteGaplessContinuationTask = nil
+        if let remainingFrame = scheduled.remainingStartFrame {
+          self.partialPreloadFrames[candidate.id] = remainingFrame
+          self.preloadDetail = "Opening segment scheduled; remainder streams from disk"
+          self.playbackEngineStatus = "Gapless ready — partial preload"
+          ResonanceDiagnostics.shared.recordDeferred(
+            "remote.gapless.preload",
+            details: ["result": "partial"]
+          )
+        } else {
+          self.partialPreloadFrames[candidate.id] = nil
+          self.preloadDetail = "Complete next album track scheduled"
+          self.playbackEngineStatus = "Gapless ready — album continues"
+          ResonanceDiagnostics.shared.recordDeferred(
+            "remote.gapless.preload",
+            details: ["result": "complete"]
+          )
+        }
+      } catch is CancellationError {
+        self.remoteGaplessContinuationTask = nil
+      } catch {
+        guard self.playbackGeneration == generation else { return }
+        self.remoteGaplessContinuationTask = nil
+        self.preloadedTrackID = nil
+        self.preloadedTrackTitle = nil
+        self.preloadDetail = "Next track will load normally"
+        self.playbackEngineStatus = "Next track will load normally"
+        ResonanceDiagnostics.shared.recordDeferred(
+          "remote.gapless.preload",
+          details: ["result": "failed"]
+        )
+      }
+    }
+  }
+
   private func clearUnplayableTrack() {
     if !playbackStartupDiagnostic.contains("failed") {
       markPlaybackStartupStage("Playback request rejected as unplayable")
@@ -1868,6 +2272,10 @@ final class PlayerController: NSObject, ObservableObject {
     playbackGeneration += 1
     playbackTimerTask?.cancel()
     playbackTimerTask = nil
+    remoteGaplessPreparationTask?.cancel()
+    remoteGaplessPreparationTask = nil
+    remoteGaplessContinuationTask?.cancel()
+    remoteGaplessContinuationTask = nil
     tearDownActiveBackend()
     activeBackend = .none
     currentTrack = nil

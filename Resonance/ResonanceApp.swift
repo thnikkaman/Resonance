@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct ResonanceApp: App {
@@ -11,6 +12,8 @@ struct ResonanceApp: App {
     @StateObject private var errorLog = AppErrorLog()
 
     init() {
+        UIScrollView.appearance().bounces = false
+        UIScrollView.appearance().alwaysBounceVertical = false
         ResonanceDiagnostics.shared.record("app.init")
     }
 

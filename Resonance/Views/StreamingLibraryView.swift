@@ -37,8 +37,7 @@ private extension View {
         highPriorityGesture(
             DragGesture(minimumDistance: 45, coordinateSpace: .local)
                 .onEnded { value in
-                    guard value.startLocation.y < 120,
-                          value.translation.height > 70,
+                    guard value.translation.height > 70,
                           abs(value.translation.height) > abs(value.translation.width)
                     else { return }
                     action()
@@ -1157,6 +1156,9 @@ private struct RemoteAlbumCollectionView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .background {
+                ResonanceThemeBackdrop()
+            }
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(albums, ascending: sortDirection == .ascending)
                 }
@@ -1284,6 +1286,18 @@ private struct RemoteArtistDetailView: View {
         }
     }
 
+    private var indexedAlbumSections: [ArtistIndexSection<RemoteAlbum>] {
+        let grouped = Dictionary(grouping: sortedAlbums) { resonanceArtistIndexKey($0.title) }
+        let order = resonanceArtistIndexOrder(
+            for: Array(grouped.keys),
+            ascending: true
+        )
+        return order.compactMap { key in
+            guard let values = grouped[key], !values.isEmpty else { return nil }
+            return ArtistIndexSection(key: key, items: values)
+        }
+    }
+
     private var columns: [GridItem] {
         Array(
             repeating: GridItem(.flexible(), spacing: 12),
@@ -1343,95 +1357,147 @@ private struct RemoteArtistDetailView: View {
             }
             .resonanceTopDownDismiss { dismiss() }
 
-            if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 18) {
-                        NavigationLink {
-                            RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ZStack {
-                                    RemoteArtwork(
-                                        context: RemoteArtworkContext(artist),
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
-                                    )
-                                    Color.black.opacity(0.28)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    Image(systemName: "square.stack.3d.up.fill")
-                                        .font(.title2)
-                                        .foregroundStyle(.white)
+            ScrollViewReader { proxy in
+                ZStack(alignment: .trailing) {
+                    Group {
+                        if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 14) {
+                                    LazyVGrid(columns: columns, spacing: 18) {
+                                        NavigationLink {
+                                            RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                ZStack {
+                                                    RemoteArtwork(
+                                                        context: RemoteArtworkContext(artist),
+                                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
+                                                    )
+                                                    Color.black.opacity(0.28)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                    Image(systemName: "square.stack.3d.up.fill")
+                                                        .font(.title2)
+                                                        .foregroundStyle(.white)
+                                                }
+                                                Text("All Albums")
+                                                    .font(settings.libraryTextSize.font.weight(.semibold))
+                                                Text("\(allTracks.count) tracks")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+
+                                    ForEach(indexedAlbumSections, id: \.key) { section in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(section.key)
+                                                .font(.headline)
+                                                .foregroundStyle(.secondary)
+                                            LazyVGrid(columns: columns, spacing: 18) {
+                                                ForEach(section.items) { album in
+                                                    NavigationLink {
+                                                        RemoteAlbumDetailView(album: album)
+                                                    } label: {
+                                                        VStack(alignment: .leading, spacing: 6) {
+                                                            RemoteArtwork(
+                                                                context: RemoteArtworkContext(album),
+                                                                size: settings.libraryThumbnailSize.gridArtworkPoints,
+                                                            )
+                                                            Text(album.title)
+                                                                .font(settings.libraryTextSize.font.weight(.semibold))
+                                                                .lineLimit(1)
+                                                            Text(album.releaseYear > 0 ? String(album.releaseYear) : "Year unavailable")
+                                                                .font(.caption2)
+                                                                .foregroundStyle(.secondary)
+                                                        }
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                            }
+                                        }
+                                        .id("artist-album-section-\(section.key)")
+                                    }
                                 }
-                                Text("All Albums")
-                                    .font(settings.libraryTextSize.font.weight(.semibold))
-                                Text("\(allTracks.count) tracks")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                .padding(.leading, 16)
+                                .padding(.trailing, 36)
+                                .padding(.bottom)
+                            }
+                            .background {
+                                ResonanceThemeSurfaceBackdrop()
+                            }
+                        } else {
+                            List {
+                                NavigationLink {
+                                    RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+                                } label: {
+                                    RemoteCollectionRow(
+                                        title: "All Albums",
+                                        subtitle: "\(allTracks.count) tracks, grouped by album",
+                                        artwork: RemoteArtworkContext(artist),
+                                        large: settings.albumLayout == .large,
+                                    )
+                                }
+                                .listRowBackground(Color.clear)
+
+                                ForEach(indexedAlbumSections, id: \.key) { section in
+                                    Section {
+                                        ForEach(section.items) { album in
+                                            NavigationLink {
+                                                RemoteAlbumDetailView(album: album)
+                                            } label: {
+                                                RemoteCollectionRow(
+                                                    title: album.title,
+                                                    subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : "Release date unavailable",
+                                                    artwork: RemoteArtworkContext(album),
+                                                    large: settings.albumLayout == .large,
+                                                )
+                                            }
+                                            .listRowBackground(Color.clear)
+                                        }
+                                    } header: {
+                                        Text(section.key)
+                                    }
+                                    .id("artist-album-section-\(section.key)")
+                                }
+                            }
+                            .listStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .scrollContentBackground(.hidden)
+                            .safeAreaPadding(.trailing, 36)
+                            .background(Color.clear)
+                        }
+                    }
+
+                    if indexedAlbumSections.count > 1 {
+                        VerticalArtistIndex(
+                            keys: indexedAlbumSections.map(\.key),
+                            diagnosticSurface: "streaming-artist-albums"
+                        ) { key in
+                            ResonanceDiagnostics.shared.recordDeferred(
+                                "alphabet.scrollTo",
+                                details: [
+                                    "surface": "streaming-artist-albums",
+                                    "key": key,
+                                    "sectionCount": String(indexedAlbumSections.count)
+                                ]
+                            )
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                proxy.scrollTo("artist-album-section-\(key)", anchor: .top)
                             }
                         }
-                        .buttonStyle(.plain)
-
-                        ForEach(sortedAlbums) { album in
-                            NavigationLink {
-                                RemoteAlbumDetailView(album: album)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    RemoteArtwork(
-                                        context: RemoteArtworkContext(album),
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
-                                    )
-                                    Text(album.title)
-                                        .font(settings.libraryTextSize.font.weight(.semibold))
-                                        .lineLimit(1)
-                                    Text(album.releaseYear > 0 ? String(album.releaseYear) : "Year unavailable")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding()
-                }
-                .background {
-                    ResonanceThemeSurfaceBackdrop()
-                }
-            } else {
-                List {
-                    NavigationLink {
-                        RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
-                    } label: {
-                        RemoteCollectionRow(
-                            title: "All Albums",
-                            subtitle: "\(allTracks.count) tracks, grouped by album",
-                            artwork: RemoteArtworkContext(artist),
-                            large: settings.albumLayout == .large,
-                        )
-                    }
-                    .listRowBackground(Color.clear)
-
-                    ForEach(sortedAlbums) { album in
-                        NavigationLink {
-                            RemoteAlbumDetailView(album: album)
-                        } label: {
-                        RemoteCollectionRow(
-                            title: album.title,
-                            subtitle: album.releaseYear > 0 ? String(album.releaseYear) : "Release date unavailable",
-                            artwork: RemoteArtworkContext(album),
-                            large: settings.albumLayout == .large,
-                        )
-                        }
-                        .listRowBackground(Color.clear)
+                        .zIndex(2)
+                        .padding(.trailing, 1)
+                        .padding(.vertical, 4)
                     }
                 }
-                .listStyle(.plain)
-                .listRowBackground(Color.clear)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
+                .scrollIndicators(.hidden)
             }
         }
         .background {
             ResonanceThemeBackdrop()
         }
+        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
@@ -1499,7 +1565,9 @@ private struct RemoteAllAlbumsTrackListView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(settings.accentColor)
+                .listRowBackground(Color.clear)
             }
+            .listRowBackground(Color.clear)
 
             Section("Tracks") {
                 ForEach(tracks) { track in
@@ -1509,6 +1577,7 @@ private struct RemoteAllAlbumsTrackListView: View {
                         RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
                     .remoteTrackSwipeActions(track)
                     .contextMenu {
                         Button { Task { await remote.playNext([track], using: player) } } label: {
@@ -1534,6 +1603,7 @@ private struct RemoteAllAlbumsTrackListView: View {
                     }
                 }
             }
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .listRowBackground(Color.clear)
@@ -1550,8 +1620,7 @@ private struct RemoteAllAlbumsTrackListView: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 45)
                 .onEnded { value in
-                    guard value.startLocation.y < 120,
-                          value.translation.height > 70,
+                    guard value.translation.height > 70,
                           abs(value.translation.height) > abs(value.translation.width)
                     else { return }
                     dismiss()
@@ -1675,10 +1744,10 @@ private struct RemoteAlbumDetailView: View {
         .background {
             ResonanceThemeBackdrop()
         }
+        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
-        .resonanceTopDownDismiss { dismiss() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ResonanceToolbarIconButton(
@@ -1734,6 +1803,7 @@ private struct RemoteAlbumDetailView: View {
             )
         }
         .task(id: "\(album.id)|\(album.artworkURL?.absoluteString ?? "")|\(album.artworkBase64 != nil)") {
+            let hasProvidedArtwork = RemoteArtworkContext(album).hasProvidedArtwork
             let automaticArtwork = await StreamingArtworkCache.shared.artwork(
                 artist: album.artist,
                 album: album.title,
@@ -1742,8 +1812,10 @@ private struct RemoteAlbumDetailView: View {
             guard !Task.isCancelled else { return }
             if let automaticArtwork {
                 resolvedArtworkData = automaticArtwork
-                isAutomaticallySelectedArtwork = true
-                downloads.rememberArtwork(automaticArtwork, for: album.tracks)
+                isAutomaticallySelectedArtwork = !hasProvidedArtwork
+                if !hasProvidedArtwork {
+                    downloads.rememberArtwork(automaticArtwork, for: album.tracks)
+                }
             } else if let firstTrack = album.tracks.first,
                       let existingArtwork = await remote.artworkData(for: firstTrack) {
                 resolvedArtworkData = existingArtwork
@@ -2125,6 +2197,7 @@ private struct RemoteTrackRow: View {
                 context: RemoteArtworkContext(track),
                 size: 42,
             )
+            .resonanceTabSwipeGesture()
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).lineLimit(1)
                 Text("\(track.artist) • \(track.album)")
@@ -2269,6 +2342,8 @@ private struct RemoteArtworkContext: Hashable {
     let fallbackTrackQueries: [StreamingArtworkTrackQuery]
     let preferOnlineSearch: Bool
 
+    var hasProvidedArtwork: Bool { !sources.isEmpty }
+
     init(
         url: URL?,
         base64: String?,
@@ -2405,7 +2480,9 @@ private struct RemoteArtwork: View {
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: max(7, size * 0.09)))
         .overlay {
-            if settings.showArtworkWarning && (showWarningBorder || automaticallySelectedData != nil) {
+            if settings.showArtworkWarning,
+               !context.hasProvidedArtwork,
+               (showWarningBorder || automaticallySelectedData != nil) {
                 RoundedRectangle(cornerRadius: max(7, size * 0.09)).stroke(.red, lineWidth: 2)
             }
         }

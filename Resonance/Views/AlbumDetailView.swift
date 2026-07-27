@@ -134,6 +134,7 @@ struct AlbumDetailView: View {
             // behind the hero and track list when pushed from Library.
             ResonanceThemeBackdrop()
         }
+        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
@@ -255,8 +256,7 @@ struct AlbumDetailView: View {
                 .onEnded { value in
                     if value.startLocation.x < 36 && value.translation.width > 70 {
                         dismiss()
-                    } else if value.startLocation.y < 120,
-                              value.translation.height > 70,
+                    } else if value.translation.height > 70,
                               abs(value.translation.height) > abs(value.translation.width) {
                         dismiss()
                     }
@@ -266,6 +266,7 @@ struct AlbumDetailView: View {
 }
 
 struct AllAlbumsTrackListView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var settings: AppSettings
     let artistName: String
@@ -282,7 +283,9 @@ struct AllAlbumsTrackListView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(settings.accentColor)
+                    .listRowBackground(Color.clear)
                 }
+                .listRowBackground(Color.clear)
             }
 
             ForEach(Array(Dictionary(grouping: tracks, by: \.album).keys.sorted()), id: \.self) { albumName in
@@ -299,6 +302,7 @@ struct AllAlbumsTrackListView: View {
                         }
                         .buttonStyle(.plain)
                         .trackLibraryActions(track)
+                        .listRowBackground(Color.clear)
                     }
                     .listRowBackground(Color.clear)
                 }
@@ -311,6 +315,7 @@ struct AllAlbumsTrackListView: View {
         .background {
             ResonanceThemeBackdrop()
         }
+        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailBottomSpace()
@@ -320,7 +325,9 @@ struct AllAlbumsTrackListView: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity)
-                .background(.bar)
+                .background {
+                    ResonanceThemeSurfaceBackdrop()
+                }
         }
     }
 }
@@ -342,6 +349,7 @@ struct TrackListRow: View {
                     embedded: library.artworkIsEmbedded(for: track),
                     size: large ? max(70, settings.libraryThumbnailSize.points * 1.8) : settings.libraryThumbnailSize.points
                 )
+                .resonanceTabSwipeGesture()
             }
 
             if let leadingNumber {

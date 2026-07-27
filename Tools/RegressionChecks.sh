@@ -28,6 +28,7 @@ streaming = (root / 'Resonance/Views/StreamingLibraryView.swift').read_text()
 library_view = (root / 'Resonance/Views/LibraryView.swift').read_text()
 album_detail = (root / 'Resonance/Views/AlbumDetailView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
+app_source = (root / 'Resonance/ResonanceApp.swift').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
 now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
     'private struct NowPlayingArtworkPager', 1
@@ -58,6 +59,9 @@ assert 'player.currentTrack?.duration' in views
 assert 'Timer(timeInterval:' not in player
 assert 'deinit { sqlite3_close(db) }' not in database
 assert 'appendPreloaded' in gapless and 'appendRemainder' in gapless
+assert 'struct VolumeSlider: View' in views
+assert 'VolumeSlider(value: $player.volume' in views
+assert 'gesture.location.x - thumbRadius' in views
 assert 'kAudioUnitSubType_MatrixMixer' in gapless
 assert 'rear left → left only' in gapless
 assert 'rear right → right only' in gapless
@@ -112,6 +116,11 @@ assert 'resonanceNormalizedRemoteKey' in remote
 # Browse parity and adaptive artist index.
 assert 'VerticalArtistIndex' in library_view
 assert 'resonanceArtistIndexKey' in library_view
+assert 'diagnosticSurface: "albums"' in library_view
+assert 'album-section-' in library_view
+assert 'private var indexedAlbumSections: [ArtistIndexSection<Album>]' in library_view
+assert 'diagnosticSurface: "library-artist-albums"' in library_view
+assert 'artist-album-section-' in library_view
 assert 'case albumArtists' in remote
 assert 'case favorites' in remote
 assert 'case recentlyAdded' in remote
@@ -140,9 +149,15 @@ assert 'Play Album' in streaming and 'Play All Albums' in streaming
 assert 'VerticalArtistIndex' in streaming
 assert 'RemoteAlbumCollectionView' in streaming
 assert 'streaming-albums' in streaming
+assert 'private var indexedAlbumSections: [ArtistIndexSection<RemoteAlbum>]' in streaming
+assert 'diagnosticSurface: "streaming-artist-albums"' in streaming
+assert 'artist-album-section-' in streaming
 assert 'scrollIndicators(.hidden)' in streaming
 assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
+assert 'Reissue the final selection after the gesture has' in library_view
+assert 'repeatSelection: true' in library_view
+assert 'await Task.yield()' in library_view
 assert 'alphabet.scrollTo' in streaming
 assert 'hasConnectionIssue' in remote
 assert 'isExpanded.toggle()' in streaming
@@ -155,6 +170,16 @@ assert 'commands.skipBackwardCommand.isEnabled = false' in player
 assert 'RemoteSearchField' not in streaming
 assert 'searchText' not in remote
 assert '.searchable(text: $remote.searchText' not in streaming
+assert 'struct HexChannelSlider: View' in settings_view
+assert 'let controlWidth = proxy.size.width * 0.8' in settings_view
+assert 'usableWidth = max(1, width - thumbDiameter)' in settings_view
+assert 'nextValue = Int((x / usableWidth * 255).rounded())' in settings_view
+assert '@State private var focusedChannel: Channel?' in settings_view
+assert 'focusedChannel = selected' in settings_view
+assert '@Binding var isFocused: Bool' in settings_view
+assert 'uiView.becomeFirstResponder()' in settings_view
+assert 'onBeginEditing: { isTextFieldFocused = false }' in settings_view
+assert 'onBeginEditing()' in settings_view
 assert '.navigationBarTitleDisplayMode(.large)' in streaming
 assert 'streaming.option.compilationGrouping.changed' in streaming
 assert 'compilationAlbumIdentity' in remote
@@ -191,12 +216,36 @@ assert 'Only the selected track\'s artwork is needed to start playback.' in remo
 assert 'State(initialValue: Self.makeSections' not in streaming
 assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
-assert 'TabView(selection:' not in root_view
+assert 'ZStack {' in root_view
+assert '.opacity(tabPageIsVisible(tab) ? 1 : 0)' in root_view
+assert '.allowsHitTesting(tab == selectedTab)' in root_view
+assert '.accessibilityHidden(tab != selectedTab)' in root_view
+assert 'tabSwipeOffset' in root_view
+assert 'DragGesture(minimumDistance: 18, coordinateSpace: .local)' in root_view
+assert 'tabPageOffset' in root_view
+assert 'withAnimation(.easeOut(duration: 0.2))' in root_view
+assert '.gesture(tabSwipeGesture(width: proxy.size.width))' in root_view
+assert '.simultaneousGesture(tabSwipeGesture(width: proxy.size.width))' not in root_view
+assert 'struct ResonanceTabSwipeActions' in root_view
+assert 'func resonanceTabSwipeGesture()' in root_view
+assert 'func resonanceHierarchySwipeBack' in root_view
+assert '.resonanceTabSwipeGesture()' in album_detail
+assert '.resonanceTabSwipeGesture()' in streaming
+assert '.resonanceHierarchySwipeBack' in album_detail
+assert '.resonanceHierarchySwipeBack' in library_view
+assert streaming.count('.resonanceHierarchySwipeBack') >= 2
+assert 'miniPlayerDock: MiniPlayerDock = .bottom' in root_view
+assert 'nowPlayingPresentationRequest' in root_view
+assert 'nowPlayingPresentationRequest' in player
+assert 'presentsNowPlaying' in player
+assert 'requestNowPlayingPresentation()' in remote
 assert 'private struct ResonanceTabBar' in root_view
 assert '.resonanceThemeTextSurface()' in root_view
 assert 'private struct ResonanceThemeTextSurface' in root_view
 assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' in root_view
+assert 'UIScrollView.appearance().bounces = false' in app_source
+assert 'UIScrollView.appearance().alwaysBounceVertical = false' in app_source
 assert 'transaction.animation = nil' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view
@@ -214,6 +263,13 @@ assert 'var isEngineRunning: Bool' in gapless
 assert 'sampleRatesMatch' in gapless
 assert 'sourceSampleRate' in gapless and 'graphSampleRate' in player
 assert 'playback.gapless.prepared' in player
+assert 'remoteGaplessContinuationTask' in player
+assert 'scheduleRemoteTrackAfterCurrentBoundary' in player
+assert 'let remoteFollowing = following == nil' in player
+assert 'scheduleRemoteTrackAfterCurrentBoundary(remoteFollowing' in player
+assert 'Complete next album track scheduled' in player
+assert 'remote.gapless.preload' in player
+assert 'Next track will load normally' in player
 assert 'playback.seek.begin' in player
 assert 'playback.seek.completed' in player
 assert 'formatRemainingTime' in views
@@ -260,6 +316,9 @@ assert 'sources(from tracks: [RemoteTrackItem])' in streaming
 assert 'RemoteArtwork(context:' in streaming
 assert 'let artwork: RemoteArtworkContext' in streaming
 assert 'let preferOnlineSearch: Bool' in streaming
+assert 'var hasProvidedArtwork: Bool' in streaming
+assert '!context.hasProvidedArtwork' in streaming
+assert 'isAutomaticallySelectedArtwork = !hasProvidedArtwork' in streaming
 assert 'preferOnlineSearch: true' in streaming
 assert 'fallbackArtist: artist.name' in streaming
 assert 'context.preferOnlineSearch' in streaming
@@ -281,6 +340,7 @@ assert '<key>CFBundleShortVersionString</key>' in plist
 assert '<string>$(MARKETING_VERSION)</string>' in plist
 assert '<key>CFBundleVersion</key>' in plist
 assert '<string>$(CURRENT_PROJECT_VERSION)</string>' in plist
+assert '<string>Resonance Beta</string>' in plist
 
 # Alpha 3.7.4 build 43 playback crash isolation and device diagnostics.
 diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
@@ -333,7 +393,7 @@ assert 'private var browseCache: BrowseCache?' in remote
 assert 'trackRevision &+= 1' in remote
 assert 'private enum BrowseNeed: Equatable' in remote
 assert 'populate(&cache, need: need)' in remote
-assert 'activeTabContent' in root_view and 'TabView(selection:' not in root_view
+assert 'activeTabContent' in root_view and 'tabPageIsVisible' in root_view
 assert 'if isExpanded {' in settings_view and 'self.content = content' in settings_view
 # Alpha 3.7.2 post-start crash diagnostics and safe MediaPlayer artwork.
 assert 'playbackRuntimeDiagnostic' in player
@@ -381,11 +441,18 @@ assert 'resonanceTabBottomSpace' in root_view
 assert 'resonanceDetailBottomSpace' in root_view
 assert 'dragTranslation' in root_view
 assert 'highPriorityGesture' in root_view
+assert 'private struct ResonanceTopDownDismissModifier' not in root_view
+assert '.offset(y: completionOffset + dragOffset)' not in root_view
+assert 'transaction.disablesAnimations = true' not in root_view
 assert 'remoteTrackSwipeActions' in streaming
 assert 'private struct RemoteTrackSwipeActions' in streaming
 assert 'resonanceTopDownDismiss' in streaming
 assert 'resonanceTopDownDismiss' in library_view
 assert 'resonanceTopDownDismiss' in album_detail
+assert album_detail.count('resonanceTopDownDismiss') == 1
+assert library_view.count('resonanceTopDownDismiss') == 2
+assert streaming.count('resonanceTopDownDismiss') == 3
+assert '.gesture(\n            DragGesture(minimumDistance: 45)' in album_detail
 assert 'resonanceHeroSurface' in root_view
 assert 'ResonanceVisualTheme' in settings
 assert 'Nocturne Glass' in settings
@@ -439,7 +506,7 @@ assert 'removeProgress' in remote
 assert 'prioritizeDownloadQueue' in remote
 assert 'showingAlbumOptions' in album_detail
 assert 'browseReady' in streaming
-assert 'startLocation.y < 120' in streaming
+assert 'value.translation.height > 70' in streaming
 assert 'private struct MetadataTextField' in smart
 assert 'Enter track title' in smart
 assert 'ScrollableArtistName' in library_view

@@ -8,6 +8,18 @@ struct NowPlayingView: View {
   @State private var showingBookmarks = false
   @State private var showingPlaylistPicker = false
   let openLibrary: () -> Void
+  let onHorizontalTabSwipeChanged: (CGFloat) -> Void
+  let onHorizontalTabSwipeEnded: (CGFloat) -> Void
+
+  init(
+    openLibrary: @escaping () -> Void,
+    onHorizontalTabSwipeChanged: @escaping (CGFloat) -> Void = { _ in },
+    onHorizontalTabSwipeEnded: @escaping (CGFloat) -> Void = { _ in }
+  ) {
+    self.openLibrary = openLibrary
+    self.onHorizontalTabSwipeChanged = onHorizontalTabSwipeChanged
+    self.onHorizontalTabSwipeEnded = onHorizontalTabSwipeEnded
+  }
 
   private var currentTrackIsFavorite: Bool {
     guard let track = player.currentTrack else { return false }
@@ -177,7 +189,7 @@ struct NowPlayingView: View {
         Image(systemName: "speaker.fill")
           .font(.caption)
           .foregroundStyle(nowPlayingSecondaryColor)
-        Slider(value: $player.volume, in: 0...1)
+        VolumeSlider(value: $player.volume, tint: settings.accentColor)
         Image(systemName: "speaker.wave.3.fill")
           .font(.caption)
           .foregroundStyle(nowPlayingSecondaryColor)
@@ -215,6 +227,17 @@ struct NowPlayingView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background {
       Color.clear
+        .contentShape(Rectangle())
+        .gesture(
+          DragGesture(minimumDistance: 18, coordinateSpace: .local)
+            .onChanged { value in
+              guard abs(value.translation.width) > abs(value.translation.height) else { return }
+              onHorizontalTabSwipeChanged(value.translation.width)
+            }
+            .onEnded { value in
+              onHorizontalTabSwipeEnded(value.translation.width)
+            }
+        )
     }
     .navigationTitle("Now Playing")
     .navigationBarTitleDisplayMode(.inline)
@@ -256,6 +279,62 @@ struct NowPlayingView: View {
           .presentationDetents([.medium, .large])
       }
     }
+  }
+}
+
+private struct VolumeSlider: View {
+  @Binding var value: Double
+  let tint: Color
+
+  private let thumbDiameter: CGFloat = 20
+  private let trackHeight: CGFloat = 4
+
+  var body: some View {
+    GeometryReader { proxy in
+      let width = max(proxy.size.width, thumbDiameter)
+      let thumbRadius = thumbDiameter / 2
+      let usableWidth = max(1, width - thumbDiameter)
+      let clampedValue = min(1, max(0, value))
+      let thumbCenterX = thumbRadius + usableWidth * clampedValue
+
+      ZStack(alignment: .leading) {
+        Capsule()
+          .fill(.secondary.opacity(0.28))
+          .frame(width: usableWidth, height: trackHeight)
+          .offset(x: thumbRadius)
+
+        Capsule()
+          .fill(tint)
+          .frame(width: max(0, usableWidth * clampedValue), height: trackHeight)
+          .offset(x: thumbRadius)
+
+        Circle()
+          .fill(tint)
+          .frame(width: thumbDiameter, height: thumbDiameter)
+          .shadow(radius: 1)
+          .offset(x: thumbCenterX - thumbRadius)
+      }
+      .frame(width: width, height: 32)
+      .contentShape(Rectangle())
+      .highPriorityGesture(
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+          .onChanged { gesture in
+            let x = min(max(0, gesture.location.x - thumbRadius), usableWidth)
+            value = min(1, max(0, x / usableWidth))
+          }
+      )
+      .accessibilityElement()
+      .accessibilityLabel("Volume")
+      .accessibilityValue("\(Int((clampedValue * 100).rounded())) percent")
+      .accessibilityAdjustableAction { direction in
+        switch direction {
+        case .increment: value = min(1, value + 0.05)
+        case .decrement: value = max(0, value - 0.05)
+        @unknown default: break
+        }
+      }
+    }
+    .frame(height: 32)
   }
 }
 
