@@ -40,7 +40,7 @@ struct AlbumDetailView: View {
 
     private var albumHero: some View {
         VStack(spacing: 4) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(spacing: 6) {
                     ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         if let first = liveAlbum.tracks.first {
@@ -82,7 +82,6 @@ struct AlbumDetailView: View {
         }
         .resonanceHeroSurface()
         .contentShape(Rectangle())
-        .resonanceTopDownDismiss { dismiss() }
         .contextMenu {
             Button { showingMetadataEditor = true } label: {
                 Label("Edit Album Metadata", systemImage: "pencil")
@@ -134,10 +133,9 @@ struct AlbumDetailView: View {
             // behind the hero and track list when pushed from Library.
             ResonanceThemeBackdrop()
         }
-        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(liveAlbum.title)
         .navigationBarTitleDisplayMode(.inline)
-        .resonanceDetailBottomSpace()
+        .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button { dismiss() } label: {
@@ -256,12 +254,10 @@ struct AlbumDetailView: View {
                 .onEnded { value in
                     if value.startLocation.x < 36 && value.translation.width > 70 {
                         dismiss()
-                    } else if value.translation.height > 70,
-                              abs(value.translation.height) > abs(value.translation.width) {
-                        dismiss()
                     }
                 }
         )
+        .resonanceTabSwipeObserver()
     }
 }
 
@@ -315,20 +311,28 @@ struct AllAlbumsTrackListView: View {
         .background {
             ResonanceThemeBackdrop()
         }
-        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
-        .resonanceDetailBottomSpace()
-        .safeAreaInset(edge: .top, spacing: 0) {
-            Text(artistName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 5)
-                .frame(maxWidth: .infinity)
-                .background {
-                    ResonanceThemeSurfaceBackdrop()
+        .resonanceDetailTabNavigation()
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Label("Back", systemImage: "chevron.left")
                 }
+            }
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                Text(artistName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 5)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background { ResonanceThemeSurfaceBackdrop() }
+            .contentShape(Rectangle())
+        }
+        .resonanceTabSwipeObserver()
     }
 }
 

@@ -36,38 +36,66 @@ struct NowPlayingView: View {
 
   var body: some View {
     VStack(spacing: 10) {
+      VStack(spacing: 10) {
         NowPlayingArtworkPager()
 
-        VStack(spacing: 4) {
-          Text(player.currentTrack?.title ?? "Nothing Playing")
-            .font(.title2.bold())
-            .lineLimit(1)
-            .foregroundStyle(nowPlayingPrimaryColor)
-          Text(
-            player.currentTrack.map { "\($0.artist) — \($0.album)" }
-              ?? "Choose music from your library"
-          )
-          .foregroundStyle(nowPlayingSecondaryColor)
-          .lineLimit(1)
-          Text(
-            player.currentTrack.map {
-              "Length \(format(player.duration > 0 ? player.duration : $0.duration))"
-            } ?? "Length —"
-          )
-          .font(.caption.monospacedDigit())
-          .foregroundStyle(nowPlayingSecondaryColor)
+        // This is the only tab-navigation hit-test region on Playing. Its
+        // clear insets cover the gap around the metadata while leaving the
+        // artwork pager and seek bar outside its bounds.
+        VStack(spacing: 0) {
+          Color.clear.frame(height: 10)
 
-          if player.currentTrack != nil {
-            Label(
-              player.preloadedTrackTitle.map { "Gapless ready: \($0)" }
-                ?? player.playbackEngineStatus,
-              systemImage: player.preloadedTrackTitle == nil ? "waveform" : "waveform.badge.plus"
+          VStack(spacing: 4) {
+            Text(player.currentTrack?.title ?? "Nothing Playing")
+              .font(.title2.bold())
+              .lineLimit(1)
+              .foregroundStyle(nowPlayingPrimaryColor)
+            Text(
+              player.currentTrack.map { "\($0.artist) — \($0.album)" }
+                ?? "Choose music from your library"
             )
-            .font(.caption2)
             .foregroundStyle(nowPlayingSecondaryColor)
             .lineLimit(1)
+            Text(
+              player.currentTrack.map {
+                "Length \(format(player.duration > 0 ? player.duration : $0.duration))"
+              } ?? "Length —"
+            )
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(nowPlayingSecondaryColor)
+
+            if player.currentTrack != nil {
+              Label(
+                player.preloadedTrackTitle.map { "Gapless ready: \($0)" }
+                  ?? player.playbackEngineStatus,
+                systemImage: player.preloadedTrackTitle == nil ? "waveform" : "waveform.badge.plus"
+              )
+              .font(.caption2)
+              .foregroundStyle(nowPlayingSecondaryColor)
+              .lineLimit(1)
+            }
           }
+
+          Color.clear.frame(height: 10)
         }
+
+        .contentShape(Rectangle())
+        .gesture(
+          DragGesture(minimumDistance: 5, coordinateSpace: .local)
+            .onChanged { value in
+              guard abs(value.translation.width) >= 8,
+                    abs(value.translation.width) > abs(value.translation.height) + 4
+              else { return }
+              onHorizontalTabSwipeChanged(value.translation.width)
+            }
+            .onEnded { value in
+              guard abs(value.translation.width) >= 8,
+                    abs(value.translation.width) > abs(value.translation.height) + 4
+              else { return }
+              onHorizontalTabSwipeEnded(value.translation.width)
+            }
+        )
+      }
 
       TrackScrubber()
         .frame(maxWidth: 320)
@@ -225,20 +253,6 @@ struct NowPlayingView: View {
     .padding(.top, 120)
     .padding(.bottom, 8)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    .background {
-      Color.clear
-        .contentShape(Rectangle())
-        .gesture(
-          DragGesture(minimumDistance: 18, coordinateSpace: .local)
-            .onChanged { value in
-              guard abs(value.translation.width) > abs(value.translation.height) else { return }
-              onHorizontalTabSwipeChanged(value.translation.width)
-            }
-            .onEnded { value in
-              onHorizontalTabSwipeEnded(value.translation.width)
-            }
-        )
-    }
     .navigationTitle("Now Playing")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

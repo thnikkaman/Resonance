@@ -8,6 +8,7 @@ struct SettingsView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var errorLog: AppErrorLog
+    @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     let openLibrary: () -> Void
     @FocusState private var isTextFieldFocused: Bool
     @State private var accentHexDraft = ""
@@ -19,7 +20,7 @@ struct SettingsView: View {
     private var buildDescription: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
-        return "Alpha \(version) (\(build))"
+        return "Beta \(version) (\(build))"
     }
 
     var body: some View {
@@ -42,6 +43,7 @@ struct SettingsView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(ResonanceVisualTheme.allCases) { theme in
                         ThemeChoiceButton(theme: theme) {
+                            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                             settings.visualTheme = theme
                         }
                     }
@@ -51,9 +53,25 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Picker("Hero buttons", selection: $settings.heroButtonStyle) {
+                    ForEach(ResonanceHeroButtonStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Text(settings.heroButtonStyle.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HeroButtonStylePreview()
+
                 HStack {
                     ForEach(palette, id: \.self) { hex in
-                        Button { applyAccentHex(hex) } label: {
+                        Button {
+                            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+                            applyAccentHex(hex)
+                        } label: {
                             Circle()
                                 .fill(Color(hex: hex) ?? .purple)
                                 .frame(width: 30, height: 30)
@@ -65,6 +83,7 @@ struct SettingsView: View {
                                 }
                         }
                         .buttonStyle(.plain)
+                        .buttonStyle(ResonanceSwipeAwareButtonStyle())
                     }
                 }
 
@@ -88,9 +107,30 @@ struct SettingsView: View {
                 key: "playback",
                 isExpanded: $settings.settingsPlaybackExpanded
             ) {
+                Text("Library")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(settings.accentColor)
+
                 Toggle("Gapless preload next track", isOn: $settings.preloadNextTrack)
                 LabeledContent("Local preload budget", value: "\(Int(settings.localBufferMB)) MB")
                 Slider(value: $settings.localBufferMB, in: 10...250, step: 10)
+
+                if let preloaded = player.preloadedTrackTitle {
+                    LabeledContent("Preloaded next track", value: preloaded)
+                } else {
+                    LabeledContent("Preloaded next track", value: "None")
+                }
+                Text(player.preloadDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("The budget controls how much of a large next file is scheduled before the boundary. Files larger than the budget receive a partial opening preload and continue from disk after playback starts.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("Shared Playback")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(settings.accentColor)
+
                 LabeledContent("Playback engine", value: player.playbackEngineStatus)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Last playback startup stage")
@@ -129,17 +169,16 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     }
                 }
-                if let preloaded = player.preloadedTrackTitle {
-                    LabeledContent("Preloaded next track", value: preloaded)
-                } else {
-                    LabeledContent("Preloaded next track", value: "None")
+
+                Text("Streaming Library")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(settings.accentColor)
+
+                LabeledContent("Streaming buffer budget", value: "\(Int(settings.networkBufferMB)) MB")
+                Slider(value: $settings.networkBufferMB, in: 10...250, step: 10)
+                if player.currentTrack?.isRemote == true {
+                    LabeledContent("Active network buffer", value: player.networkBufferStatus)
                 }
-                Text(player.preloadDetail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("The budget controls how much of a large next file is scheduled before the boundary. Files larger than the budget receive a partial opening preload and continue from disk after playback starts. Multichannel sources use an explicit stereo matrix. Left-side channels stay on the left, right-side channels stay on the right, and center plus LFE are folded equally into both outputs.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             SettingsCategory(
@@ -183,13 +222,15 @@ struct SettingsView: View {
                 .keyboardType(.numberPad)
 
                 Toggle("Use HTTPS", isOn: $settings.streamUseHTTPS)
-                TextField(
-                    settings.streamBackend == .subsonic ? "API path" : "Manifest path",
-                    text: $settings.streamManifestPath
-                )
-                .focused($isTextFieldFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
+                LabeledContent(settings.streamBackend == .subsonic ? "API path" : "Manifest path") {
+                    TextField(
+                        settings.streamBackend == .subsonic ? "/rest" : "/resonance/library.json",
+                        text: $settings.streamManifestPath
+                    )
+                    .focused($isTextFieldFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                }
 
                 if settings.streamBackend == .subsonic {
                     LabeledContent("Username") {
@@ -208,21 +249,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                LabeledContent("Backend in use", value: settings.streamBackend.shortName)
-                LabeledContent("Streaming buffer budget", value: "\(Int(settings.networkBufferMB)) MB")
-                Slider(value: $settings.networkBufferMB, in: 10...250, step: 10)
-                Text("Streaming gapless playback is disabled during alpha testing. Remote playback uses the stable single-item player; sample-contiguous streaming gapless is planned for a post-alpha version.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                LabeledContent("Connection", value: remote.connectionStatus)
-                LabeledContent("Cached catalog", value: remote.catalogSyncStatus)
-                if let lastCheck = remote.lastCatalogCheck {
-                    LabeledContent("Last background check", value: lastCheck.formatted(date: .abbreviated, time: .shortened))
-                }
-                if player.currentTrack?.isRemote == true {
-                    LabeledContent("Active network buffer", value: player.networkBufferStatus)
-                }
-
                 Button {
                     Task { await remote.testConnection(using: settings) }
                 } label: {
@@ -239,6 +265,16 @@ struct SettingsView: View {
                         && (settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             || settings.streamPassword.isEmpty))
                 )
+
+                LabeledContent("Connection") {
+                    Text(remote.connectionStatus)
+                        .foregroundStyle(
+                            remote.hasConnectionIssue
+                                ? Color.red
+                                : settings.textAccentColor
+                        )
+                        .fontWeight(remote.hasConnectionIssue ? .bold : .regular)
+                }
 
                 Button {
                     Task { await remote.activateCachedCatalogAndCheckForChanges(using: settings, forceCheck: true) }
@@ -265,6 +301,12 @@ struct SettingsView: View {
                         && (settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             || settings.streamPassword.isEmpty))
                 )
+
+                LabeledContent("Backend in use", value: settings.streamBackend.shortName)
+                LabeledContent("Cached catalog", value: remote.catalogSyncStatus)
+                if let lastCheck = remote.lastCatalogCheck {
+                    LabeledContent("Last background check", value: lastCheck.formatted(date: .abbreviated, time: .shortened))
+                }
 
                 if settings.streamBackend == .subsonic {
                     Text("Use the HTTPS server URL or Tailscale hostname, leave the port blank for standard HTTPS (or enter 443), and use /rest as the API path. Resonance authenticates with a salted Subsonic token and requests JSON responses.")
@@ -307,7 +349,7 @@ struct SettingsView: View {
                 }
                 .disabled(library.isScanning)
 
-                Text("Connect the iPhone to your Mac, open it in Finder, choose Files, select Resonance Alpha, and drop music or folders into ‘\(LibraryStore.sharedMusicFolderName)’. Resonance scans subfolders automatically.")
+                Text("Connect the iPhone to your Mac, open it in Finder, choose Resonance Alpha, and drop music or folders into ‘\(LibraryStore.sharedMusicFolderName)’. Resonance scans subfolders automatically.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(library.sharedMusicFolderDisplayPath)
@@ -316,14 +358,6 @@ struct SettingsView: View {
                 Text(library.scanStatus)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-            }
-
-            SettingsCategory(
-                "Library",
-                key: "library",
-                isExpanded: $settings.settingsLibraryExpanded
-            ) {
-                Button("Restore demo library") { Task { await library.resetDemoLibrary() } }
             }
 
             SettingsCategory(
@@ -410,15 +444,15 @@ struct SettingsView: View {
                 StatusRow(title: "Direct audio-file tag writing", detail: "FLAC and MP3", icon: "checkmark.circle.fill")
                 StatusRow(title: "Remote downloads", detail: "Progress, cancellation, replacement, and local indexing", icon: "checkmark.circle.fill")
                 StatusRow(title: "QR server setup", detail: "Camera scan", icon: "checkmark.circle.fill")
-                StatusRow(title: "Online artwork search", detail: "Planned", icon: "clock")
+                StatusRow(title: "Online artwork search", detail: "Apple, Deezer, and MusicBrainz sources", icon: "checkmark.circle.fill")
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("Stage completion")
                         Spacer()
-                        Text("96%").font(.caption.monospacedDigit())
+                        Text("100%").font(.caption.monospacedDigit())
                     }
-                    ProgressView(value: 0.96)
+                    ProgressView(value: 1.0)
                     Text("This percentage represents prototype feature coverage, not App Store readiness.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -431,6 +465,8 @@ struct SettingsView: View {
         .tint(settings.accentColor)
         .scrollContentBackground(.hidden)
         .listRowBackground(Color.clear)
+        .listSectionSpacing(4)
+        .listRowSpacing(2)
         // Keep the final categories and Prototype Status above the custom tab
         // bar so they can be scrolled fully into view on every theme.
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -789,13 +825,14 @@ private struct SettingsCategory<Content: View>: View {
                     .font(.headline)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.vertical, 1.5)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(settings.accentColor.opacity(0.22), lineWidth: 1)
             }
             .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
             .onChange(of: isExpanded) { _, expanded in
                 ResonanceDiagnostics.shared.record(
                     "settings.category.changed",
@@ -973,7 +1010,10 @@ private struct HexChannelSlider: View {
             VStack(spacing: 2) {
                 ZStack(alignment: .topLeading) {
                     ForEach(0..<16, id: \.self) { nibble in
-                        let x = thumbRadius + usableWidth * CGFloat(nibble * 16) / 255
+                        // Each marker represents the high nibble at its exact
+                        // byte value: 0 = 00, 1 = 10, …, F = F0.
+                        let hexValue = nibble * 16
+                        let x = thumbRadius + usableWidth * CGFloat(hexValue) / 255
                         VStack(spacing: 1) {
                             Text(String(format: "%X", nibble))
                                 .font(.system(size: 8, weight: .medium, design: .monospaced))
@@ -986,7 +1026,7 @@ private struct HexChannelSlider: View {
                     }
                 }
                 .foregroundStyle(.secondary)
-                .frame(height: 16)
+                .frame(width: width, height: 16, alignment: .topLeading)
                 .accessibilityHidden(true)
 
                 ZStack(alignment: .leading) {
@@ -1006,7 +1046,11 @@ private struct HexChannelSlider: View {
                         .shadow(radius: 1)
                         .offset(x: thumbCenterX - thumbRadius)
                 }
-                .frame(height: 28)
+                // Keep the track layer in the same full-width coordinate
+                // space as the nibble markers. Without this explicit leading
+                // frame, its intrinsic width is centered before the thumb
+                // inset is applied a second time.
+                .frame(width: width, height: 28, alignment: .leading)
             }
             .frame(width: width, height: 46, alignment: .top)
             .contentShape(Rectangle())
@@ -1142,12 +1186,13 @@ private extension UIApplication {
 
 private struct ThemePreview: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var player: PlayerController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Live Theme Preview").font(.subheadline.weight(.semibold))
             HStack(spacing: 12) {
-                PlaceholderArtwork(symbol: "music.note", size: 62)
+                CurrentTrackArtworkPreview(size: 62)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Sample Album").font(.headline)
                     Text("Sample Artist").font(.caption).foregroundStyle(.secondary)
@@ -1166,6 +1211,80 @@ private struct ThemePreview: View {
         }
         .foregroundStyle(settings.textAccentColor)
         .padding(.vertical, 4)
+    }
+}
+
+private struct HeroButtonStylePreview: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Hero button preview")
+                .font(.subheadline.weight(.semibold))
+
+            HStack(alignment: .center, spacing: 8) {
+                VStack(spacing: 4) {
+                    ResonanceHeroActionButton(
+                        title: "Play",
+                        systemImage: "play.fill",
+                        tint: settings.accentColor,
+                        prominent: true,
+                        action: {}
+                    )
+                    ResonanceHeroActionButton(
+                        title: "Favorite",
+                        systemImage: "heart",
+                        tint: settings.accentColor,
+                        prominent: false,
+                        action: {}
+                    )
+                }
+
+                CurrentTrackArtworkPreview(size: 112)
+
+                VStack(spacing: 4) {
+                    ResonanceHeroActionButton(
+                        title: "Play Next",
+                        systemImage: "text.insert",
+                        tint: settings.accentColor,
+                        prominent: false,
+                        action: {}
+                    )
+                    ResonanceHeroActionButton(
+                        title: "Add to Queue",
+                        systemImage: "text.append",
+                        tint: settings.accentColor,
+                        prominent: false,
+                        action: {}
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(8)
+            .background(
+                settings.themeSurfaceColor.opacity(0.22),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.25), lineWidth: 1)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct CurrentTrackArtworkPreview: View {
+    @EnvironmentObject private var player: PlayerController
+    let size: CGFloat
+
+    var body: some View {
+        ArtworkView(
+            data: player.currentTrack.flatMap { player.artworkData(for: $0) },
+            embedded: player.currentTrack.map { player.artworkIsEmbedded(for: $0) } ?? true,
+            size: size
+        )
     }
 }
 
@@ -1234,6 +1353,7 @@ private struct ThemeChoiceButton: View {
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityAddTraits(settings.visualTheme == theme ? .isSelected : [])
     }

@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 101;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 102;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -173,6 +173,9 @@ assert '.searchable(text: $remote.searchText' not in streaming
 assert 'struct HexChannelSlider: View' in settings_view
 assert 'let controlWidth = proxy.size.width * 0.8' in settings_view
 assert 'usableWidth = max(1, width - thumbDiameter)' in settings_view
+assert 'let hexValue = nibble * 16' in settings_view
+assert '.frame(width: width, height: 16, alignment: .topLeading)' in settings_view
+assert '.frame(width: width, height: 28, alignment: .leading)' in settings_view
 assert 'nextValue = Int((x / usableWidth * 255).rounded())' in settings_view
 assert '@State private var focusedChannel: Channel?' in settings_view
 assert 'focusedChannel = selected' in settings_view
@@ -218,28 +221,39 @@ assert streaming.count('.task(id: sectionInputKey)') == 2
 assert '.safeAreaInset(edge: .top, spacing: 0)' in root_view
 assert 'ZStack {' in root_view
 assert '.opacity(tabPageIsVisible(tab) ? 1 : 0)' in root_view
-assert '.allowsHitTesting(tab == selectedTab)' in root_view
+assert '.allowsHitTesting(' in root_view
+assert '!isTabSwipeActive || tab == .playing' in root_view
 assert '.accessibilityHidden(tab != selectedTab)' in root_view
 assert 'tabSwipeOffset' in root_view
-assert 'DragGesture(minimumDistance: 18, coordinateSpace: .local)' in root_view
+assert 'DragGesture(minimumDistance: 5, coordinateSpace: .local)' in root_view
 assert 'tabPageOffset' in root_view
 assert 'withAnimation(.easeOut(duration: 0.2))' in root_view
-assert '.gesture(tabSwipeGesture(width: proxy.size.width))' in root_view
-assert '.simultaneousGesture(tabSwipeGesture(width: proxy.size.width))' not in root_view
+assert 'let threshold = width * 0.5' in root_view
+assert 'isTabSwipeActive' in root_view
+assert '.scrollDisabled(isTabSwipeActive)' in root_view
+assert 'ResonanceInteractiveTopDownDismissModifier' in root_view
+assert 'gesture: tabSwipeGesture(width: proxy.size.width)' in root_view
 assert 'struct ResonanceTabSwipeActions' in root_view
 assert 'func resonanceTabSwipeGesture()' in root_view
+assert 'content.highPriorityGesture(' in root_view
 assert 'func resonanceHierarchySwipeBack' in root_view
 assert '.resonanceTabSwipeGesture()' in album_detail
 assert '.resonanceTabSwipeGesture()' in streaming
-assert '.resonanceHierarchySwipeBack' in album_detail
-assert '.resonanceHierarchySwipeBack' in library_view
-assert streaming.count('.resonanceHierarchySwipeBack') >= 2
-assert 'miniPlayerDock: MiniPlayerDock = .bottom' in root_view
+assert '@Published var dock: MiniPlayerDock = .bottom' in root_view
 assert 'nowPlayingPresentationRequest' in root_view
 assert 'nowPlayingPresentationRequest' in player
 assert 'presentsNowPlaying' in player
+assert 'Online artwork search' in settings_view
+assert 'Apple, Deezer, and MusicBrainz sources' in settings_view
+assert 'Text("100%")' in settings_view
+assert 'ProgressView(value: 1.0)' in settings_view
+assert '.highPriorityGesture(' in now_playing
 assert 'requestNowPlayingPresentation()' in remote
-assert 'private struct ResonanceTabBar' in root_view
+assert 'final class ResonanceTabNavigation' in root_view
+assert 'struct ResonanceTabBar' in root_view
+assert 'func resonanceDetailTabNavigation()' in root_view
+assert 'ResonanceTabBar()' in root_view
+assert 'requestID &+= 1' in root_view
 assert '.resonanceThemeTextSurface()' in root_view
 assert 'private struct ResonanceThemeTextSurface' in root_view
 assert '.safeAreaInset(edge: .bottom, spacing: 0)' in root_view
@@ -402,7 +416,7 @@ assert 'resonancePreparedNowPlayingImage' in player
 assert 'resonanceAspectFit' not in player
 assert 'showLockScreenArtwork' in settings
 assert 'streamingGaplessExperimental' in settings
-assert 'Streaming gapless playback is disabled during alpha testing.' in settings_view
+assert 'Streaming gapless playback is disabled during alpha testing.' not in settings_view
 assert 'return false' in player
 assert 'RemoteDownloadManager' in remote
 assert 'currentCompletedBytes' in remote
@@ -446,15 +460,25 @@ assert '.offset(y: completionOffset + dragOffset)' not in root_view
 assert 'transaction.disablesAnimations = true' not in root_view
 assert 'remoteTrackSwipeActions' in streaming
 assert 'private struct RemoteTrackSwipeActions' in streaming
-assert 'resonanceTopDownDismiss' in streaming
-assert 'resonanceTopDownDismiss' in library_view
-assert 'resonanceTopDownDismiss' in album_detail
-assert album_detail.count('resonanceTopDownDismiss') == 1
-assert library_view.count('resonanceTopDownDismiss') == 2
-assert streaming.count('resonanceTopDownDismiss') == 3
+assert 'resonanceTopDownDismiss' in root_view
+assert album_detail.count('resonanceTopDownDismiss') == 0
+assert library_view.count('resonanceTopDownDismiss') == 0
+assert streaming.count('resonanceTopDownDismiss') == 0
+assert 'resonanceHierarchySwipeBack' not in album_detail
+assert 'resonanceHierarchySwipeBack' not in library_view
+assert 'resonanceHierarchySwipeBack' not in streaming
 assert '.gesture(\n            DragGesture(minimumDistance: 45)' in album_detail
 assert 'resonanceHeroSurface' in root_view
 assert 'ResonanceVisualTheme' in settings
+assert 'ResonanceHeroButtonStyle' in settings
+assert 'heroButtonStyleRaw' in settings
+assert 'Soft Glass' in settings
+assert 'Matte Crystal' in settings
+assert 'Inner Glow' in settings
+assert 'Minimal Transparent' in settings
+assert 'HeroButtonStylePreview' in settings_view
+assert 'CurrentTrackArtworkPreview' in settings_view
+assert 'player.currentTrack.flatMap { player.artworkData(for: $0) }' in settings_view
 assert 'Nocturne Glass' in settings
 assert 'Gallery Light' in settings
 assert 'Color Bloom' in settings
@@ -473,6 +497,11 @@ assert '.scrollContentBackground(.hidden)' in streaming and '.scrollContentBackg
 assert 'onDock: @escaping' in root_view
 assert 'onDock(value.translation.height < 0 ? .top : .bottom)' in root_view
 assert 'ResonanceHeroActionButton' in root_view
+assert 'settings.heroButtonStyle' in root_view
+assert 'case .softGlass:' in root_view
+assert 'case .matteCrystal:' in root_view
+assert 'case .innerGlow:' in root_view
+assert 'case .minimalTransparent:' in root_view
 assert 'ResonanceToolbarIconButton' in root_view
 assert 'themeSurfaceGradient' in root_view
 assert 'themeSurfaceGradient' in streaming
@@ -482,7 +511,7 @@ surface_backdrop = root_view.split('struct ResonanceThemeSurfaceBackdrop: View {
 assert '.frame(maxWidth: .infinity, maxHeight: .infinity)' not in surface_backdrop
 assert 'Color.clear' in surface_backdrop
 assert 'Color.clear' in surface_backdrop
-assert 'Color.clear' in now_playing
+assert '.contentShape(Rectangle())' in now_playing
 assert '.opacity(0.42)' in root_view
 assert '.opacity(0.12)' in root_view
 assert '.opacity(0.025)' not in root_view
@@ -498,6 +527,16 @@ assert '.fullScreenCover(item: $presentedAlbum)' in library_view
 assert '.fullScreenCover(isPresented: $showingAllAlbums)' in library_view
 assert '.fullScreenCover(item: $presentedAlbum)' in streaming
 assert '.fullScreenCover(isPresented: $showingAllAlbums)' in streaming
+assert 'NavigationStack {\n                ArtistDetailView(artist: artist)' in library_view
+assert 'NavigationStack {\n                AlbumDetailView(album: album)' in library_view
+assert 'NavigationStack {\n                    RemoteArtistDetailView(artist: artist)' in streaming
+assert 'NavigationStack {\n                    RemoteAlbumDetailView(album: album)' in streaming
+assert 'Label("Back", systemImage: "chevron.left")' in library_view
+assert 'Label("Back", systemImage: "chevron.left")' in album_detail
+assert 'Streaming artist view and sort options' in streaming
+assert library_view.count('.resonanceDetailTabNavigation()') == 1
+assert album_detail.count('.resonanceDetailTabNavigation()') == 2
+assert streaming.count('.resonanceDetailTabNavigation()') == 3
 assert 'backgroundImageName' in settings
 assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings

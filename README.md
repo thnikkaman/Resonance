@@ -1,7 +1,7 @@
-# Resonance Beta v1.0.2 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.2 Release Candidate 1 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
-Build: **101**
+Build: **102**
 
 Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -209,10 +209,10 @@ xcrun devicectl device copy from \
 ## Handoff update — 2026-07-27
 
 The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`, at the `Resonance-Beta-v1.0.2` release commit, with
-version `0.3.7.4` and project build `101`. The working tree intentionally has
-the complete Beta v1.0.2 source and documentation committed; no uncommitted
-release changes remain.
+`agent/alpha-3.7.4-source`, prepared as the `Resonance-Beta-v1.0.2` Release
+Candidate 1 with version `0.3.7.4` and project build `102`. The release
+candidate source and documentation are ready for the GitHub push; generated
+build logs remain local and are not release files.
 
 The pending changes move `RemoteDownloadOverlay` into the Streaming content
 flow with the existing 84-point title clearance, so the download banner sits
@@ -777,3 +777,329 @@ Manual test: select an artist and album in Library and Streaming, confirm each
 detail page enters from the bottom, then swipe downward or use Back and confirm
 the prior list moves down into place. Verify tab swipes still move the complete
 Playing, Library, Streaming, and Settings pages horizontally.
+
+## Interactive horizontal tab gesture repair — 2026-07-27 UTC
+
+The horizontal tab transition now begins after a short five-point movement and
+uses a simultaneous root recognizer so nested scrolling and detail surfaces do
+not frequently cancel it. Directional locking requires a clearly horizontal
+drag, and the selected page follows the finger continuously; releasing below
+the transition threshold commits the adjacent tab, while dragging back and
+releasing cancels to the original position.
+
+Regression checks, `git diff --check`, strict simulator and generic-device
+preflight, signed phone build, and in-place phone installation passed. The
+physical app was not launched automatically.
+
+Manual test: from each of Playing, Library, Streaming, and Settings, begin a
+horizontal drag and confirm the whole page follows the finger. Return the
+finger near its starting point and release to cancel; repeat with a longer
+drag to commit the adjacent tab. Confirm vertical scrolling and track-row
+actions remain unaffected.
+
+## Prototype status completion — 2026-07-27 UTC
+
+The Settings → Prototype Status list now marks Online artwork search complete,
+identifies its Apple, Deezer, and MusicBrainz sources, and reports 100% stage
+completion.
+
+## Detail-module bottom navigation — 2026-07-27 UTC
+
+Local and Streaming artist, album, and All Albums detail modules now use the
+same environment-backed bottom navigation bar as the four retained root tabs:
+Playing, Library, Streaming, and Settings. Selecting a tab from a detail module
+dismisses any open detail layer and switches to the requested retained tab.
+
+Regression checks, diff validation, and an XcodeBuildMCP simulator build and
+install passed. The simulator detail surfaces exposed all four tab buttons;
+the physical phone was not changed or launched.
+
+## Restore detail hierarchy swipe with bottom navigation — 2026-07-27 UTC
+
+The shared detail navigation shell now attaches the downward hierarchy gesture
+to the detail content before adding the bottom tab bar as a safe-area inset.
+Artist, album, and All Albums content follows the finger and dismisses back to
+the previous level, while the Playing/Library/Streaming/Settings bar remains
+docked at the bottom.
+
+Regression checks and the simulator build passed. Simulator interaction
+confirmed an artist detail downward drag dismisses back to Library; the
+physical phone was not changed or launched.
+
+## Restore detail navigation bars — 2026-07-27 UTC
+
+Full-screen local and Streaming artist, album, and All Albums presentations
+now wrap their detail content in a `NavigationStack`, allowing the existing
+SwiftUI toolbar items to render again. Artist details include Back, view
+options, and playlist controls; album details include Back and album actions;
+Streaming artist details expose matching view options and playlist access.
+
+Regression checks and the simulator build passed. The simulator showed the
+restored artist Back/options controls; the physical phone was not changed or
+launched.
+
+## Play actions open Playing — 2026-07-27 UTC
+
+Every explicit play request now selects the Playing tab immediately. Detail
+modules also select Playing and dismiss their full-screen presentation when a
+play request arrives, so playback started from an artist, album, All Albums, or
+track list cannot remain hidden behind the detail layer.
+
+The Debug simulator build and in-place simulator install passed. The simulator
+was not launched or interacted with; the physical phone was not changed.
+
+Manual test: start playback from each local and Streaming entry point and
+confirm the app immediately shows Playing.
+
+## Mini-player on detail modules — 2026-07-27 UTC
+
+The shared detail navigation shell now includes the same mini-player used by
+the root tabs. Artist, album, and All Albums modules inherit the current
+top/bottom or side-docked position, controls, Playing-tab action, and bottom
+navigation without changing their hierarchy swipe behavior.
+
+The Debug simulator build/install and signed Release phone build/in-place
+install passed. Neither device was launched or interacted with.
+
+## Beta v1.0.2 Release Candidate 1 — 2026-07-27 UTC
+
+Build 102 is the Beta v1.0.2 Release Candidate 1. It includes the selectable
+hero-button skins and live current-track artwork in the Appearance previews,
+the borderless and more spacious artwork/button hero modules, corrected hex
+slider marker alignment, and the complete interface-polish work documented
+above.
+
+Validation passed: `Tools/RegressionChecks.sh`, Swift parsing, plist/project
+validation, strict simulator and generic-device preflight, signed arm64
+Release compilation, deep code-signature verification, and in-place install on
+SaiyanDenawa. `devicectl` verified version `0.3.7.4`, build `102`. The phone
+was not launched. The source and documentation are ready to push to
+`agent/alpha-3.7.4-source` on GitHub.
+
+Manual release-candidate checklist: on the phone, open Settings → Appearance
+and verify all four hero-button styles and both current-track artwork previews;
+check the hex markers against `00`, `10`, `A0`, and `F0`; inspect local and
+Streaming artist/album heroes; and verify existing playback, navigation, and
+scrolling behavior remains intact.
+
+## Appearance hero-button styles — 2026-07-27 UTC
+
+Appearance now includes a persisted Hero buttons picker with four transparent
+styles: Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent. The
+shared hero action component applies the selection to the fixed-size controls
+around local and Streaming album artwork without changing their layout,
+positions, or touch actions. A live preview using the same arrangement appears
+immediately below the picker. Existing users default to Soft Glass.
+
+The Swift parser, diff checks, and repository regression checks passed. The
+Debug simulator build and in-place install passed on the configured iPhone 17
+Pro simulator. The simulator was not launched or interacted with, and the
+physical phone was not changed.
+
+Manual test: open Settings → Appearance, select each Hero buttons style, then
+open local and Streaming artist/album detail pages. Confirm the four action
+buttons keep their current positions and sizes, remain readable over every
+theme, and retain their normal tap, long-press, and accessibility behavior.
+
+## Remove hero-surface outline — 2026-07-27 UTC
+
+Removed the 1px accent outline around the shared artwork-and-hero-button module
+on local and Streaming artist and album detail pages. The transparent themed
+surface, button skins, layout, and controls remain unchanged.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Correct hex slider track alignment — 2026-07-27 UTC
+
+The hex slider track layer now shares the marker row’s explicit full-width,
+leading-aligned coordinate frame. This removes the extra thumb-radius shift
+that placed the visible track to the right of its `0`–`F` markers.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator Settings UI
+was opened and visually inspected: the `50` thumb aligned with the `5` marker,
+and the `0` and `F` markers aligned with the `00` and `F0` track positions.
+The physical phone was not changed.
+
+## Current-track artwork in Appearance previews — 2026-07-27 UTC
+
+The Live Theme Preview and Hero button preview in Settings → Appearance now
+show artwork from the currently playing track when available. They retain the
+existing placeholder artwork when playback is idle or the track has no artwork,
+and both previews use the shared artwork loading and override path.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Align hex slider nibble markers — 2026-07-27 UTC
+
+RGB hex slider markers now use explicit byte positions: 0 aligns with `00`, 1
+with `10`, through F aligning with `F0`. The marker row uses the same explicit
+80%-width coordinate space as the slider track, including the thumb insets.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Increase hero-button spacing — 2026-07-27 UTC
+
+The horizontal gap between the artwork and adjacent hero-button columns is now
+16 points in local and Streaming artist and album detail heroes, up from 12
+points. Artwork size, button size, positioning, and actions are unchanged.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Settings swipe-safe theme selection and tighter category spacing — 2026-07-27 UTC
+
+Settings visual-theme cards and accent palette buttons now use the shared
+swipe-aware button style and horizontal-swipe suppression guard. A horizontal
+navigation swipe therefore cannot accidentally select a theme or accent; a
+stationary tap still performs the selection. Settings category rows also use
+smaller vertical insets and row spacing so the disclosure controls sit closer
+together.
+
+The Debug simulator build and in-place simulator install passed. The
+simulator was not launched or interacted with, and the physical phone was not
+changed.
+
+The live Connection status now appears immediately below Test Connection. The
+Debug simulator was rebuilt and the updated app was installed in place
+successfully; it was not launched or interacted with.
+
+Connection failures now render the status value in bold red using the shared
+remote-store failure detection. Healthy, cached, and in-progress states retain
+the themed text styling. The Debug simulator was rebuilt and the updated app
+was installed in place successfully; it was not launched or interacted with.
+
+## Settings playback organization — 2026-07-27 UTC
+
+The empty Library disclosure was removed. Playback is now organized under
+titled Library, Shared Playback, and Streaming Library subsections. Local
+preload settings and details are under Library; common engine, lock-screen,
+and audio-routing information is under Shared Playback; streaming buffer
+settings and network-buffer information are under Streaming Library.
+Connection configuration remains in the separate Streaming Library disclosure.
+
+The preflight, signed Release device build, deep code-signature verification,
+and in-place installation on SaiyanDenawa passed. The installed app reports
+version 0.3.7.4, build 101. The physical phone was not launched or
+interacted with.
+
+## Remove outdated streaming gapless notice — 2026-07-27 UTC
+
+Removed the Settings message that said streaming gapless playback was
+disabled during alpha testing. No build or device validation was performed for
+this source-only text change.
+
+## Label Streaming API path — 2026-07-27 UTC
+
+The Streaming Library path field now has a persistent “API path” label when
+using Subsonic, so a filled `/rest` value remains clearly identified. Manifest
+backends use the corresponding “Manifest path” label.
+
+No build or device validation was performed for this source-only layout change.
+
+Manual test: swipe across Settings, including over theme cards and accent
+colors, and confirm no appearance setting changes; then tap a card or color
+normally and confirm it still applies.
+
+The Settings disclosure spacing was subsequently reduced by half: list-row
+spacing is 2 points, category vertical padding is 1.5 points, and category
+row insets are 1 point vertically. The Debug simulator build and in-place
+simulator install passed; the simulator was not launched or interacted with.
+
+The Form section spacing was then reduced to 4 points as well, which controls
+the visible gap between Appearance, Playback, Streaming Library, and the other
+disclosure sections. The Debug simulator was rebuilt and the updated app was
+installed in place successfully; it was not launched or interacted with.
+
+## Streaming connection controls moved to the top — 2026-07-27 UTC
+
+Within the Streaming Library disclosure, the server address, port, transport
+and API fields, Subsonic credentials, and connection actions now appear before
+buffer, catalog status, and other secondary streaming details. The action
+behavior and validation rules are unchanged.
+
+The Debug simulator build and in-place simulator install passed. The
+simulator was not launched or interacted with, and the physical phone was not
+changed.
+
+## Playing gesture arbitration and alphabet accent colors — 2026-07-27 UTC
+
+Playing no longer receives the root tab recognizer while its dedicated upper
+content gesture is active. The album-art pager keeps ownership of artwork
+drags, preventing the page transition from stuttering or bouncing against an
+invisible ancestor gesture. The right-side alphabet index and alphabetical
+section labels now use the active theme text accent, including a committed
+custom hex accent.
+
+The signed Release phone build and in-place install passed. The physical phone
+was not launched or interacted with.
+
+Manual test: on Playing, drag the upper metadata area and confirm the page
+follows the finger smoothly; swipe album art to change tracks; verify the seek,
+volume, and lower controls do not navigate tabs. In Library and Streaming,
+confirm the index letters and section labels use the selected theme or hex
+accent color.
+
+## Non-overlapping Playing swipe regions — 2026-07-27 UTC
+
+Playing now has an explicit tab-swipe zone between the album-art pager and the
+track seek bar. Clear insets keep that zone separate from both the album-art
+track pager and the seek bar, so horizontal navigation cannot steal either
+gesture.
+
+No build or device validation was performed for this change. Manual
+continuation: swipe in the metadata gap to change tabs, swipe album art to
+change tracks, and confirm swipes on the seek bar do not change tabs.
+
+## Restore detail list scrolling — 2026-07-27 UTC
+
+The shared top-down hierarchy gesture now recognizes simultaneously with the
+detail content instead of taking high-priority ownership of the entire module.
+Its top-origin and vertical-direction guards keep navigation confined to the
+upper detail surface, so album and song Lists/ScrollViews retain their normal
+vertical scrolling.
+
+Regression source validation, the Debug simulator build/install, signed
+Release phone build, code-signature verification, and in-place phone install
+passed. Neither device was launched or interacted with.
+
+Manual test: scroll album grids, album track lists, All Albums track lists,
+and Streaming detail lists normally; swipe downward from the upper detail
+surface and confirm it still dismisses one hierarchy level.
+
+Manual test: with a track playing, open local and Streaming artist, album, and
+All Albums modules. Confirm the mini-player remains visible and its controls,
+docking, Playing action, and hierarchy swipes remain usable.
+
+## Continuous alphabet grids — 2026-07-27 UTC
+
+Library and Streaming alphabetized grid surfaces now use the shared
+`ResonanceAlphabetGrid` layout. Section boundaries no longer reset a nested
+grid, so a new artist or album can occupy the remaining cell on the current
+row. Letter labels remain attached to section starts and the alphabet index
+continues to scroll to those tiles. Non-grid list layouts and non-alphabetized
+track grids are unchanged.
+
+The Debug simulator build and in-place simulator install passed. The simulator
+was not launched or interacted with, and the physical phone was not changed.
+
+Manual test: switch Library and Streaming Artists, Albums, and artist-detail
+album views to Grid, then confirm tiles continue across letter boundaries and
+the right-side alphabet still lands on each letter.
+
+## Playing swipe ownership — 2026-07-27 UTC
+
+Playing-page tab navigation now owns only the upper content region ending above
+the track seek bar. The seek bar, transport controls, volume slider, and lower
+controls no longer initiate horizontal tab navigation. The album-art pager
+retains its dedicated left/right gesture for changing tracks.
+
+The Debug simulator build/install and signed Release phone build/in-place
+install passed. Neither device was launched or interacted with.

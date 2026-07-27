@@ -179,6 +179,107 @@ struct ArtistIndexSection<Item: Identifiable> {
     let items: [Item]
 }
 
+/// Keeps alphabetized grid content in one continuous grid so a section can
+/// end in the middle of a row and the next section can use the remaining
+/// cells. Section labels remain attached to the first tile of each section,
+/// while their scroll targets continue to work with the alphabet index.
+struct ResonanceAlphabetGrid<Item: Identifiable, Tile: View>: View {
+    @EnvironmentObject private var settings: AppSettings
+
+    private struct Entry: Identifiable {
+        let id: Int
+        let item: Item
+        let sectionKey: String
+        let isFirstInSection: Bool
+        let rowNeedsHeaderSpace: Bool
+    }
+
+    let sections: [ArtistIndexSection<Item>]
+    let columns: [GridItem]
+    let sectionIDPrefix: String
+    let sectionLabelColor: Color?
+    let leadingCellCount: Int
+    let leadingContent: AnyView?
+    let tileContent: (Item) -> Tile
+
+    init(
+        sections: [ArtistIndexSection<Item>],
+        columns: [GridItem],
+        sectionIDPrefix: String,
+        sectionLabelColor: Color? = nil,
+        leadingCellCount: Int = 0,
+        leadingContent: AnyView? = nil,
+        @ViewBuilder tileContent: @escaping (Item) -> Tile
+    ) {
+        self.sections = sections
+        self.columns = columns
+        self.sectionIDPrefix = sectionIDPrefix
+        self.sectionLabelColor = sectionLabelColor
+        self.leadingCellCount = leadingCellCount
+        self.leadingContent = leadingContent
+        self.tileContent = tileContent
+    }
+
+    private var entries: [Entry] {
+        let rawEntries = sections.flatMap { section in
+            section.items.enumerated().map { offset, item in
+                (item, section.key, offset == 0)
+            }
+        }
+        let columnCount = max(columns.count, 1)
+        let headerRows = Set(
+            rawEntries.enumerated().compactMap { index, entry in
+                entry.2 ? (index + leadingCellCount) / columnCount : nil
+            }
+        )
+        return rawEntries.enumerated().map { index, entry in
+            Entry(
+                id: index,
+                item: entry.0,
+                sectionKey: entry.1,
+                isFirstInSection: entry.2,
+                rowNeedsHeaderSpace: headerRows.contains((index + leadingCellCount) / columnCount)
+            )
+        }
+    }
+
+    private var firstRowNeedsHeaderSpace: Bool {
+        entries.first?.rowNeedsHeaderSpace == true
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+            if let leadingContent {
+                if firstRowNeedsHeaderSpace {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Color.clear.frame(height: 22)
+                        leadingContent
+                    }
+                } else {
+                    leadingContent
+                }
+            }
+
+            ForEach(entries) { entry in
+                VStack(alignment: .leading, spacing: 8) {
+                    if entry.rowNeedsHeaderSpace {
+                        if entry.isFirstInSection {
+                            Text(entry.sectionKey)
+                                .font(.headline)
+                                .foregroundStyle(sectionLabelColor ?? settings.textAccentColor)
+                                .frame(height: 22, alignment: .leading)
+                        } else {
+                            Color.clear.frame(height: 22)
+                        }
+                    }
+                    tileContent(entry.item)
+                }
+                .id(entry.isFirstInSection ? "\(sectionIDPrefix)-\(entry.sectionKey)" : "\(sectionIDPrefix)-item-\(entry.id)")
+            }
+        }
+    }
+}
+
 func resonanceArtistIndexKey(_ name: String) -> String {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let first = trimmed.first else { return "#" }
@@ -212,6 +313,8 @@ func resonanceArtistIndexOrder(for keys: [String], ascending: Bool) -> [String] 
 }
 
 struct VerticalArtistIndex: View {
+    @EnvironmentObject private var settings: AppSettings
+
     let keys: [String]
     let diagnosticSurface: String
     let onSelect: (String) -> Void
@@ -249,7 +352,7 @@ struct VerticalArtistIndex: View {
                         Text(key)
                             .font(.system(size: rowHeight < 11 ? 8 : 10, weight: .semibold, design: .rounded))
                             .minimumScaleFactor(0.7)
-                            .foregroundStyle(.tint)
+                            .foregroundStyle(settings.textAccentColor)
                             .frame(width: indexColumnWidth, height: rowHeight)
                     }
                 }
@@ -375,6 +478,7 @@ struct VerticalArtistIndex: View {
 struct ArtistCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     @State private var artistToRemove: Artist?
     @State private var artistToEdit: Artist?
     @State private var presentedArtist: Artist?
@@ -410,32 +514,26 @@ struct ArtistCollectionView: View {
                     switch settings.albumLayout {
                     case .grid:
                         ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 14) {
-                                ForEach(indexedSections, id: \.key) { section in
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(section.key)
-                                            .font(.headline)
-                                            .foregroundStyle(.secondary)
-                                        LazyVGrid(columns: gridColumns, spacing: 18) {
-                                            ForEach(section.items) { artist in
-                                                Button {
-                                                    presentedArtist = artist
-                                                } label: {
-                                                    ArtistTile(artist: artist)
-                                                }
-                                                .buttonStyle(.plain)
-                                                .contextMenu {
-                                                    Button { artistToEdit = artist } label: {
-                                                        Label("Edit Artist Metadata", systemImage: "pencil")
-                                                    }
-                                                    Button(role: .destructive) { artistToRemove = artist } label: {
-                                                        Label("Remove Artist from Library", systemImage: "trash")
-                                                    }
-                                                }
-                                            }
-                                        }
+                            ResonanceAlphabetGrid(
+                                sections: indexedSections,
+                                columns: gridColumns,
+                                sectionIDPrefix: "artist-section"
+                            ) { artist in
+                                Button {
+                                    guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+                                    presentedArtist = artist
+                                } label: {
+                                    ArtistTile(artist: artist)
+                                }
+                                .buttonStyle(.plain)
+                                .buttonStyle(ResonanceSwipeAwareButtonStyle())
+                                .contextMenu {
+                                    Button { artistToEdit = artist } label: {
+                                        Label("Edit Artist Metadata", systemImage: "pencil")
                                     }
-                                    .id("artist-section-\(section.key)")
+                                    Button(role: .destructive) { artistToRemove = artist } label: {
+                                        Label("Remove Artist from Library", systemImage: "trash")
+                                    }
                                 }
                             }
                             .padding(.leading)
@@ -450,10 +548,12 @@ struct ArtistCollectionView: View {
                                 Section {
                                     ForEach(section.items) { artist in
                                         Button {
+                                            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                             presentedArtist = artist
                                         } label: {
                                             ArtistListRow(artist: artist, large: settings.albumLayout == .large)
                                         }
+                                        .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                             Button(role: .destructive) { artistToRemove = artist } label: {
                                                 Label("Remove Artist", systemImage: "trash")
@@ -483,6 +583,7 @@ struct ArtistCollectionView: View {
                                     }
                                 } header: {
                                     Text(section.key)
+                                        .foregroundStyle(settings.textAccentColor)
                                 }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
@@ -532,7 +633,9 @@ struct ArtistCollectionView: View {
             ArtistMetadataEditorSheet(artist: artist)
         }
         .fullScreenCover(item: $presentedArtist) { artist in
-            ArtistDetailView(artist: artist)
+            NavigationStack {
+                ArtistDetailView(artist: artist)
+            }
         }
     }
 }
@@ -672,6 +775,7 @@ struct ArtistDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     @State private var artistToEdit: Artist?
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
@@ -738,7 +842,7 @@ struct ArtistDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 4) {
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: 16) {
                     VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             if let first = allTracks.first { player.play(first, in: allTracks) }
@@ -776,7 +880,6 @@ struct ArtistDetailView: View {
             }
             .contentShape(Rectangle())
             .resonanceHeroSurface()
-            .resonanceTopDownDismiss { dismiss() }
             .contextMenu {
                 Button { artistToEdit = liveArtist } label: {
                     Label("Edit Artist Metadata", systemImage: "pencil")
@@ -810,49 +913,44 @@ struct ArtistDetailView: View {
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
-            .resonanceTopDownDismiss { dismiss() }
 
             ScrollViewReader { proxy in
                 ZStack(alignment: .trailing) {
                     Group {
                         if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                             ScrollView {
-                                LazyVStack(alignment: .leading, spacing: 14) {
-                                    LazyVGrid(columns: gridColumns, spacing: 18) {
+                                ResonanceAlphabetGrid(
+                                    sections: indexedAlbumSections,
+                                    columns: gridColumns,
+                                    sectionIDPrefix: "artist-album-section",
+                                    leadingCellCount: 1,
+                                    leadingContent: AnyView(
                                         Button {
+                                            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                             showingAllAlbums = true
                                         } label: {
                                             AllAlbumsTile(artist: liveArtist)
                                         }
                                         .buttonStyle(.plain)
+                                        .buttonStyle(ResonanceSwipeAwareButtonStyle())
+                                    )
+                                ) { album in
+                                    Button {
+                                        guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+                                        presentedAlbum = album
+                                    } label: {
+                                        AlbumTile(album: album)
                                     }
-
-                                    ForEach(indexedAlbumSections, id: \.key) { section in
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text(section.key)
-                                                .font(.headline)
-                                                .foregroundStyle(.secondary)
-                                            LazyVGrid(columns: gridColumns, spacing: 18) {
-                                                ForEach(section.items) { album in
-                                                    Button {
-                                                        presentedAlbum = album
-                                                    } label: {
-                                                        AlbumTile(album: album)
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                    .contextMenu {
-                                                        Button { albumToEdit = album } label: {
-                                                            Label("Edit Album Metadata", systemImage: "pencil")
-                                                        }
-                                                        Divider()
-                                                        Button { albumToRemove = album } label: {
-                                                            Label("Remove or Delete Album", systemImage: "trash")
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                    .buttonStyle(.plain)
+                                    .buttonStyle(ResonanceSwipeAwareButtonStyle())
+                                    .contextMenu {
+                                        Button { albumToEdit = album } label: {
+                                            Label("Edit Album Metadata", systemImage: "pencil")
                                         }
-                                        .id("artist-album-section-\(section.key)")
+                                        Divider()
+                                        Button { albumToRemove = album } label: {
+                                            Label("Remove or Delete Album", systemImage: "trash")
+                                        }
                                     }
                                 }
                                 .padding(.leading)
@@ -865,6 +963,7 @@ struct ArtistDetailView: View {
                         } else {
                             List {
                                 Button {
+                                    guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                     showingAllAlbums = true
                                 } label: {
                                     HStack(spacing: 12) {
@@ -880,12 +979,14 @@ struct ArtistDetailView: View {
                                         }
                                     }
                                 }
+                                .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                 .listRowBackground(Color.clear)
 
                                 ForEach(indexedAlbumSections, id: \.key) { section in
                                     Section {
                                         ForEach(section.items) { album in
                                             Button {
+                                                guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                                 presentedAlbum = album
                                             } label: {
                                                 HStack(spacing: 12) {
@@ -902,6 +1003,7 @@ struct ArtistDetailView: View {
                                                     }
                                                 }
                                             }
+                                            .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                             .listRowBackground(Color.clear)
                                             .contextMenu {
                                                 Button { albumToEdit = album } label: {
@@ -915,6 +1017,7 @@ struct ArtistDetailView: View {
                                         }
                                     } header: {
                                         Text(section.key)
+                                            .foregroundStyle(settings.textAccentColor)
                                     }
                                     .id("artist-album-section-\(section.key)")
                                 }
@@ -949,10 +1052,14 @@ struct ArtistDetailView: View {
             // visible when an artist is pushed from the library list.
             ResonanceThemeBackdrop()
         }
-        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(liveArtist.name)
-        .resonanceDetailBottomSpace()
+        .resonanceDetailTabNavigation()
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+            }
             ToolbarItemGroup(placement: .topBarLeading) {
                 ResonanceToolbarIconButton(
                     accessibilityLabel: "Artist view settings",
@@ -1006,11 +1113,16 @@ struct ArtistDetailView: View {
             Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
         .fullScreenCover(item: $presentedAlbum) { album in
-            AlbumDetailView(album: album)
+            NavigationStack {
+                AlbumDetailView(album: album)
+            }
         }
         .fullScreenCover(isPresented: $showingAllAlbums) {
-            AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+            NavigationStack {
+                AllAlbumsTrackListView(artistName: liveArtist.name, tracks: allTracks)
+            }
         }
+        .resonanceTabSwipeObserver()
     }
 }
 
@@ -1050,6 +1162,7 @@ private struct AllAlbumsTile: View {
 struct AlbumCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
     @State private var presentedAlbum: Album?
@@ -1081,6 +1194,7 @@ struct AlbumCollectionView: View {
     @ViewBuilder
     private func albumRow(_ album: Album) -> some View {
         Button {
+            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
             presentedAlbum = album
         } label: {
             if settings.albumLayout == .compact {
@@ -1114,6 +1228,7 @@ struct AlbumCollectionView: View {
                 }
             }
         }
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contextMenu {
             Button { albumToEdit = album } label: {
                 Label("Edit Album Metadata", systemImage: "pencil")
@@ -1141,33 +1256,27 @@ struct AlbumCollectionView: View {
                 Group {
             if settings.albumLayout == .grid {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        ForEach(indexedSections, id: \.key) { section in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(section.key)
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                LazyVGrid(columns: columns, spacing: 18) {
-                                    ForEach(section.items) { album in
-                                        Button {
-                                            presentedAlbum = album
-                                        } label: {
-                                            AlbumTile(album: album)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .contextMenu {
-                                            Button { albumToEdit = album } label: {
-                                                Label("Edit Album Metadata", systemImage: "pencil")
-                                            }
-                                            Divider()
-                                            Button { albumToRemove = album } label: {
-                                                Label("Remove or Delete Album", systemImage: "trash")
-                                            }
-                                        }
-                                    }
-                                }
+                    ResonanceAlphabetGrid(
+                        sections: indexedSections,
+                        columns: columns,
+                        sectionIDPrefix: "album-section"
+                    ) { album in
+                        Button {
+                            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+                            presentedAlbum = album
+                        } label: {
+                            AlbumTile(album: album)
+                        }
+                        .buttonStyle(.plain)
+                        .buttonStyle(ResonanceSwipeAwareButtonStyle())
+                        .contextMenu {
+                            Button { albumToEdit = album } label: {
+                                Label("Edit Album Metadata", systemImage: "pencil")
                             }
-                            .id("album-section-\(section.key)")
+                            Divider()
+                            Button { albumToRemove = album } label: {
+                                Label("Remove or Delete Album", systemImage: "trash")
+                            }
                         }
                     }
                     .padding(.leading)
@@ -1184,6 +1293,7 @@ struct AlbumCollectionView: View {
                             }
                         } header: {
                             Text(section.key)
+                                .foregroundStyle(settings.textAccentColor)
                         }
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -1236,7 +1346,9 @@ struct AlbumCollectionView: View {
             Text("Remove from Library keeps the audio files on your iPhone. Delete from iPhone permanently removes them.")
         }
         .fullScreenCover(item: $presentedAlbum) { album in
-            AlbumDetailView(album: album)
+            NavigationStack {
+                AlbumDetailView(album: album)
+            }
         }
     }
 }

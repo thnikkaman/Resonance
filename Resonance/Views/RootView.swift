@@ -7,6 +7,37 @@ enum AppTab: Hashable {
   static let allCases: [AppTab] = [.playing, .library, .streaming, .settings]
 }
 
+@MainActor
+final class ResonanceTabNavigation: ObservableObject {
+  @Published var selection: AppTab = .library
+  @Published private(set) var requestID = 0
+
+  func select(_ tab: AppTab) {
+    selection = tab
+    requestID &+= 1
+  }
+}
+
+@MainActor
+final class ResonanceGestureCoordinator: ObservableObject {
+  @Published private(set) var isHorizontalSwipeSuppressed = false
+  private var resetTask: Task<Void, Never>?
+
+  func beginHorizontalSwipe() {
+    resetTask?.cancel()
+    isHorizontalSwipeSuppressed = true
+  }
+
+  func endHorizontalSwipe() {
+    resetTask?.cancel()
+    resetTask = Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .milliseconds(320))
+      guard !Task.isCancelled else { return }
+      self?.isHorizontalSwipeSuppressed = false
+    }
+  }
+}
+
 private struct ResonanceMiniPlayerBottomInsetKey: EnvironmentKey {
   static let defaultValue: CGFloat = 0
 }
@@ -41,8 +72,11 @@ struct ResonanceTabSwipeGesture: ViewModifier {
   @Environment(\.resonanceTabSwipeActions) private var actions
 
   func body(content: Content) -> some View {
-    content.simultaneousGesture(
-      DragGesture(minimumDistance: 18, coordinateSpace: .local)
+    // Artwork thumbnails sit inside tappable rows/buttons. Give the drag
+    // recognizer priority so a real swipe cancels the button's pending tap;
+    // with no movement, the button still receives the ordinary tap.
+    content.highPriorityGesture(
+      DragGesture(minimumDistance: 5, coordinateSpace: .local)
         .onChanged { value in
           actions.onChanged(value.translation.width, value.translation.height)
         }
@@ -53,36 +87,95 @@ struct ResonanceTabSwipeGesture: ViewModifier {
   }
 }
 
+struct ResonanceTabSwipeObserver: ViewModifier {
+  @Environment(\.resonanceTabSwipeActions) private var actions
+
+  func body(content: Content) -> some View {
+    content.simultaneousGesture(
+      DragGesture(minimumDistance: 5, coordinateSpace: .local)
+        .onChanged { value in
+          actions.onChanged(value.translation.width, value.translation.height)
+        }
+        .onEnded { value in
+          actions.onEnded(value.translation.width, value.translation.height)
+        }
+    )
+  }
+}
+
+struct ResonanceSwipeAwareButtonStyle: PrimitiveButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    ResonanceSwipeAwareButtonBody(configuration: configuration)
+  }
+}
+
+private struct ResonanceSwipeAwareButtonBody: View {
+  let configuration: PrimitiveButtonStyle.Configuration
+
+  var body: some View {
+    configuration.label
+      .contentShape(Rectangle())
+      .highPriorityGesture(
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+          .onEnded { value in
+            guard abs(value.translation.width) < 8,
+                  abs(value.translation.height) < 8
+            else { return }
+            configuration.trigger()
+          }
+      )
+  }
+}
+
 extension View {
   func resonanceTabSwipeGesture() -> some View {
     modifier(ResonanceTabSwipeGesture())
   }
+
+  func resonanceTabSwipeObserver() -> some View {
+    modifier(ResonanceTabSwipeObserver())
+  }
+
 }
 
 enum MiniPlayerDock: String {
   case top, bottom, leading, trailing
 }
 
+@MainActor
+final class ResonanceMiniPlayerNavigation: ObservableObject {
+  @Published var dock: MiniPlayerDock = .bottom
+}
+
 struct RootView: View {
     @EnvironmentObject private var player: PlayerController
-  @State private var selectedTab: AppTab = .library
-  @State private var miniPlayerDock: MiniPlayerDock = .bottom
+  @StateObject private var tabNavigation = ResonanceTabNavigation()
+  @StateObject private var gestureCoordinator = ResonanceGestureCoordinator()
+  @StateObject private var miniPlayerNavigation = ResonanceMiniPlayerNavigation()
   @State private var tabSwipeOffset: CGFloat = 0
   @State private var isCompletingTabSwipe = false
+  @State private var isTabSwipeActive = false
+
+  private var selectedTab: AppTab {
+    get { tabNavigation.selection }
+    set { tabNavigation.select(newValue) }
+  }
 
     var body: some View {
         ZStack {
             activeTabContent
+                .environmentObject(gestureCoordinator)
+                .environmentObject(miniPlayerNavigation)
                 .environment(
                     \.resonanceMiniPlayerBottomInset,
-                    miniPlayerDock == .bottom
+                    miniPlayerNavigation.dock == .bottom
                         && selectedTab != .playing
                         && player.currentTrack != nil
                         ? 100
                         : 0
                 )
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if miniPlayerDock == .bottom,
+                    if miniPlayerNavigation.dock == .bottom,
                        selectedTab != .playing,
                        player.currentTrack != nil {
                         Color.clear.frame(height: 74)
@@ -103,38 +196,38 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .leading) {
-            if miniPlayerDock == .leading {
+            if miniPlayerNavigation.dock == .leading {
                 MiniPlayerEdgeHandle(isVisible: selectedTab != .playing, edge: .leading) {
-                    selectedTab = .playing
+                    tabNavigation.select(.playing)
                 } onUndock: {
-                    miniPlayerDock = .top
+                    miniPlayerNavigation.dock = .top
                 } onDock: { dock in
-                    miniPlayerDock = dock
+                    miniPlayerNavigation.dock = dock
                 }
                 .padding(.leading, 2)
             }
         }
         .overlay(alignment: .trailing) {
-            if miniPlayerDock == .trailing {
+            if miniPlayerNavigation.dock == .trailing {
                 MiniPlayerEdgeHandle(isVisible: selectedTab != .playing, edge: .trailing) {
-                    selectedTab = .playing
+                    tabNavigation.select(.playing)
                 } onUndock: {
-                    miniPlayerDock = .top
+                    miniPlayerNavigation.dock = .top
                 } onDock: { dock in
-                    miniPlayerDock = dock
+                    miniPlayerNavigation.dock = dock
                 }
                 .padding(.trailing, 2)
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if miniPlayerDock == .top,
+            if miniPlayerNavigation.dock == .top,
                selectedTab != .playing,
                player.currentTrack != nil {
                 MiniPlayerOverlay(
                     isVisible: true,
                     dock: .top,
-                    openNowPlaying: { selectedTab = .playing },
-                    onDock: { miniPlayerDock = $0 }
+                    openNowPlaying: { tabNavigation.select(.playing) },
+                    onDock: { miniPlayerNavigation.dock = $0 }
                 )
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
@@ -142,17 +235,17 @@ struct RootView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if miniPlayerDock == .bottom, selectedTab != .playing {
+                if miniPlayerNavigation.dock == .bottom, selectedTab != .playing {
                     MiniPlayerOverlay(
                         isVisible: true,
                         dock: .bottom,
-                        openNowPlaying: { selectedTab = .playing },
-                        onDock: { miniPlayerDock = $0 }
+                        openNowPlaying: { tabNavigation.select(.playing) },
+                        onDock: { miniPlayerNavigation.dock = $0 }
                     )
                     .padding(.horizontal, 8)
                     .padding(.bottom, 6)
                 }
-                ResonanceTabBar(selection: $selectedTab)
+                ResonanceTabBar()
             }
         }
         .toolbar {
@@ -169,8 +262,14 @@ struct RootView: View {
             }
         }
         .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
-            selectedTab = .playing
+            showPlayingTab()
         }
+        .environmentObject(tabNavigation)
+    }
+
+    private func showPlayingTab() {
+        guard tabNavigation.selection != .playing else { return }
+        tabNavigation.select(.playing)
     }
 
     @ViewBuilder
@@ -179,7 +278,7 @@ struct RootView: View {
             ZStack {
                 tabPage(.playing, width: proxy.size.width) {
                     NowPlayingView(
-                        openLibrary: { selectedTab = .library },
+                        openLibrary: { tabNavigation.select(.library) },
                         onHorizontalTabSwipeChanged: { translation in
                             updateTabSwipe(translation)
                         },
@@ -193,12 +292,12 @@ struct RootView: View {
                 }
                 tabPage(.streaming, width: proxy.size.width) {
                     StreamingLibraryView(
-                        openLibrary: { selectedTab = .library },
-                        openSettings: { selectedTab = .settings }
+                        openLibrary: { tabNavigation.select(.library) },
+                        openSettings: { tabNavigation.select(.settings) }
                     )
                 }
                 tabPage(.settings, width: proxy.size.width) {
-                    SettingsView(openLibrary: { selectedTab = .library })
+                    SettingsView(openLibrary: { tabNavigation.select(.library) })
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -218,7 +317,16 @@ struct RootView: View {
                     }
                 )
             )
-            .gesture(tabSwipeGesture(width: proxy.size.width))
+            // Playing has its own upper-content gesture so the artwork pager
+            // can retain exclusive ownership of album-art drags. Keeping the
+            // root recognizer off that page avoids an otherwise invisible
+            // ancestor gesture competing with the artwork pager.
+            .modifier(
+                ResonanceConditionalTabSwipeModifier(
+                    isEnabled: selectedTab != .playing,
+                    gesture: tabSwipeGesture(width: proxy.size.width)
+                )
+            )
         }
     }
 
@@ -237,12 +345,19 @@ struct RootView: View {
         .frame(width: width)
         .offset(x: tabPageOffset(tab, width: width))
         .opacity(tabPageIsVisible(tab) ? 1 : 0)
-        .allowsHitTesting(tab == selectedTab)
+        // Once a horizontal transition has started, the source page must not
+        // receive the release. Its cards would otherwise treat the same touch
+        // as an album/artist tap while the root page is still moving.
+        .allowsHitTesting(
+            tab == selectedTab
+                && (!isTabSwipeActive || tab == .playing)
+        )
         .accessibilityHidden(tab != selectedTab)
+        .scrollDisabled(isTabSwipeActive)
     }
 
     private func tabSwipeGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 18, coordinateSpace: .local)
+        DragGesture(minimumDistance: 5, coordinateSpace: .local)
             .onChanged { value in
                 guard selectedTab != .playing else { return }
                 updateTabSwipe(value.translation.width, vertical: value.translation.height)
@@ -259,8 +374,11 @@ struct RootView: View {
 
     private func updateTabSwipe(_ horizontal: CGFloat, vertical: CGFloat = 0) {
         guard !isCompletingTabSwipe,
-              abs(horizontal) > abs(vertical)
+              abs(horizontal) >= 8,
+              abs(horizontal) > abs(vertical) + 4
         else { return }
+        isTabSwipeActive = true
+        gestureCoordinator.beginHorizontalSwipe()
         let direction = horizontal < 0 ? 1 : -1
         let targetIndex = tabIndex(selectedTab) + direction
         guard AppTab.allCases.indices.contains(targetIndex) else {
@@ -276,7 +394,8 @@ struct RootView: View {
         width: CGFloat
     ) {
         guard !isCompletingTabSwipe,
-              abs(horizontal) > abs(vertical)
+              abs(horizontal) >= 8,
+              abs(horizontal) > abs(vertical) + 4
         else {
             cancelTabSwipe()
             return
@@ -284,7 +403,9 @@ struct RootView: View {
 
         let direction = horizontal < 0 ? 1 : -1
         let targetIndex = tabIndex(selectedTab) + direction
-        let threshold = max(72, width * 0.2)
+        // Require a deliberate half-screen commit. The live offset still
+        // follows the finger, but shorter drags spring back to this tab.
+        let threshold = width * 0.5
         guard AppTab.allCases.indices.contains(targetIndex),
               abs(horizontal) >= threshold
         else {
@@ -299,16 +420,20 @@ struct RootView: View {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(210))
             guard !Task.isCancelled else { return }
-            selectedTab = AppTab.allCases[targetIndex]
+                    tabNavigation.select(AppTab.allCases[targetIndex])
             tabSwipeOffset = 0
             isCompletingTabSwipe = false
+            isTabSwipeActive = false
+            gestureCoordinator.endHorizontalSwipe()
         }
     }
 
     private func cancelTabSwipe() {
         withAnimation(.easeOut(duration: 0.16)) {
             tabSwipeOffset = 0
+            isTabSwipeActive = false
         }
+        gestureCoordinator.endHorizontalSwipe()
     }
 
     private func tabIndex(_ tab: AppTab) -> Int {
@@ -326,9 +451,22 @@ struct RootView: View {
     }
 }
 
-private struct ResonanceTabBar: View {
+private struct ResonanceConditionalTabSwipeModifier<G: Gesture>: ViewModifier {
+    let isEnabled: Bool
+    let gesture: G
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.simultaneousGesture(gesture)
+        } else {
+            content
+        }
+    }
+}
+
+struct ResonanceTabBar: View {
     @EnvironmentObject private var settings: AppSettings
-    @Binding var selection: AppTab
+    @EnvironmentObject private var tabNavigation: ResonanceTabNavigation
 
     var body: some View {
         HStack(spacing: 0) {
@@ -368,7 +506,7 @@ private struct ResonanceTabBar: View {
             var transaction = Transaction()
             transaction.animation = nil
             withTransaction(transaction) {
-                selection = tab
+                tabNavigation.select(tab)
             }
         } label: {
             VStack(spacing: 3) {
@@ -382,9 +520,94 @@ private struct ResonanceTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(selection == tab ? settings.accentColor : settings.themeSecondaryColor)
+        .foregroundStyle(tabNavigation.selection == tab ? settings.accentColor : settings.themeSecondaryColor)
         .accessibilityLabel(title)
-        .accessibilityAddTraits(selection == tab ? .isSelected : [])
+        .accessibilityAddTraits(tabNavigation.selection == tab ? .isSelected : [])
+    }
+}
+
+struct ResonanceDetailTabNavigation: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var tabNavigation: ResonanceTabNavigation
+    @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
+
+    func body(content: Content) -> some View {
+        content
+            // Keep hierarchy dismissal attached to the detail surface before
+            // the tab bar is added as a safe-area inset. The detail content
+            // follows the finger while the navigation bar remains docked.
+            .resonanceTopDownDismiss { dismiss() }
+            .overlay(alignment: .leading) {
+                if miniPlayerNavigation.dock == .leading {
+                    MiniPlayerEdgeHandle(isVisible: true, edge: .leading) {
+                        tabNavigation.select(.playing)
+                    } onUndock: {
+                        miniPlayerNavigation.dock = .top
+                    } onDock: { dock in
+                        miniPlayerNavigation.dock = dock
+                    }
+                    .padding(.leading, 2)
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if miniPlayerNavigation.dock == .trailing {
+                    MiniPlayerEdgeHandle(isVisible: true, edge: .trailing) {
+                        tabNavigation.select(.playing)
+                    } onUndock: {
+                        miniPlayerNavigation.dock = .top
+                    } onDock: { dock in
+                        miniPlayerNavigation.dock = dock
+                    }
+                    .padding(.trailing, 2)
+                }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if miniPlayerNavigation.dock == .top, player.currentTrack != nil {
+                    MiniPlayerOverlay(
+                        isVisible: true,
+                        dock: .top,
+                        openNowPlaying: { tabNavigation.select(.playing) },
+                        onDock: { miniPlayerNavigation.dock = $0 }
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 6)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if miniPlayerNavigation.dock == .bottom, player.currentTrack != nil {
+                        MiniPlayerOverlay(
+                            isVisible: true,
+                            dock: .bottom,
+                            openNowPlaying: { tabNavigation.select(.playing) },
+                            onDock: { miniPlayerNavigation.dock = $0 }
+                        )
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 6)
+                    }
+                    ResonanceTabBar()
+                }
+            }
+            .onChange(of: tabNavigation.requestID) { _, _ in
+                dismiss()
+            }
+            // A play action can originate inside a full-screen detail layer.
+            // Dismiss that layer directly when playback requests Now Playing,
+            // so the root tab transition is visible immediately instead of
+            // leaving the detail cover above the selected tab.
+            .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
+                if tabNavigation.selection != .playing {
+                    tabNavigation.select(.playing)
+                }
+                dismiss()
+            }
+    }
+}
+
+extension View {
+    func resonanceDetailTabNavigation() -> some View {
+        modifier(ResonanceDetailTabNavigation())
     }
 }
 
@@ -453,16 +676,7 @@ extension View {
     }
 
     func resonanceTopDownDismiss(_ action: @escaping () -> Void) -> some View {
-        highPriorityGesture(
-            DragGesture(minimumDistance: 45, coordinateSpace: .local)
-                .onEnded { value in
-                    guard value.startLocation.y < 150,
-                          value.translation.height > 70,
-                          abs(value.translation.height) > abs(value.translation.width)
-                    else { return }
-                    action()
-                }
-        )
+        modifier(ResonanceInteractiveTopDownDismissModifier(action: action))
     }
 
     func resonanceHierarchySwipeBack(_ action: @escaping () -> Void) -> some View {
@@ -479,6 +693,65 @@ extension View {
 
     func resonanceHeroSurface() -> some View {
         modifier(ResonanceHeroSurface())
+    }
+}
+
+private struct ResonanceInteractiveTopDownDismissModifier: ViewModifier {
+    let action: () -> Void
+    @State private var dragOffset: CGFloat = 0
+    @State private var isCompleting = false
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: dragOffset)
+            // Share recognition with List/ScrollView. The location and
+            // direction guards below make this a header-only dismissal, while
+            // high-priority ownership would block every vertical list drag
+            // before the scroll view could claim it.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 5, coordinateSpace: .local)
+                    .onChanged { value in
+                        guard !isCompleting,
+                              value.startLocation.y < 150,
+                              value.translation.height >= 8,
+                              value.translation.height > abs(value.translation.width) + 4
+                        else { return }
+                        dragOffset = value.translation.height
+                    }
+                    .onEnded { value in
+                        guard !isCompleting,
+                              value.startLocation.y < 150,
+                              value.translation.height >= 8,
+                              value.translation.height > abs(value.translation.width) + 4
+                        else {
+                            cancel()
+                            return
+                        }
+
+                        guard value.translation.height >= 70 else {
+                            cancel()
+                            return
+                        }
+
+                        isCompleting = true
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            dragOffset = max(480, value.translation.height * 2.2)
+                        }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(210))
+                            guard !Task.isCancelled else { return }
+                            action()
+                            dragOffset = 0
+                            isCompleting = false
+                        }
+                    }
+            )
+    }
+
+    private func cancel() {
+        withAnimation(.easeOut(duration: 0.16)) {
+            dragOffset = 0
+        }
     }
 }
 
@@ -549,10 +822,6 @@ private struct ResonanceHeroSurface: ViewModifier {
                 ResonanceThemeSurfaceBackdrop()
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(settings.accentColor.opacity(0.25), lineWidth: 1)
-            }
             .padding(.horizontal, 10)
             .padding(.top, 4)
             .padding(.bottom, 4)
@@ -581,22 +850,84 @@ struct ResonanceHeroActionButton: View {
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    var body: some View {
-        Group {
-            if prominent {
-                Button(action: action, label: { label })
-                    .buttonStyle(.borderedProminent)
-                    .foregroundStyle(settings.contrastingAccentTextColor)
-            } else {
-                Button(action: action, label: { label })
-                    .buttonStyle(.plain)
-                    .foregroundStyle(tint)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(tint.opacity(0.55), lineWidth: 1)
-                    }
-            }
+    @ViewBuilder
+    private var surface: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    shape.fill(tint.opacity(prominent ? 0.78 : 0.10))
+                }
+        case .matteCrystal:
+            shape
+                .fill(settings.themeSurfaceColor.opacity(prominent ? 0.88 : 0.42))
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(prominent ? 0.20 : 0.10),
+                            Color.clear,
+                            tint.opacity(prominent ? 0.16 : 0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(shape)
+                }
+        case .innerGlow:
+            shape.fill(tint.opacity(prominent ? 0.16 : 0.045))
+        case .minimalTransparent:
+            Color.clear
         }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.stroke(tint.opacity(prominent ? 0.92 : 0.55), lineWidth: 1)
+        case .matteCrystal:
+            shape.stroke(
+                tint.opacity(prominent ? 0.92 : 0.68),
+                lineWidth: prominent ? 1.2 : 1
+            )
+        case .innerGlow:
+            ZStack {
+                shape.stroke(tint.opacity(0.32), lineWidth: 5)
+                    .blur(radius: 3)
+                shape.stroke(tint.opacity(prominent ? 0.95 : 0.78), lineWidth: 1)
+            }
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    private var underline: some View {
+        Capsule(style: .continuous)
+            .fill(tint.opacity(prominent ? 0.95 : 0.80))
+            .frame(width: prominent ? 32 : 24, height: prominent ? 2 : 1.5)
+            .padding(.bottom, 4)
+    }
+
+    private var styledLabel: some View {
+        label
+            .foregroundStyle(prominent ? settings.contrastingAccentTextColor : tint)
+            .background { surface }
+            .overlay { outline }
+            .overlay(alignment: .bottom) {
+                if settings.heroButtonStyle == .minimalTransparent {
+                    underline
+                }
+            }
+    }
+
+    var body: some View {
+        Button(action: action, label: { styledLabel })
+        .buttonStyle(.plain)
         .tint(tint)
         .help(title)
         .contextMenu {

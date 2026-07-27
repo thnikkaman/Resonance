@@ -743,6 +743,7 @@ private struct RemoteLibraryOptionsSheet: View {
 
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
   @Environment(\.resonanceMiniPlayerBottomInset) private var miniPlayerBottomInset
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
@@ -823,6 +824,7 @@ private struct RemoteArtistCollectionView: View {
     @ViewBuilder
     private func artistItem(_ artist: RemoteArtist) -> some View {
         Button {
+            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
             if longPressRecognized {
                 longPressRecognized = false
             } else if selectionMode {
@@ -849,6 +851,7 @@ private struct RemoteArtistCollectionView: View {
             }
         }
         .buttonStyle(.plain)
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contentShape(Rectangle())
         .simultaneousGesture(
             // A zero-distance drag also receives the ScrollView's first touch and
@@ -869,29 +872,34 @@ private struct RemoteArtistCollectionView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 14 : 0) {
-                        ForEach(sections, id: \.key) { section in
-                            VStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 8 : 0) {
-                                    Text(section.key)
-                                        .font(.headline)
-                                        .foregroundStyle(settings.themeSecondaryColor)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
+                    Group {
+                        if settings.albumLayout == .grid {
+                            ResonanceAlphabetGrid(
+                                sections: sections,
+                                columns: columns,
+                                sectionIDPrefix: "remote-artist-section",
+                                sectionLabelColor: settings.textAccentColor
+                            ) { artist in
+                                artistItem(artist)
+                            }
+                        } else {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(sections, id: \.key) { section in
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(section.key)
+                                            .font(.headline)
+                                            .foregroundStyle(settings.textAccentColor)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.vertical, 7)
 
-                                if settings.albumLayout == .grid {
-                                    LazyVGrid(columns: columns, spacing: 18) {
                                         ForEach(section.items) { artist in
                                             artistItem(artist)
+                                                .padding(.vertical, settings.albumLayout == .compact ? 3 : 8)
                                         }
                                     }
-                                } else {
-                                    ForEach(section.items) { artist in
-                                        artistItem(artist)
-                                            .padding(.vertical, settings.albumLayout == .compact ? 3 : 8)
-                                    }
+                                    .id("remote-artist-section-\(section.key)")
                                 }
                             }
-                            .id("remote-artist-section-\(section.key)")
                         }
                     }
                     .padding(.leading, 16)
@@ -929,7 +937,9 @@ private struct RemoteArtistCollectionView: View {
                 }
             }
             .fullScreenCover(item: $destinationArtist) { artist in
-                RemoteArtistDetailView(artist: artist)
+                NavigationStack {
+                    RemoteArtistDetailView(artist: artist)
+                }
             }
         }
     }
@@ -971,6 +981,7 @@ private struct RemoteArtistTile: View {
 
 private struct RemoteAlbumCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
   let albums: [RemoteAlbum]
   let sortDirection: SortDirection
   @Binding var selectionMode: Bool
@@ -1060,6 +1071,7 @@ private struct RemoteAlbumCollectionView: View {
     @ViewBuilder
     private func albumItem(_ album: RemoteAlbum) -> some View {
         Button {
+            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
             if longPressRecognized {
                 longPressRecognized = false
             } else if selectionMode {
@@ -1086,6 +1098,7 @@ private struct RemoteAlbumCollectionView: View {
             }
         }
         .buttonStyle(.plain)
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contentShape(Rectangle())
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)
@@ -1102,30 +1115,35 @@ private struct RemoteAlbumCollectionView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 14 : 0) {
-                        ForEach(sections, id: \.key) { section in
-                            VStack(alignment: .leading, spacing: settings.albumLayout == .grid ? 8 : 0) {
-                                Text(section.key)
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.vertical, settings.albumLayout == .grid ? 0 : 7)
+                    Group {
+                        if settings.albumLayout == .grid {
+                            ResonanceAlphabetGrid(
+                                sections: sections,
+                                columns: columns,
+                                sectionIDPrefix: "remote-album-section",
+                                sectionLabelColor: settings.textAccentColor
+                            ) { album in
+                                albumItem(album)
+                            }
+                        } else {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(sections, id: \.key) { section in
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(section.key)
+                                            .font(.headline)
+                                            .foregroundStyle(settings.textAccentColor)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.vertical, 7)
 
-                                if settings.albumLayout == .grid {
-                                    LazyVGrid(columns: columns, spacing: 18) {
                                         ForEach(section.items) { album in
                                             albumItem(album)
+                                                .padding(.vertical, settings.albumLayout == .compact ? 2 : 8)
+                                            Divider()
                                         }
                                     }
-                                } else {
-                                    ForEach(section.items) { album in
-                                        albumItem(album)
-                                            .padding(.vertical, settings.albumLayout == .compact ? 2 : 8)
-                                        Divider()
-                                    }
+                                    .id("remote-album-section-\(section.key)")
                                 }
                             }
-                            .id("remote-album-section-\(section.key)")
                         }
                     }
                     .padding(.leading, 16)
@@ -1164,7 +1182,9 @@ private struct RemoteAlbumCollectionView: View {
                 }
             }
             .fullScreenCover(item: $destinationAlbum) { album in
-                RemoteAlbumDetailView(album: album)
+                NavigationStack {
+                    RemoteAlbumDetailView(album: album)
+                }
             }
         }
     }
@@ -1251,8 +1271,10 @@ private struct RemoteArtistDetailView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     @State private var presentedAlbum: RemoteAlbum?
     @State private var showingAllAlbums = false
+    @State private var showingLibraryOptions = false
     let artist: RemoteArtist
 
     private var sortedAlbums: [RemoteAlbum] {
@@ -1307,10 +1329,62 @@ private struct RemoteArtistDetailView: View {
         )
     }
 
+    @ViewBuilder
+    private func allAlbumsTile() -> some View {
+        Button {
+            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+            showingAllAlbums = true
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack {
+                    RemoteArtwork(
+                        context: RemoteArtworkContext(artist),
+                        size: settings.libraryThumbnailSize.gridArtworkPoints,
+                    )
+                    Color.black.opacity(0.28)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                }
+                Text("All Albums")
+                    .font(settings.libraryTextSize.font.weight(.semibold))
+                Text("\(allTracks.count) tracks")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
+    }
+
+    @ViewBuilder
+    private func albumTile(_ album: RemoteAlbum) -> some View {
+        Button {
+            guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
+            presentedAlbum = album
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                RemoteArtwork(
+                    context: RemoteArtworkContext(album),
+                    size: settings.libraryThumbnailSize.gridArtworkPoints,
+                )
+                Text(album.title)
+                    .font(settings.libraryTextSize.font.weight(.semibold))
+                    .lineLimit(1)
+                Text(album.releaseYear > 0 ? String(album.releaseYear) : "Year unavailable")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .buttonStyle(ResonanceSwipeAwareButtonStyle())
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 4) {
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: 16) {
                     VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                             Task { await remote.playArtist(artist, using: player) }
@@ -1339,7 +1413,6 @@ private struct RemoteArtistDetailView: View {
                     .lineLimit(1)
             }
             .resonanceHeroSurface()
-            .resonanceTopDownDismiss { dismiss() }
 
             VStack(spacing: 2) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
@@ -1357,69 +1430,21 @@ private struct RemoteArtistDetailView: View {
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
-            .resonanceTopDownDismiss { dismiss() }
 
             ScrollViewReader { proxy in
                 ZStack(alignment: .trailing) {
                     Group {
                         if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                             ScrollView {
-                                LazyVStack(alignment: .leading, spacing: 14) {
-                                    LazyVGrid(columns: columns, spacing: 18) {
-                                        Button {
-                                            showingAllAlbums = true
-                                        } label: {
-                                            VStack(alignment: .leading, spacing: 6) {
-                                                ZStack {
-                                                    RemoteArtwork(
-                                                        context: RemoteArtworkContext(artist),
-                                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
-                                                    )
-                                                    Color.black.opacity(0.28)
-                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                                    Image(systemName: "square.stack.3d.up.fill")
-                                                        .font(.title2)
-                                                        .foregroundStyle(.white)
-                                                }
-                                                Text("All Albums")
-                                                    .font(settings.libraryTextSize.font.weight(.semibold))
-                                                Text("\(allTracks.count) tracks")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-
-                                    ForEach(indexedAlbumSections, id: \.key) { section in
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text(section.key)
-                                                .font(.headline)
-                                                .foregroundStyle(.secondary)
-                                            LazyVGrid(columns: columns, spacing: 18) {
-                                                ForEach(section.items) { album in
-                                                    Button {
-                                                        presentedAlbum = album
-                                                    } label: {
-                                                        VStack(alignment: .leading, spacing: 6) {
-                                                            RemoteArtwork(
-                                                                context: RemoteArtworkContext(album),
-                                                                size: settings.libraryThumbnailSize.gridArtworkPoints,
-                                                            )
-                                                            Text(album.title)
-                                                                .font(settings.libraryTextSize.font.weight(.semibold))
-                                                                .lineLimit(1)
-                                                            Text(album.releaseYear > 0 ? String(album.releaseYear) : "Year unavailable")
-                                                                .font(.caption2)
-                                                                .foregroundStyle(.secondary)
-                                                        }
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                }
-                                            }
-                                        }
-                                        .id("artist-album-section-\(section.key)")
-                                    }
+                                ResonanceAlphabetGrid(
+                                    sections: indexedAlbumSections,
+                                    columns: columns,
+                                    sectionIDPrefix: "artist-album-section",
+                                sectionLabelColor: settings.textAccentColor,
+                                    leadingCellCount: 1,
+                                    leadingContent: AnyView(allAlbumsTile())
+                                ) { album in
+                                    albumTile(album)
                                 }
                                 .padding(.leading, 16)
                                 .padding(.trailing, 36)
@@ -1431,6 +1456,7 @@ private struct RemoteArtistDetailView: View {
                         } else {
                             List {
                                 Button {
+                                    guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                     showingAllAlbums = true
                                 } label: {
                                     RemoteCollectionRow(
@@ -1440,12 +1466,14 @@ private struct RemoteArtistDetailView: View {
                                         large: settings.albumLayout == .large,
                                     )
                                 }
+                                .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                 .listRowBackground(Color.clear)
 
                                 ForEach(indexedAlbumSections, id: \.key) { section in
                                     Section {
                                         ForEach(section.items) { album in
                                             Button {
+                                                guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                                 presentedAlbum = album
                                             } label: {
                                                 RemoteCollectionRow(
@@ -1455,10 +1483,12 @@ private struct RemoteArtistDetailView: View {
                                                     large: settings.albumLayout == .large,
                                                 )
                                             }
+                                            .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                             .listRowBackground(Color.clear)
                                         }
                                     } header: {
                                         Text(section.key)
+                                            .foregroundStyle(settings.textAccentColor)
                                     }
                                     .id("artist-album-section-\(section.key)")
                                 }
@@ -1499,16 +1529,50 @@ private struct RemoteArtistDetailView: View {
         .background {
             ResonanceThemeBackdrop()
         }
-        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
-        .resonanceDetailBottomSpace()
+        .resonanceDetailTabNavigation()
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Streaming artist view and sort options",
+                    systemImage: "slider.horizontal.3"
+                ) {
+                    showingLibraryOptions = true
+                }
+
+                Menu {
+                    NavigationLink {
+                        RemotePlaylistCollectionView()
+                    } label: {
+                        Label("Playlists", systemImage: "music.note.list")
+                    }
+                } label: {
+                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                }
+                .disabled(settings.streamBackend != .subsonic)
+                .accessibilityLabel("Open playlists")
+            }
+        }
+        .sheet(isPresented: $showingLibraryOptions) {
+            RemoteLibraryOptionsSheet()
+                .presentationDetents([.medium, .large])
+        }
         .fullScreenCover(item: $presentedAlbum) { album in
-            RemoteAlbumDetailView(album: album)
+            NavigationStack {
+                RemoteAlbumDetailView(album: album)
+            }
         }
         .fullScreenCover(isPresented: $showingAllAlbums) {
-            RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+            NavigationStack {
+                RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
+            }
         }
+        .resonanceTabSwipeObserver()
     }
 }
 
@@ -1624,16 +1688,20 @@ private struct RemoteAllAlbumsTrackListView: View {
             RemotePlaylistPickerSheet(items: playlistItems)
         }
         .navigationBarTitleDisplayMode(.inline)
-        .resonanceDetailBottomSpace()
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 45)
-                .onEnded { value in
-                    guard value.translation.height > 70,
-                          abs(value.translation.height) > abs(value.translation.width)
-                    else { return }
-                    dismiss()
+        .resonanceDetailTabNavigation()
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Label("Back", systemImage: "chevron.left")
                 }
-        )
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear
+                .frame(height: 52)
+                .contentShape(Rectangle())
+        }
+        .resonanceTabSwipeObserver()
     }
 }
 
@@ -1655,7 +1723,7 @@ private struct RemoteAlbumDetailView: View {
 
     private var albumHero: some View {
         VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(spacing: 10) {
                     ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         Task { await remote.playAlbum(album, using: player) }
@@ -1691,7 +1759,6 @@ private struct RemoteAlbumDetailView: View {
                 .lineLimit(1)
         }
         .resonanceHeroSurface()
-        .resonanceTopDownDismiss { dismiss() }
     }
 
     @ViewBuilder
@@ -1752,11 +1819,15 @@ private struct RemoteAlbumDetailView: View {
         .background {
             ResonanceThemeBackdrop()
         }
-        .resonanceHierarchySwipeBack { dismiss() }
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
-        .resonanceDetailBottomSpace()
+        .resonanceDetailTabNavigation()
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 ResonanceToolbarIconButton(
                     accessibilityLabel: "Album options",
@@ -1830,6 +1901,7 @@ private struct RemoteAlbumDetailView: View {
                 isAutomaticallySelectedArtwork = false
             }
         }
+        .resonanceTabSwipeObserver()
     }
 }
 

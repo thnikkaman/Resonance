@@ -154,11 +154,39 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
     }
 }
 
+enum ResonanceHeroButtonStyle: String, CaseIterable, Identifiable, Hashable {
+    case softGlass
+    case matteCrystal
+    case innerGlow
+    case minimalTransparent
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .softGlass: "Soft Glass"
+        case .matteCrystal: "Matte Crystal"
+        case .innerGlow: "Inner Glow"
+        case .minimalTransparent: "Minimal Transparent"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .softGlass: "Frosted, translucent buttons with a gentle tint"
+        case .matteCrystal: "A denser satin surface with a crisp edge"
+        case .innerGlow: "Open buttons with a soft accent glow"
+        case .minimalTransparent: "Nearly invisible controls with an accent underline"
+        }
+    }
+}
+
 
 @MainActor
 final class AppSettings: ObservableObject {
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
+    @AppStorage("heroButtonStyle") private var heroButtonStyleRaw = ResonanceHeroButtonStyle.softGlass.rawValue
     @AppStorage("accentHex") var accentHex = "A855F7"
     @AppStorage("applyThemeColorToText") var applyThemeColorToText = true
     @AppStorage("applyThemeColorToTextConfigured") private var applyThemeColorToTextConfigured = false
@@ -253,6 +281,11 @@ final class AppSettings: ObservableObject {
             }
             objectWillChange.send()
         }
+    }
+
+    var heroButtonStyle: ResonanceHeroButtonStyle {
+        get { ResonanceHeroButtonStyle(rawValue: heroButtonStyleRaw) ?? .softGlass }
+        set { heroButtonStyleRaw = newValue.rawValue; objectWillChange.send() }
     }
 
     var albumLayout: AlbumLayout {
