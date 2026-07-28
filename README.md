@@ -1449,3 +1449,20 @@ Manual test checklist: relaunch the app, open Acoustica by A Perfect Circle, and
 album metadata without changing artwork and confirm it remains visible. Replace album artwork, save it to files, and
 confirm all tracks display it after relaunch. Edit one MP3 and one FLAC individually, both with and without artwork,
 and confirm the image remains visible in Resonance and in an external tag reader. Repeat with an artwork search result.
+
+## Experimental build 116 — unwrap dimension-prefixed MP3 artwork and repair album fallback
+
+The metadata reader now also handles MP3 artwork returned with a five-byte little-endian thumbnail-dimension prefix
+before the image payload. Cached artwork is validated when loaded from the library database, so malformed non-empty data
+is discarded and album artwork can fall back to the first renderable track instead of being blocked by an invalid first
+track.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `116`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: reopen Mer de Noms and confirm album artwork appears even when the first track has no artwork;
+edit album metadata without changing artwork; replace album artwork and confirm every file and the album view update;
+repeat for Acoustica, then edit individual MP3 and FLAC tracks and verify artwork in Resonance and an external tag reader.

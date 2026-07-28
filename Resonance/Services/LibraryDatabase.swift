@@ -125,7 +125,8 @@ actor LibraryDatabase {
         while sqlite3_step(statement) == SQLITE_ROW {
             let artwork: Data? = {
                 guard let bytes = sqlite3_column_blob(statement, 10) else { return nil }
-                return Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 10)))
+                let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 10)))
+                return MetadataReader.renderableArtworkData(from: data)
             }()
             result.append(Track(
                 id: UUID(uuidString: text(statement, 0)) ?? UUID(),

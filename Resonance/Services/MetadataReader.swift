@@ -147,13 +147,13 @@ struct MetadataReader {
             guard label.contains("artwork") || label.contains("picture") || item.commonKey == .commonKeyArtwork else { continue }
             do {
                 let loadedData = try await item.load(.dataValue)
-                if let loadedData, let imageData = extractArtworkImage(from: loadedData) { return imageData }
+                if let loadedData, let imageData = Self.renderableArtworkData(from: loadedData) { return imageData }
             } catch {
                 continue
             }
         }
         for (key, value) in dictionary where normalize(key).contains("artwork") || normalize(key).contains("picture") {
-            if let data = value as? Data, let imageData = extractArtworkImage(from: data) { return imageData }
+            if let data = value as? Data, let imageData = Self.renderableArtworkData(from: data) { return imageData }
         }
         return nil
     }
@@ -162,10 +162,19 @@ struct MetadataReader {
     /// only its image payload. ImageIO cannot render that wrapper directly.
     /// Keep already-valid image data unchanged, then unwrap the common ID3
     /// APIC layout before handing artwork to the library and UI.
-    private func extractArtworkImage(from data: Data) -> Data? {
+    static func renderableArtworkData(from data: Data) -> Data? {
         guard !data.isEmpty else { return nil }
         if isRenderableImage(data) { return data }
         guard data.count > 4 else { return nil }
+
+        // Some MP3 metadata paths prepend little-endian thumbnail dimensions
+        // and a terminator before the JPEG/PNG payload.
+        let width = UInt16(data[0]) | UInt16(data[1]) << 8
+        let height = UInt16(data[2]) | UInt16(data[3]) << 8
+        if data[4] == 0, width > 0, height > 0 {
+            let imageData = data.subdata(in: 5..<data.count)
+            if isRenderableImage(imageData) { return imageData }
+        }
 
         let encoding = data[0]
         var offset = 1
@@ -193,7 +202,7 @@ struct MetadataReader {
         return isRenderableImage(imageData) ? imageData : nil
     }
 
-    private func isRenderableImage(_ data: Data) -> Bool {
+    private static func isRenderableImage(_ data: Data) -> Bool {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
         return CGImageSourceGetCount(source) > 0
     }
