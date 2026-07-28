@@ -1432,3 +1432,20 @@ artwork and confirm the artist override remains; rename an artist and confirm it
 remove artist artwork and confirm only the artist artwork clears. Search online artwork for an artist, album, and track,
 apply each result to the app, save each to FLAC/MP3 files, and confirm the image remains visible after relaunch and an
 external tag reader. Do not uninstall the existing app.
+
+## Experimental build 115 — repair MP3 APIC artwork readback
+
+The metadata reader now detects when AVFoundation returns an MP3 ID3 APIC frame wrapper instead of only the embedded
+image bytes. It unwraps the MIME, picture-type, and description fields, validates the remaining image with ImageIO, and
+stores only renderable artwork in the library database. Existing valid image data remains unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `115`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: relaunch the app, open Acoustica by A Perfect Circle, and confirm album artwork is visible. Edit
+album metadata without changing artwork and confirm it remains visible. Replace album artwork, save it to files, and
+confirm all tracks display it after relaunch. Edit one MP3 and one FLAC individually, both with and without artwork,
+and confirm the image remains visible in Resonance and in an external tag reader. Repeat with an artwork search result.

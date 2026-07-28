@@ -1,6 +1,7 @@
 import AVFoundation
 import AudioToolbox
 import Foundation
+import ImageIO
 
 struct MetadataReader {
     static let supportedExtensions: Set<String> = ["flac", "mp3", "m4a", "aac", "wav", "aif", "aiff", "caf", "alac"]
@@ -146,15 +147,55 @@ struct MetadataReader {
             guard label.contains("artwork") || label.contains("picture") || item.commonKey == .commonKeyArtwork else { continue }
             do {
                 let loadedData = try await item.load(.dataValue)
-                if let loadedData, !loadedData.isEmpty { return loadedData }
+                if let loadedData, let imageData = extractArtworkImage(from: loadedData) { return imageData }
             } catch {
                 continue
             }
         }
         for (key, value) in dictionary where normalize(key).contains("artwork") || normalize(key).contains("picture") {
-            if let data = value as? Data, !data.isEmpty { return data }
+            if let data = value as? Data, let imageData = extractArtworkImage(from: data) { return imageData }
         }
         return nil
+    }
+
+    /// AVFoundation may expose an MP3 APIC frame as data rather than returning
+    /// only its image payload. ImageIO cannot render that wrapper directly.
+    /// Keep already-valid image data unchanged, then unwrap the common ID3
+    /// APIC layout before handing artwork to the library and UI.
+    private func extractArtworkImage(from data: Data) -> Data? {
+        guard !data.isEmpty else { return nil }
+        if isRenderableImage(data) { return data }
+        guard data.count > 4 else { return nil }
+
+        let encoding = data[0]
+        var offset = 1
+        guard let mimeTerminator = data[offset...].firstIndex(of: 0) else { return nil }
+        offset = Int(mimeTerminator) + 1
+        guard offset < data.count else { return nil }
+        offset += 1 // APIC picture type.
+        guard offset < data.count else { return nil }
+
+        if encoding == 1 || encoding == 2 {
+            while offset + 1 < data.count {
+                if data[offset] == 0 && data[offset + 1] == 0 {
+                    offset += 2
+                    break
+                }
+                offset += 2
+            }
+        } else {
+            guard let descriptionTerminator = data[offset...].firstIndex(of: 0) else { return nil }
+            offset = Int(descriptionTerminator) + 1
+        }
+
+        guard offset < data.count else { return nil }
+        let imageData = data.subdata(in: offset..<data.count)
+        return isRenderableImage(imageData) ? imageData : nil
+    }
+
+    private func isRenderableImage(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceGetCount(source) > 0
     }
 
     private func audioFileInfo(for url: URL) -> [String: Any] {
