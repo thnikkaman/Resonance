@@ -1534,3 +1534,23 @@ Manual test checklist: delete one downloaded track with Delete from iPhone and c
 refresh; download a track that is not present; select a mix of an existing and a new track and verify the prompt appears.
 Choose Keep Existing and confirm only the new track downloads, then repeat and choose Replace Existing to confirm both
 download. Also test deleting an album and artist, and inspect diagnostics afterward for the deletion counts.
+
+## Experimental build 121 — share download overlay across Streaming detail views
+
+The existing `RemoteDownloadOverlay` is now shared by the Streaming Library root and the Streaming artist and album
+detail surfaces. A download started from an artist or album remains observable through the same
+`RemoteDownloadManager` queue while navigating between detail and root views. Duplicate detection now searches all
+supported local audio extensions instead of relying only on the remote stream URL extension, so an existing saved file
+is recognized even when the server URL has no matching extension.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `121`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: from a Streaming artist detail page, start an artist download and verify the shared overlay is
+visible there; from an album detail page, start an album download and verify the overlay and replacement prompt are
+visible without returning to the Streaming root. Delete one track from an album, request the album again, and confirm
+only the missing track downloads. Test a mixed existing/new batch with Keep Existing and Replace Existing, navigate
+between artist, album, and Streaming root while active, and cancel from each visible overlay.

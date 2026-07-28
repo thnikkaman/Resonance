@@ -2211,7 +2211,7 @@ final class RemoteDownloadManager: ObservableObject {
         )
 
         let duplicates = tracks.filter {
-            FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+            Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) != nil
         }
         if !duplicates.isEmpty {
             pendingTracks = duplicates
@@ -2381,7 +2381,7 @@ final class RemoteDownloadManager: ObservableObject {
         let matchedTracks = savedIDs.compactMap { byID[$0] }
         guard !matchedTracks.isEmpty else { return }
         let candidates = matchedTracks.filter {
-            !FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+            Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) == nil
         }
         guard !candidates.isEmpty else {
             clearPersistedQueue()
@@ -2668,7 +2668,7 @@ final class RemoteDownloadManager: ObservableObject {
         let recordIDs = Set(records.map(\.trackID))
         let candidates = matchedTracks.filter {
             recordIDs.contains($0.id)
-                || !FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+                || Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) == nil
         }
         guard !candidates.isEmpty else {
             clearPersistedQueue()
@@ -3053,6 +3053,22 @@ final class RemoteDownloadManager: ObservableObject {
             .appendingPathComponent(artistFolder, isDirectory: true)
             .appendingPathComponent(albumFolder, isDirectory: true)
             .appendingPathComponent(fileName)
+    }
+
+    private nonisolated static func existingDestinationURL(
+        for track: RemoteTrackItem,
+        in root: URL
+    ) -> URL? {
+        var extensions = MetadataReader.supportedExtensions
+        let streamExtension = track.streamURL.pathExtension.lowercased()
+        if !streamExtension.isEmpty { extensions.insert(streamExtension) }
+        for extensionName in extensions {
+            let candidate = destinationURL(for: track, in: root, extensionName: extensionName)
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        return nil
     }
 
     private nonisolated static func fileExtension(for response: URLResponse?, fallback: String) -> String {

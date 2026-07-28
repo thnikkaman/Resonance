@@ -361,7 +361,7 @@ private struct StreamingDownloadActionsMenu: View {
     }
 }
 
-private struct RemoteDownloadOverlay: View {
+struct RemoteDownloadOverlay: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var downloads: RemoteDownloadManager
     @EnvironmentObject private var remote: RemoteLibraryStore
@@ -1572,6 +1572,10 @@ private struct RemoteArtistDetailView: View {
                 RemoteAllAlbumsTrackListView(artistName: artist.name, tracks: allTracks)
             }
         }
+        .overlay(alignment: .top) {
+            RemoteDownloadOverlay()
+                .padding(.top, 52)
+        }
         .resonanceTabSwipeObserver()
     }
 }
@@ -1880,6 +1884,10 @@ private struct RemoteAlbumDetailView: View {
                     return nil
                 }
             )
+        }
+        .overlay(alignment: .top) {
+            RemoteDownloadOverlay()
+                .padding(.top, 52)
         }
         .task(id: "\(album.id)|\(album.artworkURL?.absoluteString ?? "")|\(album.artworkBase64 != nil)") {
             let hasProvidedArtwork = RemoteArtworkContext(album).hasProvidedArtwork
