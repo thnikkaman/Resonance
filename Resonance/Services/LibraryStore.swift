@@ -454,6 +454,42 @@ final class LibraryStore: ObservableObject {
         return nil
     }
 
+    func updateTrackMetadataInBackground(
+        trackID: UUID,
+        title: String,
+        artist: String,
+        albumArtist: String,
+        album: String,
+        trackNumber: Int,
+        discNumber: Int,
+        releaseYear: Int,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) {
+        Task { [weak self] in
+            guard let self else { return }
+            let error = await self.updateTrackMetadata(
+                trackID: trackID,
+                title: title,
+                artist: artist,
+                albumArtist: albumArtist,
+                album: album,
+                trackNumber: trackNumber,
+                discNumber: discNumber,
+                releaseYear: releaseYear,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.metadata.trackSave.complete",
+                details: [
+                    "success": String(error == nil),
+                    "failureCount": error == nil ? "0" : "1"
+                ]
+            )
+        }
+    }
+
     func refreshedArtist(_ artist: Artist) -> Artist {
         let currentTracks = tracks.filter { track in
             let currentName = artist.usesAlbumArtist ? track.albumArtist : track.artist
@@ -534,6 +570,32 @@ final class LibraryStore: ObservableObject {
         persistArtistMetadataOverrides()
         await refreshMetadataFiles(from: writeResult, requests: requests)
         return failures.isEmpty ? nil : failures.first
+    }
+
+    func updateArtistMetadataInBackground(
+        artist: Artist,
+        name: String,
+        artworkData: Data?,
+        replaceArtwork: Bool,
+        clearArtworkOverride: Bool
+    ) {
+        Task { [weak self] in
+            guard let self else { return }
+            let error = await self.updateArtistMetadata(
+                artist: artist,
+                name: name,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork,
+                clearArtworkOverride: clearArtworkOverride
+            )
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.metadata.artistSave.complete",
+                details: [
+                    "success": String(error == nil),
+                    "failureCount": error == nil ? "0" : "1"
+                ]
+            )
+        }
     }
 
     func updateAlbumMetadata(

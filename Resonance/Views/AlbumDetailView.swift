@@ -189,7 +189,7 @@ struct AlbumDetailView: View {
                     library.applyArtworkToApp(forAlbumTrackIDs: liveAlbum.tracks.map(\.id), data: data)
                 },
                 onSaveToFiles: { data in
-                    let error = await library.updateAlbumMetadata(
+                    library.updateAlbumMetadataInBackground(
                         trackIDs: liveAlbum.tracks.map(\.id),
                         album: liveAlbum.title,
                         albumArtist: liveAlbum.artist,
@@ -197,7 +197,7 @@ struct AlbumDetailView: View {
                         artworkData: data,
                         replaceArtwork: true
                     )
-                    return error
+                    return nil
                 }
             )
         }

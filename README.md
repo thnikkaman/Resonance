@@ -1401,3 +1401,15 @@ replacement, and artwork-only fallback behavior. Browse local and Streaming
 mixed-artist albums, including case/whitespace variants, differing release
 years, and explicit compilation grouping. Confirm normal single-artist albums
 remain unchanged. Do not uninstall the existing app.
+
+## Experimental build 113 — unified background save actions
+
+Track, album, and artist metadata editor saves now dismiss immediately and continue through background tasks. Online
+artwork search Apply to App and Save to Files actions also dismiss first; file metadata saves use the same background
+entry points, while app-only artwork application is deferred until after the search sheet closes. Completion and
+failure counts remain privacy-safe diagnostics rather than modal save errors.
+
+Manual test checklist: trigger Save from track, album, and artist editors; use Apply to App and Save to Files from
+online artwork search for track, album, and artist contexts; confirm each sheet dismisses immediately. While each save
+runs, switch tabs, scroll, play audio, and open another detail page. Confirm metadata/artwork persistence, red-border
+semantics, external tag-reader results, and diagnostics after relaunch.

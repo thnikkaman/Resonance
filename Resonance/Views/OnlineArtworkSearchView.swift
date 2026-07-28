@@ -136,20 +136,22 @@ struct OnlineArtworkSearchSheet: View {
     }
 
     private func chooseForApp(_ data: Data) {
-        onApplyToApp(data)
         dismiss()
+        Task { onApplyToApp(data) }
     }
 
     private func saveToFiles(_ data: Data) {
-        isSaving = true
+        isSaving = false
+        dismiss()
         Task {
-            if let error = await onSaveToFiles(data) {
-                isSaving = false
-                errorMessage = error
-            } else {
-                isSaving = false
-                dismiss()
-            }
+            let error = await onSaveToFiles(data)
+            ResonanceDiagnostics.shared.recordDeferred(
+                "artwork.searchSave.complete",
+                details: [
+                    "success": String(error == nil),
+                    "failureCount": error == nil ? "0" : "1"
+                ]
+            )
         }
     }
 }

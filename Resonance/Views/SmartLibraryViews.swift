@@ -521,7 +521,6 @@ struct TrackMetadataEditorSheet: View {
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showingArtworkSearch = false
-    @State private var isSaving = false
     @State private var saveError: String?
 
     init(track: Track) {
@@ -634,26 +633,22 @@ struct TrackMetadataEditorSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving…" : "Save") {
-                        isSaving = true
-                        Task {
-                            let error = await library.updateTrackMetadata(
-                                trackID: track.id,
-                                title: title,
-                                artist: artist,
-                                albumArtist: albumArtist.isEmpty ? artist : albumArtist,
-                                album: album,
-                                trackNumber: Int(trackNumber) ?? 0,
-                                discNumber: Int(discNumber) ?? 1,
-                                releaseYear: Int(releaseYear) ?? 0,
-                                artworkData: artworkData,
-                                replaceArtwork: replaceArtwork
-                            )
-                            isSaving = false
-                            if let error { saveError = error } else { dismiss() }
-                        }
+                    Button("Save") {
+                        library.updateTrackMetadataInBackground(
+                            trackID: track.id,
+                            title: title,
+                            artist: artist,
+                            albumArtist: albumArtist.isEmpty ? artist : albumArtist,
+                            album: album,
+                            trackNumber: Int(trackNumber) ?? 0,
+                            discNumber: Int(discNumber) ?? 1,
+                            releaseYear: Int(releaseYear) ?? 0,
+                            artworkData: artworkData,
+                            replaceArtwork: replaceArtwork
+                        )
+                        dismiss()
                     }
-                    .disabled(!canSave || isSaving)
+                    .disabled(!canSave)
                 }
             }
             .onChange(of: selectedPhoto) { _, item in
@@ -678,7 +673,7 @@ struct TrackMetadataEditorSheet: View {
                     onSaveToFiles: { data in
                         artworkData = data
                         replaceArtwork = true
-                        let error = await library.updateTrackMetadata(
+                        library.updateTrackMetadataInBackground(
                             trackID: track.id,
                             title: title,
                             artist: artist,
@@ -690,7 +685,7 @@ struct TrackMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
-                        return error
+                        return nil
                     }
                 )
             }
@@ -856,7 +851,7 @@ struct AlbumMetadataEditorSheet: View {
                     onSaveToFiles: { data in
                         artworkData = data
                         replaceArtwork = true
-                        let error = await library.updateAlbumMetadata(
+                        library.updateAlbumMetadataInBackground(
                             trackIDs: album.tracks.map(\.id),
                             album: albumTitle,
                             albumArtist: albumArtist,
@@ -864,7 +859,7 @@ struct AlbumMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
-                        return error
+                        return nil
                     }
                 )
             }
@@ -892,7 +887,6 @@ struct ArtistMetadataEditorSheet: View {
     @State private var clearArtworkOverride = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showingArtworkSearch = false
-    @State private var isSaving = false
     @State private var saveError: String?
 
     init(artist: Artist) {
@@ -1068,21 +1062,17 @@ struct ArtistMetadataEditorSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving…" : "Save") {
-                        isSaving = true
-                        Task {
-                            let error = await library.updateArtistMetadata(
-                                artist: artist,
-                                name: artistName,
-                                artworkData: artworkData,
-                                replaceArtwork: replaceArtwork,
-                                clearArtworkOverride: clearArtworkOverride
-                            )
-                            isSaving = false
-                            if let error { saveError = error } else { dismiss() }
-                        }
+                    Button("Save") {
+                        library.updateArtistMetadataInBackground(
+                            artist: artist,
+                            name: artistName,
+                            artworkData: artworkData,
+                            replaceArtwork: replaceArtwork,
+                            clearArtworkOverride: clearArtworkOverride
+                        )
+                        dismiss()
                     }
-                    .disabled(!canSave || isSaving)
+                    .disabled(!canSave)
                 }
             }
             .onChange(of: selectedPhoto) { _, item in
@@ -1109,17 +1099,14 @@ struct ArtistMetadataEditorSheet: View {
                         artworkData = data
                         replaceArtwork = true
                         clearArtworkOverride = false
-                        let error = await library.updateArtistMetadata(
+                        library.updateArtistMetadataInBackground(
                             artist: artist,
                             name: artistName,
                             artworkData: data,
                             replaceArtwork: true,
                             clearArtworkOverride: false
                         )
-                        if error == nil {
-                            library.applyArtworkToApp(for: artist, data: data)
-                        }
-                        return error
+                        return nil
                     }
                 )
             }
