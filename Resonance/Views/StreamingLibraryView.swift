@@ -1799,6 +1799,10 @@ private struct RemoteAllAlbumsTrackListView: View {
                 .frame(height: 52)
                 .contentShape(Rectangle())
         }
+        .overlay(alignment: .top) {
+            RemoteDownloadOverlay()
+                .padding(.top, 52)
+        }
         .resonanceTabSwipeObserver()
     }
 }

@@ -1680,3 +1680,20 @@ Manual test checklist: in Streaming album, artist/all-albums, playlist, and trac
 on a track and verify Play Next/Add to Queue remain available. Swipe right-to-left and verify Download appears and
 starts the shared download flow. Test an existing file and confirm Keep Existing, Replace Existing, and Cancel, then
 verify the persistent overlay and navigation behavior remain unchanged.
+
+## Experimental build 129 — restore All Albums replacement prompt
+
+The Streaming All Albums track-list screen now renders the shared `RemoteDownloadOverlay`. Download requests from
+that screen—including its track menus and swipe actions—can therefore display the existing-file prompt with Keep
+Existing, Replace Existing, and Cancel, just like the artist and album detail screens. The underlying shared download
+manager and queue behavior are unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `129`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open Streaming → artist → All Albums, invoke Download from a track menu or right-to-left
+track swipe, and confirm the download window and existing-file prompt appear on the All Albums screen. Test Keep
+Existing, Replace Existing, and Cancel, then verify progress persists while returning to the artist and Streaming root.
