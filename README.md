@@ -13,6 +13,19 @@ edit the title and track number of one FLAC file and confirm both the album page
 change; edit an album title and confirm the editor leaves Saving promptly; repeat with an album containing several
 FLAC/MP3 files. Confirm no unrelated library contents disappear and normal playback remains available.
 
+## Experimental build 111 — background album saves and file-artwork warning state
+
+Album metadata editors now dismiss immediately after starting a save. The existing sequential writer and targeted
+per-file reread continue in the background, with completion and failure counts recorded in privacy-safe diagnostics.
+Artwork explicitly saved into FLAC or MP3 files no longer creates a Resonance-only artwork override, so it is treated as
+confirmed embedded artwork and does not receive the red automatic-artwork warning border. Apply to App remains an
+app-only suggested-artwork path and retains the warning border when enabled.
+
+Manual test checklist: save artwork to a multi-track album and confirm the editor closes immediately, the files finish
+updating, and the album art has no red border. Confirm Apply to App still shows the red border when the artwork-warning
+setting is enabled. Verify the album title/artwork after relaunch and confirm unrelated playback and library browsing
+remain responsive.
+
 Version: **0.3.7.4**  
 Build: **106**
 

@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 110;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 111;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -142,7 +142,7 @@ assert 'various|' in library_store
 assert 'various|' in remote
 assert 'library.metadata.albumSave' in library_store
 assert 'preservingArtworkOverride' in library_store
-assert "Keep Resonance's sidecar-backed override authoritative" in library_store
+assert 'confirmed file artwork' in library_store
 assert 'try? data.write(to: Self.metadataOverridesURL, options: .atomic)' in library_store
 assert 'RemotePlaylistCollectionView' in streaming
 assert 'RemotePlaylistPickerSheet' in streaming

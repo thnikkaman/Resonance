@@ -690,9 +690,6 @@ struct TrackMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
-                        if error == nil {
-                            library.applyArtworkToApp(for: track.id, data: data)
-                        }
                         return error
                     }
                 )
@@ -721,7 +718,6 @@ struct AlbumMetadataEditorSheet: View {
     @State private var replaceArtwork = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showingArtworkSearch = false
-    @State private var isSaving = false
     @State private var saveError: String?
 
     init(album: Album) {
@@ -824,22 +820,18 @@ struct AlbumMetadataEditorSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving…" : "Save") {
-                        isSaving = true
-                        Task {
-                            let error = await library.updateAlbumMetadata(
-                                trackIDs: album.tracks.map(\.id),
-                                album: albumTitle,
-                                albumArtist: albumArtist,
-                                releaseYear: Int(releaseYear) ?? 0,
-                                artworkData: artworkData,
-                                replaceArtwork: replaceArtwork
-                            )
-                            isSaving = false
-                            if let error { saveError = error } else { dismiss() }
-                        }
+                    Button("Save") {
+                        library.updateAlbumMetadataInBackground(
+                            trackIDs: album.tracks.map(\.id),
+                            album: albumTitle,
+                            albumArtist: albumArtist,
+                            releaseYear: Int(releaseYear) ?? 0,
+                            artworkData: artworkData,
+                            replaceArtwork: replaceArtwork
+                        )
+                        dismiss()
                     }
-                    .disabled(!canSave || isSaving)
+                    .disabled(!canSave)
                 }
             }
             .onChange(of: selectedPhoto) { _, item in
@@ -872,9 +864,6 @@ struct AlbumMetadataEditorSheet: View {
                             artworkData: data,
                             replaceArtwork: true
                         )
-                        if error == nil {
-                            library.applyArtworkToApp(forAlbumTrackIDs: album.tracks.map(\.id), data: data)
-                        }
                         return error
                     }
                 )

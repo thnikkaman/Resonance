@@ -516,22 +516,8 @@ final class LibraryStore: ObservableObject {
             return nil
         }
 
-        // Artist edits are written into every writable local track. Keep an
-        // app artwork override when artwork was supplied so the current
-        // library reflects the saved image immediately, even if the file
-        // metadata writer or a later rescan cannot expose it yet.
-        if artworkData != nil, replaceArtwork {
-            objectWillChange.send()
-        }
         artistMetadataOverrides.removeValue(forKey: oldKey)
-        if let artworkData, replaceArtwork {
-            artistMetadataOverrides[newKey] = ArtistMetadataOverride(
-                artworkData: artworkData,
-                hasArtworkOverride: true
-            )
-        } else {
-            artistMetadataOverrides.removeValue(forKey: newKey)
-        }
+        artistMetadataOverrides.removeValue(forKey: newKey)
 
         for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
@@ -589,18 +575,44 @@ final class LibraryStore: ObservableObject {
             return nil
         }
 
-        if let artworkData, replaceArtwork {
-            // A successful tag write does not guarantee that AVFoundation will
-            // expose the new APIC/cover frame during the immediate rescan.
-            // Keep Resonance's sidecar-backed override authoritative until a
-            // later scan can prove the embedded artwork is readable.
-            applyArtworkToApp(forAlbumTrackIDs: Array(ids), data: artworkData)
-        } else {
-            for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
-            persistMetadataOverrides()
-        }
+        // Artwork saved to the audio file is confirmed file artwork, not an
+        // app-only suggestion. Removing sidecar overrides lets the targeted
+        // reread mark the embedded image as authoritative.
+        for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
+        persistMetadataOverrides()
         await refreshMetadataFiles(from: writeResult, requests: requests)
         return failures.isEmpty ? nil : failures.first
+    }
+
+    /// Starts an album metadata save without making the editor wait for every
+    /// file and artwork block to finish. The individual writes remain
+    /// sequential and the targeted read-back still updates the library.
+    func updateAlbumMetadataInBackground(
+        trackIDs: [UUID],
+        album: String,
+        albumArtist: String,
+        releaseYear: Int,
+        artworkData: Data?,
+        replaceArtwork: Bool
+    ) {
+        Task { [weak self] in
+            guard let self else { return }
+            let error = await self.updateAlbumMetadata(
+                trackIDs: trackIDs,
+                album: album,
+                albumArtist: albumArtist,
+                releaseYear: releaseYear,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.metadata.albumSave.complete",
+                details: [
+                    "success": String(error == nil),
+                    "failureCount": error == nil ? "0" : "1"
+                ]
+            )
+        }
     }
 
     /// Metadata saves already know exactly which files were written. Reread

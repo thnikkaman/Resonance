@@ -197,9 +197,6 @@ struct AlbumDetailView: View {
                         artworkData: data,
                         replaceArtwork: true
                     )
-                    if error == nil {
-                        library.applyArtworkToApp(forAlbumTrackIDs: liveAlbum.tracks.map(\.id), data: data)
-                    }
                     return error
                 }
             )
