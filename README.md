@@ -1,5 +1,18 @@
 # Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
+## Experimental build 110 — metadata-save regression repair
+
+This experimental build keeps metadata saves from triggering a forced rescan of the entire local library. After a
+successful FLAC or MP3 write, Resonance rereads only the files involved in that save and updates their existing
+library records. This keeps the editor responsive and prevents stale whole-library read-back from making a track
+number or other edited tag appear to revert. The save path also records a privacy-safe track-save diagnostic with
+the writable file extension and result counts.
+
+Manual test checklist: edit an MP3 track number and confirm it remains changed after closing and reopening the editor;
+edit the title and track number of one FLAC file and confirm both the album page and an external tag reader see the
+change; edit an album title and confirm the editor leaves Saving promptly; repeat with an album containing several
+FLAC/MP3 files. Confirm no unrelated library contents disappear and normal playback remains available.
+
 Version: **0.3.7.4**  
 Build: **106**
 

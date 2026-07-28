@@ -424,7 +424,23 @@ final class LibraryStore: ObservableObject {
 
         metadataOverrides.removeValue(forKey: trackID)
         persistMetadataOverrides()
-        await scanDocuments(forceMetadataRefresh: true)
+        ResonanceDiagnostics.shared.recordDeferred(
+            "library.metadata.trackSave",
+            details: [
+                "writableCount": "1",
+                "failureCount": "0",
+                "extension": url.pathExtension.lowercased()
+            ]
+        )
+        await refreshMetadataFiles(from: result, requests: [
+            MetadataWriteRequest(
+                id: trackID,
+                url: url,
+                values: values,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
+        ])
         return nil
     }
 
@@ -520,7 +536,7 @@ final class LibraryStore: ObservableObject {
         for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
         persistArtistMetadataOverrides()
-        await scanDocuments(forceMetadataRefresh: true)
+        await refreshMetadataFiles(from: writeResult, requests: requests)
         return failures.isEmpty ? nil : failures.first
     }
 
@@ -583,8 +599,20 @@ final class LibraryStore: ObservableObject {
             for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
             persistMetadataOverrides()
         }
-        await scanDocuments(forceMetadataRefresh: true)
+        await refreshMetadataFiles(from: writeResult, requests: requests)
         return failures.isEmpty ? nil : failures.first
+    }
+
+    /// Metadata saves already know exactly which files were written. Reread
+    /// those files only; a full Documents rescan can otherwise keep the editor
+    /// in its Saving state while thousands of unrelated tracks are parsed.
+    private func refreshMetadataFiles(
+        from result: MetadataWriteBatchResult,
+        requests: [MetadataWriteRequest]
+    ) async {
+        for request in requests where result.successfulIDs.contains(request.id) {
+            await refreshDownloadedTrack(at: request.url)
+        }
     }
 
     func resetMetadataOverrides(for trackIDs: [UUID]) async {
