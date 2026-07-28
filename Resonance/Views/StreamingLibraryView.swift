@@ -1430,9 +1430,7 @@ private struct RemoteArtistDetailView: View {
                     )
 
                     VStack(spacing: 6) {
-                        ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
-                            downloads.requestDownload(allTracks, into: library)
-                        }
+                        RemoteDownloadHeroMenu(scope: "Artist", tracks: allTracks)
                         ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
                             Task { await remote.addToQueue(allTracks, using: player) }
                         }
@@ -1660,6 +1658,43 @@ private struct RemoteArtistActionButton: View {
     }
 }
 
+private struct RemoteDownloadHeroMenu: View {
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var library: LibraryStore
+
+    let scope: String
+    let tracks: [RemoteTrackItem]
+
+    var body: some View {
+        Menu {
+            Button("Download (scope)") {
+                downloads.requestDownload(tracks, into: library)
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.headline)
+                Text("Download")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .foregroundStyle(Color.white)
+            .background(
+                Color.teal.opacity(0.13),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.teal.opacity(0.35), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Download (scope)")
+    }
+}
+
 private struct RemoteAllAlbumsTrackListView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var settings: AppSettings
@@ -1778,9 +1813,7 @@ private struct RemoteAlbumDetailView: View {
                     ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
                         Task { await remote.playAlbum(album, using: player) }
                     }
-                    ResonanceHeroActionButton(title: "Download", systemImage: "arrow.down.circle.fill", tint: .teal, prominent: false) {
-                        downloads.requestDownload(album.tracks, into: library)
-                    }
+                    RemoteDownloadHeroMenu(scope: "Album", tracks: album.tracks)
                 }
 
                 RemoteArtwork(

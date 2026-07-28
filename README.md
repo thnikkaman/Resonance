@@ -1574,3 +1574,20 @@ an album, and confirm each offers a download action. On an album detail page, st
 and verify the in-app Files Already Exist prompt stays visible with Keep Existing, Replace Existing, and Cancel. Confirm
 the detail page remains open, the shared overlay shows progress, and navigation to the Streaming root preserves the
 same queue.
+
+## Experimental build 123 — make hero download controls explicit menus
+
+The artist and album hero Download controls now open the same explicit download-action menu as their context-menu
+counterparts. Choosing Download Artist or Download Album then uses the shared `RemoteDownloadManager`, so the user can
+see the action before it begins and receives the same duplicate/replacement behavior.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `123`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: tap the artist hero Download control and confirm its menu offers Download Artist; tap the album
+hero Download control and confirm its menu offers Download Album. Choose each action and verify the shared overlay and
+replacement prompt behave exactly like the context-menu path. Confirm Play, Play Next, Add to Queue, and navigation
+remain unchanged.
