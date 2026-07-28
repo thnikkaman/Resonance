@@ -276,6 +276,11 @@ struct SettingsView: View {
                         .fontWeight(remote.hasConnectionIssue ? .bold : .regular)
                 }
 
+                Toggle("Experimental background downloads", isOn: $settings.experimentalBackgroundDownloads)
+                Text("Uses iOS background transfers so requested music can continue while the screen is locked. iOS may delay transfers, and force-quitting Resonance cancels them.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 Button {
                     Task { await remote.activateCachedCatalogAndCheckForChanges(using: settings, forceCheck: true) }
                 } label: {

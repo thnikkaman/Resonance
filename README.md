@@ -1,7 +1,7 @@
-# Resonance Beta v1.0.5 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
 Version: **0.3.7.4**  
-Build: **105**
+Build: **106**
 
 Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
 
@@ -67,6 +67,16 @@ while the connection panel expands, collapses, and the catalog scrolls.
 - Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
 - A cached Subsonic catalog is activated immediately and automatic server checks are deferred until **Check for Remote Changes** is selected in Settings. This keeps the cached browse surface responsive while the server is unavailable or slow.
 - Album-artist values are canonicalized per artist/album when Subsonic exposes display composites such as `Tool • Unknown Artist`; the most common clean track-artist spelling is retained.
+
+## Experimental background downloads
+
+Build 106 adds an opt-in **Experimental background downloads** setting under Streaming Library. When enabled, requested
+remote tracks use an iOS background `URLSession` download task instead of Resonance's foreground byte stream. The
+system can continue those HTTP(S) transfers while Resonance is suspended, wake the app to deliver completed files, and
+restore the task map after a relaunch. Completed files are moved atomically through a private application-support inbox
+before the existing library index refresh runs. The foreground downloader remains the default fallback. iOS may delay
+background transfers, and force-quitting the app cancels system-managed background work; physical-device lock-screen
+acceptance remains required for this experiment.
 
 ## Settings categories
 
@@ -1201,6 +1211,25 @@ The page should follow smoothly without vibration; releasing past halfway
 should complete the tab transition, while releasing before halfway should
 spring back. Album-art and seek/volume gestures should retain their existing
 ownership.
+
+## Resonance Beta v1.0.6 — 2026-07-27 UTC
+
+Build 106 adds the opt-in **Experimental background downloads** setting under
+Streaming Library. Enabled downloads use a dedicated iOS background
+`URLSession` task, persist a credential-free track/task map, and move completed
+files through an atomic application-support inbox before the normal targeted
+library refresh. The existing foreground downloader remains the default when
+the setting is off. iOS may defer transfers, and force-quitting Resonance
+cancels system-managed background work, so the physical-device lock-screen
+test remains part of this experiment.
+
+The signed arm64 build, strict code-signature verification, and in-place device
+installation are the release checks for this build. Codex does not launch the
+physical app. Manual acceptance: enable the setting, start a multi-track
+download, lock the phone, wait, unlock Resonance, and verify that the transfer
+continued or is shown as resumable without partial-file indexing. Repeat after
+relaunch, test cancellation and replacement choices, and confirm the setting
+off path still uses the existing foreground downloader.
 
 ## Resonance Beta v1.0.5 — 2026-07-27 UTC
 

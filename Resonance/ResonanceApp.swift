@@ -3,6 +3,7 @@ import UIKit
 
 @main
 struct ResonanceApp: App {
+    @UIApplicationDelegateAdaptor(ResonanceAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var library = LibraryStore()
     @StateObject private var player = PlayerController()
@@ -42,5 +43,17 @@ struct ResonanceApp: App {
                     ResonanceDiagnostics.shared.record("scene.active.refresh.end")
                 }
         }
+    }
+}
+
+@MainActor
+final class ResonanceAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard identifier == RemoteBackgroundDownloadSession.sessionIdentifier else { return }
+        RemoteBackgroundDownloadSession.shared.setBackgroundEventsCompletionHandler(completionHandler)
     }
 }

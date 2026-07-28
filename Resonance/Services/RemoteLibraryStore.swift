@@ -1815,9 +1815,312 @@ enum RemoteDownloadError: LocalizedError {
     }
 }
 
+private extension Notification.Name {
+    static let resonanceBackgroundDownloadProgress = Notification.Name("Resonance.backgroundDownloadProgress")
+    static let resonanceBackgroundDownloadFinished = Notification.Name("Resonance.backgroundDownloadFinished")
+    static let resonanceBackgroundDownloadFailed = Notification.Name("Resonance.backgroundDownloadFailed")
+}
+
+struct RemoteBackgroundDownloadRecord: Codable, Sendable {
+    let taskIdentifier: Int
+    let trackID: UUID
+    let replacingExisting: Bool
+    var inboxFileName: String?
+}
+
+struct RemoteBackgroundTaskSnapshot: Sendable {
+    let taskIdentifier: Int
+    let taskDescription: String?
+}
+
+private struct RemoteBackgroundNotification: Sendable {
+    let taskIdentifier: Int
+    let trackID: UUID
+    let completed: Int64
+    let total: Int64
+    let inboxFileName: String?
+
+    init?(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let taskIdentifier = userInfo["taskIdentifier"] as? Int,
+              let trackID = UUID(uuidString: userInfo["trackID"] as? String ?? "") else { return nil }
+        self.taskIdentifier = taskIdentifier
+        self.trackID = trackID
+        self.completed = (userInfo["completed"] as? NSNumber)?.int64Value ?? 0
+        self.total = (userInfo["total"] as? NSNumber)?.int64Value ?? 0
+        self.inboxFileName = userInfo["inboxFileName"] as? String
+    }
+}
+
+final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    static let shared = RemoteBackgroundDownloadSession()
+    static let sessionIdentifier = "com.example.ResonancePrototype.remote-downloads.v1"
+
+    private static let recordsKey = "resonance.remoteBackgroundDownloadRecords"
+    private static let inboxDirectoryName = "RemoteDownloadInbox"
+
+    private let lock = NSLock()
+    private let delegateQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "com.example.ResonancePrototype.remote-downloads.delegate"
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
+    private lazy var session: URLSession = {
+        let configuration = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
+        configuration.sessionSendsLaunchEvents = true
+        configuration.isDiscretionary = false
+        configuration.waitsForConnectivity = true
+        configuration.allowsExpensiveNetworkAccess = true
+        configuration.allowsConstrainedNetworkAccess = true
+        return URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
+    }()
+    private var backgroundEventsCompletionHandler: (() -> Void)?
+
+    override init() {
+        super.init()
+        ensureInboxDirectory()
+        _ = session
+    }
+
+    func setBackgroundEventsCompletionHandler(_ handler: @escaping () -> Void) {
+        lock.withLock {
+            backgroundEventsCompletionHandler = handler
+        }
+    }
+
+    @discardableResult
+    func enqueue(
+        trackID: UUID,
+        url: URL,
+        replacingExisting: Bool
+    ) -> Int? {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let task = session.downloadTask(with: request)
+        task.taskDescription = trackID.uuidString
+        let record = RemoteBackgroundDownloadRecord(
+            taskIdentifier: task.taskIdentifier,
+            trackID: trackID,
+            replacingExisting: replacingExisting,
+            inboxFileName: nil
+        )
+        updateRecord(record)
+        task.resume()
+        return task.taskIdentifier
+    }
+
+    func cancel(taskIdentifier: Int) {
+        session.getAllTasks { tasks in
+            tasks.first(where: { $0.taskIdentifier == taskIdentifier })?.cancel()
+        }
+    }
+
+    func cancelAll() {
+        session.getAllTasks { tasks in
+            tasks.forEach { $0.cancel() }
+        }
+    }
+
+    func records() -> [RemoteBackgroundDownloadRecord] {
+        lock.withLock {
+            loadRecords()
+        }
+    }
+
+    func activeTaskSnapshots(completion: @escaping @Sendable ([RemoteBackgroundTaskSnapshot]) -> Void) {
+        session.getAllTasks { tasks in
+            let snapshots = tasks.map {
+                RemoteBackgroundTaskSnapshot(
+                    taskIdentifier: $0.taskIdentifier,
+                    taskDescription: $0.taskDescription
+                )
+            }
+            completion(snapshots)
+        }
+    }
+
+    func acknowledge(taskIdentifier: Int) {
+        lock.withLock {
+            var records = loadRecords()
+            records.removeAll { $0.taskIdentifier == taskIdentifier }
+            saveRecords(records)
+        }
+    }
+
+    func removeInboxFile(named fileName: String) {
+        let url = inboxDirectoryURL().appendingPathComponent(fileName)
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    func urlForInboxFile(named fileName: String) -> URL {
+        inboxDirectoryURL().appendingPathComponent(fileName)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard let record = record(for: downloadTask.taskIdentifier) else { return }
+        NotificationCenter.default.post(
+            name: .resonanceBackgroundDownloadProgress,
+            object: nil,
+            userInfo: [
+                "taskIdentifier": downloadTask.taskIdentifier,
+                "trackID": record.trackID.uuidString,
+                "completed": totalBytesWritten,
+                "total": totalBytesExpectedToWrite
+            ]
+        )
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        guard let record = record(for: downloadTask.taskIdentifier) else { return }
+        guard let http = downloadTask.response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            try? FileManager.default.removeItem(at: location)
+            postFailure(for: record, code: (downloadTask.response as? HTTPURLResponse)?.statusCode ?? -1)
+            return
+        }
+
+        let extensionName = Self.fileExtension(
+            mimeType: downloadTask.response?.mimeType,
+            fallback: downloadTask.originalRequest?.url?.pathExtension ?? ""
+        )
+        let fileName = "\(record.taskIdentifier).\(extensionName)"
+        let destination = inboxDirectoryURL().appendingPathComponent(fileName)
+        do {
+            ensureInboxDirectory()
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: location, to: destination)
+            updateRecord(
+                RemoteBackgroundDownloadRecord(
+                    taskIdentifier: record.taskIdentifier,
+                    trackID: record.trackID,
+                    replacingExisting: record.replacingExisting,
+                    inboxFileName: fileName
+                )
+            )
+            NotificationCenter.default.post(
+                name: .resonanceBackgroundDownloadFinished,
+                object: nil,
+                userInfo: [
+                    "taskIdentifier": record.taskIdentifier,
+                    "trackID": record.trackID.uuidString,
+                    "inboxFileName": fileName
+                ]
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: location)
+            postFailure(for: record, code: (error as NSError).code)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        guard let error, let record = record(for: task.taskIdentifier) else { return }
+        postFailure(for: record, code: (error as NSError).code)
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        let handler = lock.withLock {
+            defer { backgroundEventsCompletionHandler = nil }
+            return backgroundEventsCompletionHandler
+        }
+        guard let handler else { return }
+        handler()
+    }
+
+    private func postFailure(for record: RemoteBackgroundDownloadRecord, code: Int) {
+        NotificationCenter.default.post(
+            name: .resonanceBackgroundDownloadFailed,
+            object: nil,
+            userInfo: [
+                "taskIdentifier": record.taskIdentifier,
+                "trackID": record.trackID.uuidString,
+                "errorCode": code
+            ]
+        )
+    }
+
+    private func record(for taskIdentifier: Int) -> RemoteBackgroundDownloadRecord? {
+        lock.withLock {
+            loadRecords().first { $0.taskIdentifier == taskIdentifier }
+        }
+    }
+
+    private func updateRecord(_ record: RemoteBackgroundDownloadRecord) {
+        lock.withLock {
+            var records = loadRecords()
+            records.removeAll { $0.taskIdentifier == record.taskIdentifier }
+            records.append(record)
+            saveRecords(records)
+        }
+    }
+
+    private func loadRecords() -> [RemoteBackgroundDownloadRecord] {
+        guard let data = UserDefaults.standard.data(forKey: Self.recordsKey),
+              let records = try? JSONDecoder().decode([RemoteBackgroundDownloadRecord].self, from: data)
+        else { return [] }
+        return records
+    }
+
+    private func saveRecords(_ records: [RemoteBackgroundDownloadRecord]) {
+        guard let data = try? JSONEncoder().encode(records) else { return }
+        UserDefaults.standard.set(data, forKey: Self.recordsKey)
+    }
+
+    private func inboxDirectoryURL() -> URL {
+        let applicationSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        return applicationSupport.appendingPathComponent(Self.inboxDirectoryName, isDirectory: true)
+    }
+
+    private func ensureInboxDirectory() {
+        try? FileManager.default.createDirectory(
+            at: inboxDirectoryURL(),
+            withIntermediateDirectories: true
+        )
+    }
+
+    private static func fileExtension(mimeType: String?, fallback: String) -> String {
+        let mapped: String
+        switch mimeType?.lowercased() {
+        case "audio/flac", "audio/x-flac": mapped = "flac"
+        case "audio/mpeg", "audio/mp3": mapped = "mp3"
+        case "audio/mp4", "audio/x-m4a": mapped = "m4a"
+        case "audio/aac": mapped = "aac"
+        case "audio/wav", "audio/x-wav": mapped = "wav"
+        case "audio/aiff", "audio/x-aiff": mapped = "aiff"
+        case "audio/ogg", "audio/opus": mapped = "ogg"
+        default: mapped = ""
+        }
+        let candidate = mapped.isEmpty ? fallback.lowercased() : mapped
+        return MetadataReader.supportedExtensions.contains(candidate) ? candidate : "mp3"
+    }
+}
+
 @MainActor
 final class RemoteDownloadManager: ObservableObject {
     private static let persistedQueueIDsKey = "resonance.remoteDownloadQueueIDs"
+    private static let experimentalBackgroundDownloadsKey = "experimentalBackgroundDownloads"
 
     @Published private(set) var isDownloading = false
     @Published private(set) var currentTitle = ""
@@ -1850,6 +2153,48 @@ final class RemoteDownloadManager: ObservableObject {
     private var pendingTracks: [RemoteTrackItem] = []
     private var artworkByAlbumKey: [String: Data] = [:]
     private weak var pendingLibrary: LibraryStore?
+    private let backgroundSession = RemoteBackgroundDownloadSession.shared
+    private var backgroundObservers: [NSObjectProtocol] = []
+    private var backgroundTaskIdentifiers: [UUID: Int] = [:]
+    private var backgroundTrackIDsByTask: [Int: UUID] = [:]
+    private var backgroundReplacingExisting: [UUID: Bool] = [:]
+    private var backgroundFinalizing: Set<UUID> = []
+
+    init() {
+        let center = NotificationCenter.default
+        backgroundObservers = [
+            center.addObserver(
+                forName: .resonanceBackgroundDownloadProgress,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                guard let event = RemoteBackgroundNotification(notification: note) else { return }
+                Task { @MainActor [weak self, event] in
+                    self?.handleBackgroundProgress(event)
+                }
+            },
+            center.addObserver(
+                forName: .resonanceBackgroundDownloadFinished,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                guard let event = RemoteBackgroundNotification(notification: note) else { return }
+                Task { @MainActor [weak self, event] in
+                    self?.handleBackgroundFinished(event)
+                }
+            },
+            center.addObserver(
+                forName: .resonanceBackgroundDownloadFailed,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                guard let event = RemoteBackgroundNotification(notification: note) else { return }
+                Task { @MainActor [weak self, event] in
+                    self?.handleBackgroundFailure(event)
+                }
+            }
+        ]
+    }
 
     func rememberArtwork(_ data: Data, for tracks: [RemoteTrackItem]) {
         for albumKey in Set(tracks.map(\.albumKey)) {
@@ -1906,6 +2251,30 @@ final class RemoteDownloadManager: ObservableObject {
 
     func cancel() {
         guard isDownloading else { return }
+        if !backgroundTaskIdentifiers.isEmpty {
+            backgroundSession.cancelAll()
+            let cancellable = itemProgress.values.filter {
+                $0.state == .queued || $0.state == .downloading
+            }
+            for progress in cancellable {
+                individuallyCancelledTrackIDs.insert(progress.id)
+                setProgress(
+                    RemoteDownloadProgress(
+                        id: progress.id,
+                        title: progress.title,
+                        completed: progress.completed,
+                        total: progress.total,
+                        state: .cancelled
+                    )
+                )
+            }
+            completedCount = itemProgress.count
+            backgroundTaskIdentifiers.removeAll()
+            clearPersistedQueue()
+            finishBackgroundBatch(message: "Download cancelled")
+            ResonanceDiagnostics.shared.recordDeferred("download.cancelAll")
+            return
+        }
         activeWorker?.cancel()
         downloadTask?.cancel()
         clearPersistedQueue()
@@ -1918,6 +2287,22 @@ final class RemoteDownloadManager: ObservableObject {
         guard current.state == .queued || current.state == .downloading else { return }
         individuallyCancelledTrackIDs.insert(id)
         removePersistedTrack(id)
+        if let taskIdentifier = backgroundTaskIdentifiers.removeValue(forKey: id) {
+            backgroundTrackIDsByTask[taskIdentifier] = id
+            backgroundSession.cancel(taskIdentifier: taskIdentifier)
+            setProgress(
+                RemoteDownloadProgress(
+                    id: current.id,
+                    title: current.title,
+                    completed: current.completed,
+                    total: current.total,
+                    state: .cancelled
+                )
+            )
+            completedCount += 1
+            finishBackgroundBatchIfNeeded()
+            return
+        }
         if activeTrackID == id {
             activeWorker?.cancel()
         } else {
@@ -1938,6 +2323,21 @@ final class RemoteDownloadManager: ObservableObject {
         guard isDownloading, let current = itemProgress[id], current.state == .cancelled,
               let track = activeTracksByID[id] else { return }
         individuallyCancelledTrackIDs.remove(id)
+        if experimentalBackgroundDownloadsEnabled || !backgroundTaskIdentifiers.isEmpty {
+            setProgress(
+                RemoteDownloadProgress(
+                    id: current.id,
+                    title: current.title,
+                    completed: 0,
+                    total: 0,
+                    state: .queued
+                )
+            )
+            completedCount = max(0, completedCount - 1)
+            addPersistedTrack(id)
+            enqueueBackgroundTrack(track, replacingExisting: false)
+            return
+        }
         requeueRequests[id] = track
         addPersistedTrack(id)
         setProgress(
@@ -1954,9 +2354,13 @@ final class RemoteDownloadManager: ObservableObject {
 
     func resumePersistedDownloads(from remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
         guard !isDownloading else { return }
+        guard !remoteTracks.isEmpty else { return }
+        if experimentalBackgroundDownloadsEnabled || !backgroundSession.records().isEmpty {
+            resumeBackgroundDownloads(from: remoteTracks, into: library)
+            return
+        }
         let savedIDs = persistedQueueIDs()
         guard !savedIDs.isEmpty else { return }
-        guard !remoteTracks.isEmpty else { return }
         let byID = Dictionary(uniqueKeysWithValues: remoteTracks.map { ($0.id, $0) })
         let matchedTracks = savedIDs.compactMap { byID[$0] }
         guard !matchedTracks.isEmpty else { return }
@@ -1979,6 +2383,10 @@ final class RemoteDownloadManager: ObservableObject {
         into library: LibraryStore,
         replacingExisting: Bool
     ) {
+        if experimentalBackgroundDownloadsEnabled {
+            startBackgroundDownload(tracks, into: library, replacingExisting: replacingExisting)
+            return
+        }
         downloadTask?.cancel()
         persistQueue(tracks.map(\.id))
         downloadTask = Task { [weak self] in
@@ -2153,6 +2561,345 @@ final class RemoteDownloadManager: ObservableObject {
         ResonanceDiagnostics.shared.recordDeferred(
             "download.batch.end",
             details: ["succeeded": String(succeeded), "totalCount": String(tracks.count), "cancelled": String(Task.isCancelled)]
+        )
+    }
+
+    private var experimentalBackgroundDownloadsEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.experimentalBackgroundDownloadsKey)
+    }
+
+    private func startBackgroundDownload(
+        _ tracks: [RemoteTrackItem],
+        into library: LibraryStore,
+        replacingExisting: Bool
+    ) {
+        prepareBackgroundBatch(tracks, into: library, replacingExisting: replacingExisting)
+        lastMessage = "Starting background download…"
+        for track in tracks {
+            enqueueBackgroundTrack(track, replacingExisting: replacingExisting)
+        }
+        finishBackgroundBatchIfNeeded()
+    }
+
+    private func prepareBackgroundBatch(
+        _ tracks: [RemoteTrackItem],
+        into library: LibraryStore,
+        replacingExisting: Bool
+    ) {
+        isDownloading = true
+        completedCount = 0
+        totalCount = tracks.count
+        currentCompletedBytes = 0
+        currentTotalBytes = 0
+        currentTitle = ""
+        individuallyCancelledTrackIDs = []
+        requeueRequests = [:]
+        activeTracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        pendingLibrary = library
+        backgroundTaskIdentifiers.removeAll()
+        backgroundReplacingExisting = Dictionary(
+            uniqueKeysWithValues: tracks.map { ($0.id, replacingExisting) }
+        )
+        backgroundFinalizing.removeAll()
+        let initialQueue = tracks.map {
+            RemoteDownloadProgress(id: $0.id, title: $0.title, completed: 0, total: 0, state: .queued)
+        }
+        itemProgress = Dictionary(uniqueKeysWithValues: initialQueue.map { ($0.id, $0) })
+        downloadQueue = initialQueue
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.batch.begin",
+            details: [
+                "trackCount": String(tracks.count),
+                "replacingExisting": String(replacingExisting),
+                "background": "true"
+            ]
+        )
+    }
+
+    private func enqueueBackgroundTrack(_ track: RemoteTrackItem, replacingExisting: Bool) {
+        guard let taskIdentifier = backgroundSession.enqueue(
+            trackID: track.id,
+            url: track.streamURL,
+            replacingExisting: replacingExisting
+        ) else {
+            completedCount += 1
+            setProgress(
+                RemoteDownloadProgress(
+                    id: track.id,
+                    title: track.title,
+                    completed: 0,
+                    total: 0,
+                    state: .failed
+                )
+            )
+            removePersistedTrack(track.id)
+            lastMessage = "A background download URL was invalid"
+            return
+        }
+        backgroundTaskIdentifiers[track.id] = taskIdentifier
+        backgroundTrackIDsByTask[taskIdentifier] = track.id
+        backgroundReplacingExisting[track.id] = replacingExisting
+    }
+
+    private func resumeBackgroundDownloads(from remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
+        let savedIDs = persistedQueueIDs()
+        let records = backgroundSession.records()
+        let orderedIDs = savedIDs + records.map(\.trackID).filter { !savedIDs.contains($0) }
+        guard !orderedIDs.isEmpty else { return }
+        let byID = Dictionary(uniqueKeysWithValues: remoteTracks.map { ($0.id, $0) })
+        let matchedTracks = orderedIDs.compactMap { byID[$0] }
+        guard !matchedTracks.isEmpty else { return }
+        let recordIDs = Set(records.map(\.trackID))
+        let candidates = matchedTracks.filter {
+            recordIDs.contains($0.id)
+                || !FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
+        }
+        guard !candidates.isEmpty else {
+            clearPersistedQueue()
+            return
+        }
+        persistQueue(candidates.map(\.id))
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.resume",
+            details: ["trackCount": String(candidates.count), "background": "true"]
+        )
+        prepareBackgroundBatch(candidates, into: library, replacingExisting: false)
+        backgroundSession.activeTaskSnapshots { [weak self] snapshots in
+            let activeIDs = Set(snapshots.map(\.taskIdentifier))
+            Task { @MainActor [weak self] in
+                self?.continueBackgroundResume(
+                    candidates: candidates,
+                    records: records,
+                    activeTaskIdentifiers: activeIDs
+                )
+            }
+        }
+    }
+
+    private func continueBackgroundResume(
+        candidates: [RemoteTrackItem],
+        records: [RemoteBackgroundDownloadRecord],
+        activeTaskIdentifiers: Set<Int>
+    ) {
+        let tracksByID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+        var recordsByTrackID: [UUID: RemoteBackgroundDownloadRecord] = [:]
+        for record in records where tracksByID[record.trackID] != nil {
+            recordsByTrackID[record.trackID] = record
+        }
+
+        for track in candidates {
+            if let record = recordsByTrackID[track.id] {
+                backgroundReplacingExisting[track.id] = record.replacingExisting
+                backgroundTrackIDsByTask[record.taskIdentifier] = track.id
+                backgroundTaskIdentifiers[track.id] = record.taskIdentifier
+                if let inboxFileName = record.inboxFileName {
+                    beginFinalizingBackgroundTrack(
+                        track,
+                        taskIdentifier: record.taskIdentifier,
+                        inboxURL: backgroundSession.urlForInboxFile(named: inboxFileName)
+                    )
+                } else if activeTaskIdentifiers.contains(record.taskIdentifier) {
+                    setProgress(
+                        RemoteDownloadProgress(
+                            id: track.id,
+                            title: track.title,
+                            completed: 0,
+                            total: Int(min(Int64(Int.max), max(0, track.fileSizeBytes))),
+                            state: .downloading
+                        )
+                    )
+                } else {
+                    backgroundSession.acknowledge(taskIdentifier: record.taskIdentifier)
+                    backgroundTrackIDsByTask.removeValue(forKey: record.taskIdentifier)
+                    enqueueBackgroundTrack(track, replacingExisting: record.replacingExisting)
+                }
+            } else {
+                enqueueBackgroundTrack(track, replacingExisting: false)
+            }
+        }
+        lastMessage = "Downloading in the background…"
+        finishBackgroundBatchIfNeeded()
+    }
+
+    private func handleBackgroundProgress(_ event: RemoteBackgroundNotification) {
+        guard activeTracksByID[event.trackID] != nil else { return }
+        if let currentTask = backgroundTaskIdentifiers[event.trackID], currentTask != event.taskIdentifier { return }
+        currentTitle = activeTracksByID[event.trackID]?.title ?? ""
+        currentCompletedBytes = event.completed
+        currentTotalBytes = event.total
+        setProgress(
+            RemoteDownloadProgress(
+                id: event.trackID,
+                title: activeTracksByID[event.trackID]?.title ?? "Downloading",
+                completed: Int(min(Int64(Int.max), max(0, event.completed))),
+                total: Int(min(Int64(Int.max), max(0, event.total))),
+                state: .downloading
+            )
+        )
+    }
+
+    private func handleBackgroundFinished(_ event: RemoteBackgroundNotification) {
+        guard let fileName = event.inboxFileName,
+              let track = activeTracksByID[event.trackID] else { return }
+        guard backgroundTaskIdentifiers[event.trackID] == event.taskIdentifier else {
+            backgroundSession.acknowledge(taskIdentifier: event.taskIdentifier)
+            backgroundSession.removeInboxFile(named: fileName)
+            backgroundTrackIDsByTask.removeValue(forKey: event.taskIdentifier)
+            return
+        }
+        beginFinalizingBackgroundTrack(
+            track,
+            taskIdentifier: event.taskIdentifier,
+            inboxURL: backgroundSession.urlForInboxFile(named: fileName)
+        )
+    }
+
+    private func beginFinalizingBackgroundTrack(
+        _ track: RemoteTrackItem,
+        taskIdentifier: Int,
+        inboxURL: URL
+    ) {
+        guard !backgroundFinalizing.contains(track.id) else { return }
+        backgroundFinalizing.insert(track.id)
+        Task { @MainActor [weak self] in
+            await self?.finalizeBackgroundTrack(
+                track,
+                taskIdentifier: taskIdentifier,
+                inboxURL: inboxURL
+            )
+        }
+    }
+
+    private func finalizeBackgroundTrack(
+        _ track: RemoteTrackItem,
+        taskIdentifier: Int,
+        inboxURL: URL
+    ) async {
+        guard let library = pendingLibrary else { return }
+        let replacingExisting = backgroundReplacingExisting[track.id] ?? false
+        let destination = Self.destinationURL(
+            for: track,
+            in: library.sharedMusicFolderURL,
+            extensionName: inboxURL.pathExtension
+        )
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: inboxURL.path)
+            let byteCount = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+            guard byteCount > 0 else { throw RemoteDownloadError.emptyResponse }
+            try FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            var skipped = false
+            if FileManager.default.fileExists(atPath: destination.path) {
+                if replacingExisting {
+                    try FileManager.default.removeItem(at: destination)
+                } else {
+                    skipped = true
+                }
+            }
+            if skipped {
+                try? FileManager.default.removeItem(at: inboxURL)
+            } else {
+                try FileManager.default.moveItem(at: inboxURL, to: destination)
+            }
+            backgroundSession.acknowledge(taskIdentifier: taskIdentifier)
+            backgroundSession.removeInboxFile(named: inboxURL.lastPathComponent)
+            await library.refreshDownloadedTrack(at: destination)
+            if let artworkData = artworkByAlbumKey[track.albumKey] {
+                library.applyArtworkToApp(for: track.id, data: artworkData)
+            }
+            removePersistedTrack(track.id)
+            completedCount += 1
+            removeProgress(track.id)
+            ResonanceDiagnostics.shared.recordDeferred(
+                "download.track.completed",
+                details: [
+                    "completedCount": String(completedCount),
+                    "totalCount": String(totalCount),
+                    "background": "true",
+                    "skipped": String(skipped)
+                ]
+            )
+        } catch {
+            backgroundSession.acknowledge(taskIdentifier: taskIdentifier)
+            backgroundSession.removeInboxFile(named: inboxURL.lastPathComponent)
+            markBackgroundFailure(track.id)
+        }
+        backgroundFinalizing.remove(track.id)
+        backgroundTaskIdentifiers.removeValue(forKey: track.id)
+        backgroundTrackIDsByTask.removeValue(forKey: taskIdentifier)
+        finishBackgroundBatchIfNeeded()
+    }
+
+    private func handleBackgroundFailure(_ event: RemoteBackgroundNotification) {
+        if let currentTask = backgroundTaskIdentifiers[event.trackID], currentTask != event.taskIdentifier {
+            backgroundSession.acknowledge(taskIdentifier: event.taskIdentifier)
+            backgroundTrackIDsByTask.removeValue(forKey: event.taskIdentifier)
+            return
+        }
+        backgroundSession.acknowledge(taskIdentifier: event.taskIdentifier)
+        backgroundTrackIDsByTask.removeValue(forKey: event.taskIdentifier)
+        backgroundTaskIdentifiers.removeValue(forKey: event.trackID)
+        if individuallyCancelledTrackIDs.contains(event.trackID) {
+            finishBackgroundBatchIfNeeded()
+            return
+        }
+        markBackgroundFailure(event.trackID)
+        finishBackgroundBatchIfNeeded()
+    }
+
+    private func markBackgroundFailure(_ id: UUID) {
+        guard let current = itemProgress[id], current.state != .failed,
+              current.state != .cancelled else { return }
+        completedCount += 1
+        setProgress(
+            RemoteDownloadProgress(
+                id: current.id,
+                title: current.title,
+                completed: current.completed,
+                total: current.total,
+                state: .failed
+            )
+        )
+        lastMessage = "A background download failed; it can be resumed later"
+    }
+
+    private func finishBackgroundBatchIfNeeded() {
+        guard isDownloading, completedCount >= totalCount else { return }
+        let failed = itemProgress.values.filter { $0.state == .failed }.count
+        let cancelled = itemProgress.values.filter { $0.state == .cancelled }.count
+        let succeeded = max(0, totalCount - failed - cancelled)
+        let message: String
+        if cancelled > 0 && failed == 0 {
+            message = "Download cancelled after \(succeeded) track\(succeeded == 1 ? "" : "s")"
+        } else if failed == 0 {
+            message = "Downloaded \(succeeded) track\(succeeded == 1 ? "" : "s") to the local library"
+        } else {
+            message = "Downloaded \(succeeded) of \(totalCount) tracks; review failed items"
+        }
+        finishBackgroundBatch(message: message)
+    }
+
+    private func finishBackgroundBatch(message: String) {
+        guard isDownloading else { return }
+        isDownloading = false
+        currentTitle = ""
+        currentCompletedBytes = 0
+        currentTotalBytes = 0
+        activeTrackID = nil
+        activeWorker = nil
+        downloadTask = nil
+        requeueRequests = [:]
+        activeTracksByID = [:]
+        pendingLibrary = nil
+        backgroundTaskIdentifiers.removeAll()
+        backgroundReplacingExisting.removeAll()
+        backgroundFinalizing.removeAll()
+        lastMessage = message
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.batch.end",
+            details: ["succeeded": String(max(0, totalCount - itemProgress.values.filter { $0.state == .failed || $0.state == .cancelled }.count)), "totalCount": String(totalCount), "background": "true"]
         )
     }
 

@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 105;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 106;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -419,6 +419,12 @@ assert 'streamingGaplessExperimental' in settings
 assert 'Streaming gapless playback is disabled during alpha testing.' not in settings_view
 assert 'return false' in player
 assert 'RemoteDownloadManager' in remote
+assert 'RemoteBackgroundDownloadSession' in remote
+assert 'background(withIdentifier:' in remote
+assert 'sessionSendsLaunchEvents = true' in remote
+assert 'handleEventsForBackgroundURLSession' in app_source
+assert 'experimentalBackgroundDownloads' in settings
+assert 'Experimental background downloads' in settings_view
 assert 'currentCompletedBytes' in remote
 assert 'requestDownload' in remote
 assert 'confirmReplacement' in remote
@@ -603,5 +609,5 @@ assert mixed_fixture_keys == {'split album|2024'}
 
 
 
-print('Resonance Beta v1.0.5 regression checks passed.')
+print('Resonance Beta v1.0.6 regression checks passed.')
 PY
