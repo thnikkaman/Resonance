@@ -1681,6 +1681,22 @@ on a track and verify Play Next/Add to Queue remain available. Swipe right-to-le
 starts the shared download flow. Test an existing file and confirm Keep Existing, Replace Existing, and Cancel, then
 verify the persistent overlay and navigation behavior remain unchanged.
 
+## Beta stabilization build 130 — navigation-rework baseline
+
+Build 130 freezes the currently validated download and gesture behavior before the planned navigation rework. It
+contains no navigation implementation changes: Streaming track rows retain leading Play Next/Add to Queue and
+trailing Download actions, album-art heroes own horizontal tab navigation, and All Albums renders the shared download
+overlay for replacement prompts.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `130`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+This build is the rollback and comparison baseline for the navigation rework. Do not uninstall it before testing the
+next navigation build.
+
 ## Experimental build 129 — restore All Albums replacement prompt
 
 The Streaming All Albums track-list screen now renders the shared `RemoteDownloadOverlay`. Download requests from
