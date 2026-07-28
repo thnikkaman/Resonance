@@ -537,8 +537,10 @@ final class LibraryStore: ObservableObject {
                 id: track.id,
                 url: url,
                 values: values,
-                artworkData: artworkData,
-                replaceArtwork: replaceArtwork || clearArtworkOverride
+                // Artist artwork is an app-level artist override. It must not
+                // be copied into every song in the artist's catalog.
+                artworkData: nil,
+                replaceArtwork: false
             )
         }
         let writeResult = await MetadataWriteBatch.write(requests)
@@ -548,22 +550,22 @@ final class LibraryStore: ObservableObject {
         let oldKey = artistOverrideKey(name: oldName, useAlbumArtist: artist.usesAlbumArtist)
         let newKey = artistOverrideKey(name: cleanedName, useAlbumArtist: artist.usesAlbumArtist)
 
-        // Some simulator and imported-library entries have no writable local
-        // audio file. Preserve the requested artwork in Resonance instead of
-        // silently clearing it and reporting a successful file save.
-        if writableIDs.isEmpty, let artworkData, replaceArtwork, failures.isEmpty {
-            objectWillChange.send()
-            artistMetadataOverrides.removeValue(forKey: oldKey)
+        objectWillChange.send()
+        let previousOverride = artistMetadataOverrides[oldKey]
+        artistMetadataOverrides.removeValue(forKey: oldKey)
+        artistMetadataOverrides.removeValue(forKey: newKey)
+        if clearArtworkOverride {
+            // The explicit remove action wins over a rename or an existing
+            // fallback image.
+        } else if let artworkData, replaceArtwork {
             artistMetadataOverrides[newKey] = ArtistMetadataOverride(
                 artworkData: artworkData,
                 hasArtworkOverride: true
             )
-            persistArtistMetadataOverrides()
-            return nil
+        } else if let previousOverride {
+            // Renaming an artist should not orphan its artist-only artwork.
+            artistMetadataOverrides[newKey] = previousOverride
         }
-
-        artistMetadataOverrides.removeValue(forKey: oldKey)
-        artistMetadataOverrides.removeValue(forKey: newKey)
 
         for id in writableIDs { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()

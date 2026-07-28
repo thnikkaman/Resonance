@@ -1,4 +1,6 @@
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 struct ArtworkSearchSuggestion: Identifiable, Hashable, Sendable {
     let id: String
@@ -120,7 +122,28 @@ enum ArtworkSearchService {
             throw ArtworkSearchError.invalidResponse
         }
         guard !data.isEmpty else { throw ArtworkSearchError.invalidImage }
-        return data
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw ArtworkSearchError.invalidImage
+        }
+        let normalized = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            normalized as CFMutableData,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else {
+            throw ArtworkSearchError.invalidImage
+        }
+        CGImageDestinationAddImage(
+            destination,
+            image,
+            [kCGImageDestinationLossyCompressionQuality: 0.92] as CFDictionary
+        )
+        guard CGImageDestinationFinalize(destination) else {
+            throw ArtworkSearchError.invalidImage
+        }
+        return normalized as Data
     }
 
     private static func searchITunes(

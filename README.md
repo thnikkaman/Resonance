@@ -1413,3 +1413,22 @@ Manual test checklist: trigger Save from track, album, and artist editors; use A
 online artwork search for track, album, and artist contexts; confirm each sheet dismisses immediately. While each save
 runs, switch tabs, scroll, play audio, and open another detail page. Confirm metadata/artwork persistence, red-border
 semantics, external tag-reader results, and diagnostics after relaunch.
+
+## Experimental build 114 — isolate artist artwork and validate downloaded images
+
+Artist metadata saves now write artist and album-artist text tags without writing artwork to any track file. Artist
+artwork remains an artist-only Resonance override, survives artist renames, and is removed only by an explicit remove
+action. Online artwork responses are decoded and normalized to JPEG before they can be applied or written to files,
+so an HTTP-success response that is not renderable is rejected instead of producing a blank cover.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `114`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: edit artist artwork and confirm every album/song keeps its own artwork; edit artist text without
+artwork and confirm the artist override remains; rename an artist and confirm its artwork follows the rename; explicitly
+remove artist artwork and confirm only the artist artwork clears. Search online artwork for an artist, album, and track,
+apply each result to the app, save each to FLAC/MP3 files, and confirm the image remains visible after relaunch and an
+external tag reader. Do not uninstall the existing app.
