@@ -85,6 +85,18 @@ struct StreamingLibraryView: View {
         albumBrowseSnapshot.isEmpty ? remote.albums : albumBrowseSnapshot
     }
 
+    private var selectedArtistTracks: [RemoteTrackItem] {
+        visibleArtists
+            .filter { selectedArtistIDs.contains($0.id) }
+            .flatMap(\.tracks)
+    }
+
+    private var selectedAlbumTracks: [RemoteTrackItem] {
+        visibleAlbums
+            .filter { selectedAlbumIDs.contains($0.id) }
+            .flatMap(\.tracks)
+    }
+
     private func clearDownloadSelection() {
         downloadSelectionMode = false
         selectedArtistIDs.removeAll()
@@ -194,23 +206,15 @@ struct StreamingLibraryView: View {
                     action: openLibrary
                 )
 
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Streaming library view and sort options",
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    showingOptions = true
-                }
-
-                if downloadSelectionMode && (selectedArtistCount > 0 || selectedAlbumCount > 0) {
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: selectedArtistCount > 0
-                            ? "Download selected artists"
-                            : "Download selected albums",
-                        systemImage: "arrow.down.circle"
-                    ) {
-                        downloadSelectedItems()
-                    }
-                }
+                StreamingDownloadActionsMenu(
+                    artistTracks: selectedArtistTracks,
+                    albumTracks: selectedAlbumTracks,
+                    artistCount: selectedArtistCount,
+                    albumCount: selectedAlbumCount,
+                    selectionMode: downloadSelectionMode,
+                    onClearSelection: clearDownloadSelection,
+                    onShowBrowseOptions: { showingOptions = true }
+                )
 
                 Menu {
                     NavigationLink {
@@ -289,27 +293,6 @@ struct StreamingLibraryView: View {
         }
     }
 
-    private func downloadSelectedItems() {
-        let tracks: [RemoteTrackItem]
-        if !selectedArtistIDs.isEmpty {
-            tracks = visibleArtists
-                .filter { selectedArtistIDs.contains($0.id) }
-                .flatMap(\.tracks)
-        } else {
-            tracks = visibleAlbums
-                .filter { selectedAlbumIDs.contains($0.id) }
-                .flatMap(\.tracks)
-        }
-
-        var uniqueTracks: [RemoteTrackItem] = []
-        var seenIDs = Set<UUID>()
-        for track in tracks where seenIDs.insert(track.id).inserted {
-            uniqueTracks.append(track)
-        }
-        guard !uniqueTracks.isEmpty else { return }
-        downloads.requestDownload(uniqueTracks, into: library)
-        clearDownloadSelection()
-    }
 }
 
 private struct StreamingDownloadActionsMenu: View {

@@ -1625,3 +1625,22 @@ Manual test checklist: download from the Streaming root, artist hero/menu/contex
 and an individual track. Test a missing track in an otherwise downloaded album; mixed existing/new downloads with Keep
 Existing, Replace Existing, and Cancel; progress and per-track cancellation; resume after interruption; navigation
 between root, artist, and album while active; offline playback of completed files; and deletion followed by redownload.
+
+## Experimental build 126 — expose root streaming download actions
+
+The Streaming Library root toolbar now uses the shared `StreamingDownloadActionsMenu` for download selections.
+Selecting artists or albums exposes explicit Download Artist(s) and Download Album(s) actions instead of starting
+immediately from a bare download button. These actions still call the shared `RemoteDownloadManager`, so duplicate
+detection, Keep Existing/Replace Existing/Cancel, the persistent queue, and root/artist/album overlay behavior remain
+unchanged. The old root-only download helper was removed.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `126`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in Streaming root, long-press one or more artists and one or more albums, open the root
+toolbar menu, and choose Download Artist(s) or Download Album(s). Verify the duplicate prompt appears when appropriate
+and that Keep Existing, Replace Existing, and Cancel work. Confirm the download window persists while navigating
+root → artist → album, and verify the existing artist/album hero and context-menu actions remain unchanged.
