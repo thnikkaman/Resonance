@@ -62,7 +62,7 @@ final class LibraryStore: ObservableObject {
     var artists: [Artist] { makeArtists(useAlbumArtist: false) }
     var albumArtists: [Artist] { makeArtists(useAlbumArtist: true) }
     var albums: [Album] {
-        let allAlbums = makeAlbums(from: tracks, variousAlbumKeys: Self.multiArtistAlbumKeys(in: tracks))
+        let allAlbums = makeAlbums(from: tracks, variousAlbumKeys: Self.mixedArtistAlbumKeys(in: tracks))
         guard !searchText.isEmpty else { return allAlbums }
         return allAlbums.filter { album in
             album.title.localizedCaseInsensitiveContains(searchText) ||
@@ -411,11 +411,16 @@ final class LibraryStore: ObservableObject {
             discNumber: max(1, discNumber),
             releaseYear: max(0, releaseYear)
         )
-        do {
-            try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
-        } catch {
-            return error.localizedDescription
-        }
+        let result = await MetadataWriteBatch.write([
+            MetadataWriteRequest(
+                id: trackID,
+                url: url,
+                values: values,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
+        ])
+        if let failure = result.failures.first { return failure }
 
         metadataOverrides.removeValue(forKey: trackID)
         persistMetadataOverrides()
@@ -434,7 +439,7 @@ final class LibraryStore: ObservableObject {
             name: currentName,
             tracks: currentTracks,
             useAlbumArtist: artist.usesAlbumArtist,
-            variousAlbumKeys: Self.multiArtistAlbumKeys(in: tracks)
+            variousAlbumKeys: Self.mixedArtistAlbumKeys(in: tracks)
         )
     }
 
@@ -451,11 +456,8 @@ final class LibraryStore: ObservableObject {
         let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
         guard !ids.isEmpty else { return "The selected artist has no tracks." }
         let oldName = artist.name
-        var writableIDs = Set<UUID>()
-        var failures: [String] = []
-
-        for track in tracks where ids.contains(track.id) {
-            guard let url = track.fileURL, !track.isRemote else { continue }
+        let requests = tracks.compactMap { track -> MetadataWriteRequest? in
+            guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
             let updatedArtist = artist.usesAlbumArtist ? track.artist : cleanedName
             let updatedAlbumArtist = artist.usesAlbumArtist
                 ? cleanedName
@@ -469,13 +471,17 @@ final class LibraryStore: ObservableObject {
                 discNumber: track.discNumber,
                 releaseYear: track.releaseYear
             )
-            do {
-                try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork || clearArtworkOverride)
-                writableIDs.insert(track.id)
-            } catch {
-                failures.append(error.localizedDescription)
-            }
+            return MetadataWriteRequest(
+                id: track.id,
+                url: url,
+                values: values,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork || clearArtworkOverride
+            )
         }
+        let writeResult = await MetadataWriteBatch.write(requests)
+        let writableIDs = writeResult.successfulIDs
+        let failures = writeResult.failures
 
         let oldKey = artistOverrideKey(name: oldName, useAlbumArtist: artist.usesAlbumArtist)
         let newKey = artistOverrideKey(name: cleanedName, useAlbumArtist: artist.usesAlbumArtist)
@@ -528,10 +534,8 @@ final class LibraryStore: ObservableObject {
     ) async -> String? {
         let ids = Set(trackIDs)
         guard !ids.isEmpty else { return "The selected album has no tracks." }
-        var writableIDs = Set<UUID>()
-        var failures: [String] = []
-        for track in tracks where ids.contains(track.id) {
-            guard let url = track.fileURL, !track.isRemote else { continue }
+        let requests = tracks.compactMap { track -> MetadataWriteRequest? in
+            guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
             let values = MetadataTagValues(
                 title: track.title,
                 artist: track.artist,
@@ -541,13 +545,17 @@ final class LibraryStore: ObservableObject {
                 discNumber: track.discNumber,
                 releaseYear: max(0, releaseYear)
             )
-            do {
-                try await writeTags(to: url, values: values, artworkData: artworkData, replaceArtwork: replaceArtwork)
-                writableIDs.insert(track.id)
-            } catch {
-                failures.append(error.localizedDescription)
-            }
+            return MetadataWriteRequest(
+                id: track.id,
+                url: url,
+                values: values,
+                artworkData: artworkData,
+                replaceArtwork: replaceArtwork
+            )
         }
+        let writeResult = await MetadataWriteBatch.write(requests)
+        let writableIDs = writeResult.successfulIDs
+        let failures = writeResult.failures
 
         let preservingArtworkOverride = replaceArtwork && artworkData != nil
         ResonanceDiagnostics.shared.recordDeferred(
@@ -577,22 +585,6 @@ final class LibraryStore: ObservableObject {
         }
         await scanDocuments(forceMetadataRefresh: true)
         return failures.isEmpty ? nil : failures.first
-    }
-
-    private func writeTags(
-        to url: URL,
-        values: MetadataTagValues,
-        artworkData: Data?,
-        replaceArtwork: Bool
-    ) async throws {
-        try await Task.detached(priority: .utility) {
-            try MetadataTagWriter.write(
-                to: url,
-                values: values,
-                artworkData: artworkData,
-                replaceArtwork: replaceArtwork
-            )
-        }.value
     }
 
     func resetMetadataOverrides(for trackIDs: [UUID]) async {
@@ -876,10 +868,10 @@ final class LibraryStore: ObservableObject {
     }
 
     private func makeArtists(useAlbumArtist: Bool) -> [Artist] {
-        let variousAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
+        let variousAlbumKeys = Self.mixedArtistAlbumKeys(in: tracks)
         var groups: [String: (name: String, tracks: [Track])] = [:]
         for track in tracks {
-            let isVarious = variousAlbumKeys.contains(Self.albumIdentity(for: track))
+            let isVarious = variousAlbumKeys.contains(LibraryBrowseGrouping.mixedArtistAlbumIdentity(for: track))
             let name = isVarious ? "Various Artists" : (useAlbumArtist ? track.albumArtist : track.artist)
             let key = isVarious ? "various-artists" : "artist|\(name)"
             groups[key, default: (name: name, tracks: [])].tracks.append(track)
@@ -938,8 +930,8 @@ final class LibraryStore: ObservableObject {
 
     private func makeAlbums(from tracks: [Track], variousAlbumKeys: Set<String> = []) -> [Album] {
         Dictionary(grouping: tracks) { track in
-            if variousAlbumKeys.contains(Self.albumIdentity(for: track)) {
-                return "various|\(Self.albumIdentity(for: track))"
+            if variousAlbumKeys.contains(LibraryBrowseGrouping.mixedArtistAlbumIdentity(for: track)) {
+                return "various|\(LibraryBrowseGrouping.mixedArtistAlbumIdentity(for: track))"
             }
             return "\(track.albumArtist)|\(track.album)"
         }.map { key, values in
@@ -958,23 +950,12 @@ final class LibraryStore: ObservableObject {
         }
     }
 
-    private nonisolated static func albumIdentity(for track: Track) -> String {
-        [
-            track.album.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-            track.releaseYear > 0 ? String(track.releaseYear) : ""
-        ].joined(separator: "|")
-    }
-
-    private nonisolated static func multiArtistAlbumKeys(in tracks: [Track]) -> Set<String> {
-        Dictionary(grouping: tracks, by: { Self.albumIdentity(for: $0) }).compactMap { key, albumTracks in
-            let artistKeys = Set(
-                albumTracks.map { $0.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-                    .filter { !$0.isEmpty }
-            )
-            return artistKeys.count > 1 ? key : nil
-        }.reduce(into: Set<String>()) { result, key in
-            result.insert(key)
-        }
+    private nonisolated static func mixedArtistAlbumKeys(in tracks: [Track]) -> Set<String> {
+        LibraryBrowseGrouping.mixedArtistAlbumKeys(
+            in: tracks,
+            albumIdentity: LibraryBrowseGrouping.mixedArtistAlbumIdentity,
+            artistIdentity: { $0.artist.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        )
     }
 
     private func cleanPersistedCollections() {

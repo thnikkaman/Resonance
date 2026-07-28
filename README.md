@@ -1334,3 +1334,29 @@ repeat with Deluxe, Anniversary, FLAC, and other release-metadata suffixes.
 Confirm the results show the canonical album artwork while preserving the
 original local title. Also verify that meaningful parenthetical titles are not
 incorrectly shortened. Do not uninstall first.
+
+## Experimental low-risk refactor — 2026-07-28
+
+This experimental source build unifies two behavior-preserving seams without
+splitting `RemoteLibraryStore.swift`. `LibraryBrowseGrouping.swift` owns only
+the pure mixed-artist/compilation-candidate identity algorithm; local and
+remote stores retain their own normalization policies, filtering, caching,
+display-name rules, model construction, and explicit compilation behavior.
+`MetadataWriteBatch.swift` owns only sequential per-file tag-write
+orchestration and ordered failure collection. Track, album, and artist editors
+retain their existing validation, artwork sidecar, override, persistence, and
+rescan behavior.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, a Debug
+simulator build, and `Tools/PreflightBuild.sh` with Swift 6 strict concurrency
+and warnings treated as errors for simulator and generic device. The preflight
+reported only the existing no-scheme destination and harmless AppIntents
+metadata-skip warnings. This source was not installed on or launched on the
+physical phone.
+
+Manual checklist: edit a local FLAC and MP3 track, album, and artist; verify
+successful writes, partial failures, unsupported-format errors, artwork
+replacement, and artwork-only fallback behavior. Browse local and Streaming
+mixed-artist albums, including case/whitespace variants, differing release
+years, and explicit compilation grouping. Confirm normal single-artist albums
+remain unchanged. Do not uninstall the existing app.

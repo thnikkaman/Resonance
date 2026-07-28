@@ -120,7 +120,7 @@ assert 'diagnosticSurface: "albums"' in library_view
 assert 'album-section-' in library_view
 assert 'private var indexedAlbumSections: [ArtistIndexSection<Album>]' in library_view
 assert 'diagnosticSurface: "library-artist-albums"' in library_view
-assert 'artist-album-section-' in library_view
+assert 'sectionIDPrefix: "artist-album-section"' in library_view
 assert 'case albumArtists' in remote
 assert 'case favorites' in remote
 assert 'case recentlyAdded' in remote
@@ -131,7 +131,10 @@ assert 'Group compilation-only artists' in streaming
 assert 'compilationAlbumKeys' in remote
 assert 'multiArtistAlbumKeys' in remote
 assert 'variousAlbumKeys' in remote
-assert 'multiArtistAlbumKeys(in: tracks)' in library_store
+assert 'mixedArtistAlbumKeys(in: tracks)' in library_store
+assert 'LibraryBrowseGrouping.mixedArtistAlbumIdentity' in library_store
+assert 'LibraryBrowseGrouping.mixedArtistAlbumKeys' in remote
+assert 'MetadataWriteBatch.write' in library_store
 assert 'variousAlbumKeys: Set<String>' in library_store
 assert 'Various Artists' in remote
 assert 'various-artists' in library_store

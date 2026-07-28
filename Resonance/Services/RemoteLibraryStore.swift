@@ -557,15 +557,11 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     nonisolated private static func multiArtistAlbumKeys(in tracks: [RemoteTrackItem]) -> Set<String> {
-        Dictionary(grouping: tracks, by: compilationAlbumIdentity).compactMap { key, albumTracks in
-            let artistKeys = Set(
-                albumTracks.map { resonanceNormalizedRemoteKey($0.artist) }
-                    .filter { !$0.isEmpty }
-            )
-            return artistKeys.count > 1 ? key : nil
-        }.reduce(into: Set<String>()) { result, key in
-            result.insert(key)
-        }
+        LibraryBrowseGrouping.mixedArtistAlbumKeys(
+            in: tracks,
+            albumIdentity: compilationAlbumIdentity,
+            artistIdentity: { resonanceNormalizedRemoteKey($0.artist) }
+        )
     }
 
     nonisolated private static func isVariousArtistsAlbum(_ tracks: [RemoteTrackItem]) -> Bool {
