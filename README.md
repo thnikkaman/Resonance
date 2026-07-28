@@ -1499,3 +1499,20 @@ warnings remained non-blocking.
 Manual test checklist: verify a Resonance Manifest server with a host path, relative track/artwork paths, and absolute
 URLs; verify Navidrome/Subsonic login, catalog refresh, album artwork, playback, playlist actions, and downloads. Test
 host-only, host-plus-port, HTTPS, and a server URL that already includes the manifest/API path. Do not uninstall first.
+
+## Experimental build 119 — extract shared remote URL support
+
+The URL path-joining and relative-resolution helpers introduced in build 118 now live in `RemoteURLSupport.swift`,
+separate from `RemoteLibraryStore.swift`. This is a structural extraction only: Manifest and Subsonic behavior,
+authentication, request headers, response validation, and downloads remain unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `119`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: use Navidrome/Subsonic only—sign in or reconnect, refresh the catalog, open artists, albums, and
+tracks, load artwork, play a remote track, test playlists and favorites, and start, cancel, and resume a download.
+Also test host-only, host-plus-port, HTTPS, and any server URL that includes a path. Confirm streaming behavior is
+unchanged. Do not uninstall first.
