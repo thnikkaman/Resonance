@@ -1662,3 +1662,21 @@ Manual test checklist: in a local album and a Streaming album, swipe horizontall
 verify tab navigation. Swipe horizontally across several individual tracks and verify tab navigation does not occur;
 the track action menu remains available. Test Play Next, Add to Queue, playlist, and Download Track actions, then verify
 vertical scrolling, Back, downward hierarchy dismissal, and the root/artist/album download overlay remain unchanged.
+
+## Experimental build 128 — add Streaming track download swipe action
+
+Streaming track rows now keep Play Next and Add to Queue on the leading swipe and expose Download on the trailing
+right-to-left swipe. The Download action uses the shared `RemoteDownloadManager`, so existing-file prompts, queue
+progress, cancellation, and replacement behavior match the context-menu and hero download paths. The action is present
+in album, artist/all-albums, playlist, and other Streaming track collections.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `128`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in Streaming album, artist/all-albums, playlist, and track-collection views, swipe left-to-right
+on a track and verify Play Next/Add to Queue remain available. Swipe right-to-left and verify Download appears and
+starts the shared download flow. Test an existing file and confirm Keep Existing, Replace Existing, and Cancel, then
+verify the persistent overlay and navigation behavior remain unchanged.

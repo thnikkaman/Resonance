@@ -28,9 +28,30 @@ private struct RemoteTrackSwipeActions: ViewModifier {
     }
 }
 
+private struct RemoteTrackDownloadSwipeAction: ViewModifier {
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
+    let track: RemoteTrackItem
+
+    func body(content: Content) -> some View {
+        content.swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                downloads.requestDownload([track], into: library)
+            } label: {
+                Label("Download", systemImage: "arrow.down.circle")
+            }
+            .tint(.green)
+        }
+    }
+}
+
 private extension View {
     func remoteTrackSwipeActions(_ track: RemoteTrackItem) -> some View {
         modifier(RemoteTrackSwipeActions(track: track))
+    }
+
+    func remoteTrackDownloadSwipeAction(_ track: RemoteTrackItem) -> some View {
+        modifier(RemoteTrackDownloadSwipeAction(track: track))
     }
 
     func remoteDetailBackSwipe(action: @escaping () -> Void) -> some View {
@@ -1220,6 +1241,14 @@ private struct RemoteTrackCollectionView: View {
                         Label("Add to Queue", systemImage: "text.append")
                     }
                 }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        downloads.requestDownload([track], into: library)
+                    } label: {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+                    .tint(.green)
+                }
                 .contextMenu {
                     Button {
                         Task { await remote.playNext([track], using: player) }
@@ -1719,6 +1748,7 @@ private struct RemoteAllAlbumsTrackListView: View {
                     .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
                     .remoteTrackSwipeActions(track)
+                    .remoteTrackDownloadSwipeAction(track)
                     .contextMenu {
                         Button { Task { await remote.playNext([track], using: player) } } label: {
                             Label("Play Next", systemImage: "text.insert")
@@ -1837,6 +1867,7 @@ private struct RemoteAlbumDetailView: View {
         }
         .buttonStyle(.plain)
         .remoteTrackSwipeActions(track)
+        .remoteTrackDownloadSwipeAction(track)
         .contextMenu {
             Button { Task { await remote.playNext([track], using: player) } } label: {
                 Label("Play Next", systemImage: "text.insert")
@@ -2104,6 +2135,8 @@ private struct RemotePlaylistDetailView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: RemoteDownloadManager
     @State private var editMode: EditMode = .inactive
     @State private var showingRename = false
     @State private var renameText = ""
@@ -2147,6 +2180,13 @@ private struct RemotePlaylistDetailView: View {
                             .buttonStyle(.plain)
                             .remoteTrackSwipeActions(track)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    downloads.requestDownload([track], into: library)
+                                } label: {
+                                    Label("Download", systemImage: "arrow.down.circle")
+                                }
+                                .tint(.green)
+
                                 Button(role: .destructive) {
                                     Task { _ = await remote.removeTrack(at: index, from: playlist, using: settings) }
                                 } label: {
