@@ -1466,3 +1466,19 @@ warnings remained non-blocking.
 Manual test checklist: reopen Mer de Noms and confirm album artwork appears even when the first track has no artwork;
 edit album metadata without changing artwork; replace album artwork and confirm every file and the album view update;
 repeat for Acoustica, then edit individual MP3 and FLAC tracks and verify artwork in Resonance and an external tag reader.
+
+## Experimental build 117 — repair missing JPEG start markers
+
+Some MP3 artwork payloads contained a valid Exif/JPEG APP segment but were missing the JPEG start marker (`FF D8`).
+Artwork normalization now restores that marker when the repaired payload validates with ImageIO. This repaired data is
+used both when loading cached artwork and before it is written back into FLAC/MP3 metadata.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `117`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open Acoustica, save artwork to the album and to two individual MP3 files, and confirm the album
+hero, track rows, relaunch, and an external tag reader all show the image. Confirm Mer de Noms still uses valid fallback
+artwork when one track is artless. Test one FLAC artwork save as a regression check.

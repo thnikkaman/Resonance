@@ -164,7 +164,7 @@ struct MetadataReader {
     /// APIC layout before handing artwork to the library and UI.
     static func renderableArtworkData(from data: Data) -> Data? {
         guard !data.isEmpty else { return nil }
-        if isRenderableImage(data) { return data }
+        if let imageData = repairedRenderableImage(data) { return imageData }
         guard data.count > 4 else { return nil }
 
         // Some MP3 metadata paths prepend little-endian thumbnail dimensions
@@ -173,7 +173,7 @@ struct MetadataReader {
         let height = UInt16(data[2]) | UInt16(data[3]) << 8
         if data[4] == 0, width > 0, height > 0 {
             let imageData = data.subdata(in: 5..<data.count)
-            if isRenderableImage(imageData) { return imageData }
+            if let imageData = repairedRenderableImage(imageData) { return imageData }
         }
 
         let encoding = data[0]
@@ -199,7 +199,15 @@ struct MetadataReader {
 
         guard offset < data.count else { return nil }
         let imageData = data.subdata(in: offset..<data.count)
-        return isRenderableImage(imageData) ? imageData : nil
+        return repairedRenderableImage(imageData)
+    }
+
+    private static func repairedRenderableImage(_ data: Data) -> Data? {
+        if isRenderableImage(data) { return data }
+        guard data.count > 2, data[0] == 0xFF, (0xE0...0xEF).contains(data[1]) else { return nil }
+        var repaired = Data([0xFF, 0xD8])
+        repaired.append(data)
+        return isRenderableImage(repaired) ? repaired : nil
     }
 
     private static func isRenderableImage(_ data: Data) -> Bool {
