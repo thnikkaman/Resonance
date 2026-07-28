@@ -452,7 +452,7 @@ struct SettingsView: View {
                 StatusRow(title: "Direct audio-file tag writing", detail: "FLAC and MP3", icon: "checkmark.circle.fill")
                 StatusRow(title: "Remote downloads", detail: "Progress, cancellation, replacement, and local indexing", icon: "checkmark.circle.fill")
                 StatusRow(title: "QR server setup", detail: "Camera scan", icon: "checkmark.circle.fill")
-                StatusRow(title: "Online artwork search", detail: "Apple, Deezer, and MusicBrainz sources", icon: "checkmark.circle.fill")
+                StatusRow(title: "Online artwork search", detail: "Apple and MusicBrainz / Cover Art Archive sources", icon: "checkmark.circle.fill")
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {

@@ -255,7 +255,7 @@ updated; a fresh representative mixed-artist runtime fixture remains the next
 manual check.
 
 The artwork workflow is now shared across artist, album, and individual-track
-editing. `ArtworkSearchService` queries Apple iTunes, Deezer, and MusicBrainz/
+editing. `ArtworkSearchService` queries Apple iTunes and MusicBrainz/
 Cover Art Archive candidates, scores them by normalized artist/album/title
 matches, and presents multiple choices in `OnlineArtworkSearchView`. The best
 available candidate starts selected with a red outline; selecting another card
@@ -811,7 +811,7 @@ actions remain unaffected.
 ## Prototype status completion — 2026-07-27 UTC
 
 The Settings → Prototype Status list now marks Online artwork search complete,
-identifies its Apple, Deezer, and MusicBrainz sources, and reports 100% stage
+identifies its Apple and MusicBrainz / Cover Art Archive sources, and reports 100% stage
 completion.
 
 ## Detail-module bottom navigation — 2026-07-27 UTC
@@ -1251,3 +1251,32 @@ hold at roughly 80% of the screen width. Confirm the page follows smoothly
 without shaking, then release to complete the adjacent-tab transition. Repeat
 with a short drag to confirm it springs back, and confirm album-art, seek, and
 volume gestures remain independent.
+
+## Artwork search provider and relevance repair — 2026-07-28
+
+Deezer artwork search was removed after its public album endpoint returned an
+HTTP 403 permission response. Online artwork search now uses Apple iTunes and
+MusicBrainz/Cover Art Archive only. iTunes performs an album-only query before
+the full artist/album/track query and combines both result sets, so a noisy
+nonempty contextual response no longer suppresses the useful album search.
+MusicBrainz searches up to 25 releases using both available artist identities,
+uses the returned artist credits for relevance scoring, and automatic artwork
+fallback now checks up to 24 candidates for a usable image. Failed image cards
+are removed from the picker, and unavailable providers are named in the picker
+instead of appearing as an unexplained empty result.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, strict Swift 6 simulator and
+generic-device preflight with warnings treated as errors, signed arm64 Release
+compilation, and strict deep code-signature verification passed. The signed
+app was installed in place on `SaiyanDenawa`; `devicectl` verified bundle
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `107`. The phone
+app was not launched. Xcode emitted the known empty supported-platforms
+destination warning and harmless AppIntents metadata-skip warning; neither
+blocked the build or install.
+
+Manual test checklist: open a local album editor for a well-known album such
+as *Thriller*, *Abbey Road*, or *OK Computer*; confirm multiple Apple and
+MusicBrainz/Cover Art Archive candidates appear; verify a failed image card
+disappears and the red recommended outline advances; retry with an album whose
+artist metadata contains an alternate album-artist value; confirm Streaming
+automatic artwork still finds a usable candidate. Do not uninstall first.

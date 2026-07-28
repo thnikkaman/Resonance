@@ -24,6 +24,8 @@ struct OnlineArtworkSearchSheet: View {
     }
 
     @State private var suggestions: [ArtworkSearchSuggestion] = []
+    @State private var unavailableSuggestionIDs: Set<String> = []
+    @State private var unavailableProviders: [String] = []
     @State private var selectedSuggestionID: String?
     @State private var recommendedSuggestionID: String?
     @State private var isLoading = true
@@ -36,12 +38,12 @@ struct OnlineArtworkSearchSheet: View {
                 if isLoading {
                     ProgressView("Searching album art…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if suggestions.isEmpty {
+                } else if suggestions.isEmpty || suggestions.allSatisfy({ unavailableSuggestionIDs.contains($0.id) }) {
                     VStack(spacing: 14) {
                         ContentUnavailableView(
                             "No Artwork Found",
                             systemImage: "photo.on.rectangle.angled",
-                            description: Text("The repositories returned no matching covers.")
+                            description: Text(noArtworkDescription)
                         )
                         Button("Try Again") {
                             Task { await search() }
@@ -51,26 +53,36 @@ struct OnlineArtworkSearchSheet: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            ForEach(suggestions) { suggestion in
-                                OnlineArtworkSuggestionCard(
-                                    suggestion: suggestion,
-                                    isSelected: selectedSuggestionID == suggestion.id,
-                                    isRecommended: recommendedSuggestionID == suggestion.id,
-                                    isSaving: isSaving,
-                                    onSelect: { selectedSuggestionID = suggestion.id },
-                                    onImageAvailabilityChanged: { id, available in
-                                        guard !available, recommendedSuggestionID == id else { return }
-                                        let next = suggestions.first { $0.id != id }
-                                        recommendedSuggestionID = next?.id
-                                        if selectedSuggestionID == id { selectedSuggestionID = next?.id }
-                                    },
-                                    onApplyToApp: chooseForApp,
-                                    onSaveToFiles: saveToFiles
-                                )
+                        VStack(alignment: .leading, spacing: 12) {
+                            if !unavailableProviders.isEmpty {
+                                Text("Unavailable sources: \(unavailableProviders.joined(separator: ", "))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                                ForEach(suggestions.filter { !unavailableSuggestionIDs.contains($0.id) }) { suggestion in
+                                    OnlineArtworkSuggestionCard(
+                                        suggestion: suggestion,
+                                        isSelected: selectedSuggestionID == suggestion.id,
+                                        isRecommended: recommendedSuggestionID == suggestion.id,
+                                        isSaving: isSaving,
+                                        onSelect: { selectedSuggestionID = suggestion.id },
+                                        onImageAvailabilityChanged: { id, available in
+                                            guard !available else { return }
+                                            unavailableSuggestionIDs.insert(id)
+                                            let next = suggestions.first {
+                                                $0.id != id && !unavailableSuggestionIDs.contains($0.id)
+                                            }
+                                            if recommendedSuggestionID == id { recommendedSuggestionID = next?.id }
+                                            if selectedSuggestionID == id { selectedSuggestionID = next?.id }
+                                        },
+                                        onApplyToApp: chooseForApp,
+                                        onSaveToFiles: saveToFiles
+                                    )
+                                }
+                            }
+                            .padding()
                         }
-                        .padding()
                     }
                 }
             }
@@ -97,12 +109,16 @@ struct OnlineArtworkSearchSheet: View {
 
     private func search() async {
         isLoading = true
+        unavailableSuggestionIDs.removeAll()
+        unavailableProviders.removeAll()
         do {
-            suggestions = try await ArtworkSearchService.search(
+            let report = try await ArtworkSearchService.searchReport(
                 artist: artist,
                 album: album,
                 albumArtist: albumArtist
             )
+            suggestions = report.suggestions
+            unavailableProviders = report.unavailableProviders
             selectedSuggestionID = suggestions.first?.id
             recommendedSuggestionID = suggestions.first?.id
             isLoading = false
@@ -110,6 +126,13 @@ struct OnlineArtworkSearchSheet: View {
             isLoading = false
             errorMessage = error.localizedDescription
         }
+    }
+
+    private var noArtworkDescription: String {
+        if unavailableProviders.isEmpty {
+            return "The available artwork sources returned no matching covers."
+        }
+        return "No matching covers were returned. Unavailable sources: \(unavailableProviders.joined(separator: ", "))."
     }
 
     private func chooseForApp(_ data: Data) {

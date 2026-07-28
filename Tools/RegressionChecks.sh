@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 106;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 107;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -244,7 +244,7 @@ assert 'nowPlayingPresentationRequest' in root_view
 assert 'nowPlayingPresentationRequest' in player
 assert 'presentsNowPlaying' in player
 assert 'Online artwork search' in settings_view
-assert 'Apple, Deezer, and MusicBrainz sources' in settings_view
+assert 'Apple and MusicBrainz / Cover Art Archive sources' in settings_view
 assert 'Text("100%")' in settings_view
 assert 'ProgressView(value: 1.0)' in settings_view
 assert '.highPriorityGesture(' in now_playing
@@ -308,6 +308,12 @@ assert 'CGImageSourceCreateThumbnailAtIndex' in artwork
 assert 'artwork.local.thumbnail' in artwork
 assert 'UIImage(data: data)' not in artwork
 assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artwork_search
+assert 'searchReport' in artwork_search
+assert 'searchQueries' in artwork_search
+assert 'limit", value: "25"' in artwork_search
+assert 'prefix(24)' in artwork_search
+assert 'Deezer' not in artwork_search
+assert 'Deezer' not in settings_view
 assert 'StreamingArtworkCache' in artwork_search
 assert 'trackQueries' in artwork_search
 assert 'func seed(' in artwork_search

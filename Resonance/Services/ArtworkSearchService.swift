@@ -9,6 +9,11 @@ struct ArtworkSearchSuggestion: Identifiable, Hashable, Sendable {
     var relevance: Int = 0
 }
 
+struct ArtworkSearchReport: Sendable {
+    let suggestions: [ArtworkSearchSuggestion]
+    let unavailableProviders: [String]
+}
+
 enum ArtworkSearchService {
     static func search(
         artist: String,
@@ -16,41 +21,67 @@ enum ArtworkSearchService {
         albumArtist: String? = nil,
         track: String? = nil
     ) async throws -> [ArtworkSearchSuggestion] {
+        let report = try await searchReport(
+            artist: artist,
+            album: album,
+            albumArtist: albumArtist,
+            track: track
+        )
+        return report.suggestions
+    }
+
+    static func searchReport(
+        artist: String,
+        album: String?,
+        albumArtist: String? = nil,
+        track: String? = nil
+    ) async throws -> ArtworkSearchReport {
         let cleanArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanAlbumArtist = albumArtist?.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanAlbum = album?.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanTrack = track?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanArtist.isEmpty || !(cleanAlbum?.isEmpty ?? true) else { return [] }
+        guard !cleanArtist.isEmpty || !(cleanAlbum?.isEmpty ?? true) else {
+            return ArtworkSearchReport(suggestions: [], unavailableProviders: [])
+        }
 
-        return try await withThrowingTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
-            // A repository outage or rate limit must not hide results returned
-            // by the other providers.
+        return await withTaskGroup(of: ProviderSearchResult.self) { group in
             group.addTask {
-                (try? await searchITunes(
-                    artist: cleanArtist,
-                    albumArtist: cleanAlbumArtist,
-                    album: cleanAlbum,
-                    track: cleanTrack
-                )) ?? []
+                do {
+                    return ProviderSearchResult(
+                        name: "Apple iTunes",
+                        suggestions: try await searchITunes(
+                            artist: cleanArtist,
+                            albumArtist: cleanAlbumArtist,
+                            album: cleanAlbum,
+                            track: cleanTrack
+                        ),
+                        failed: false
+                    )
+                } catch {
+                    return ProviderSearchResult(name: "Apple iTunes", suggestions: [], failed: true)
+                }
             }
             group.addTask {
-                (try? await searchDeezer(
-                    artist: cleanArtist,
-                    albumArtist: cleanAlbumArtist,
-                    album: cleanAlbum,
-                    track: cleanTrack
-                )) ?? []
+                do {
+                    return ProviderSearchResult(
+                        name: "MusicBrainz / Cover Art Archive",
+                        suggestions: try await searchCoverArtArchive(
+                            artist: cleanArtist,
+                            albumArtist: cleanAlbumArtist,
+                            album: cleanAlbum
+                        ),
+                        failed: false
+                    )
+                } catch {
+                    return ProviderSearchResult(name: "MusicBrainz / Cover Art Archive", suggestions: [], failed: true)
+                }
             }
-            group.addTask {
-                (try? await searchCoverArtArchive(
-                    artist: cleanArtist,
-                    albumArtist: cleanAlbumArtist,
-                    album: cleanAlbum
-                )) ?? []
-            }
+
+            var providerResults: [ProviderSearchResult] = []
+            for await result in group { providerResults.append(result) }
 
             var combined: [ArtworkSearchSuggestion] = []
-            for try await suggestions in group { combined.append(contentsOf: suggestions) }
+            for result in providerResults { combined.append(contentsOf: result.suggestions) }
             var seen = Set<String>()
             var unique = combined.filter { seen.insert($0.imageURL.absoluteString).inserted }
             unique = unique.compactMap { suggestion in
@@ -71,10 +102,14 @@ enum ArtworkSearchService {
                 suggestion.relevance = score
                 return suggestion
             }
-            return unique.sorted {
+            unique.sort {
                 if $0.relevance != $1.relevance { return $0.relevance > $1.relevance }
                 return $0.title.localizedStandardCompare($1.title) == .orderedAscending
             }
+            return ArtworkSearchReport(
+                suggestions: unique,
+                unavailableProviders: providerResults.filter(\.failed).map(\.name).sorted()
+            )
         }
     }
 
@@ -94,20 +129,33 @@ enum ArtworkSearchService {
         album: String?,
         track: String? = nil
     ) async throws -> [ArtworkSearchSuggestion] {
-        let query = queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track).joined(separator: " ")
-        var components = URLComponents(string: "https://itunes.apple.com/search")!
-        components.queryItems = [
-            URLQueryItem(name: "term", value: query),
-            URLQueryItem(name: "entity", value: "album"),
-            URLQueryItem(name: "limit", value: "20"),
-            URLQueryItem(name: "country", value: "US")
-        ]
-        var payload: ITunesResponse = try await decode(components.url!)
-        if payload.results.isEmpty, let album, !album.isEmpty {
-            components.queryItems?[0] = URLQueryItem(name: "term", value: album)
-            payload = try await decode(components.url!)
+        let queries = searchQueries(artist: artist, albumArtist: albumArtist, album: album, track: track)
+        guard !queries.isEmpty else { return [] }
+
+        var results: [ITunesResult] = []
+        var seenCollectionIDs = Set<Int>()
+        var firstError: Error?
+        for query in queries {
+            var components = URLComponents(string: "https://itunes.apple.com/search")!
+            components.queryItems = [
+                URLQueryItem(name: "term", value: query),
+                URLQueryItem(name: "entity", value: "album"),
+                URLQueryItem(name: "limit", value: "50"),
+                URLQueryItem(name: "country", value: "US")
+            ]
+            do {
+                let payload: ITunesResponse = try await decode(components.url!)
+                for result in payload.results where seenCollectionIDs.insert(result.collectionId).inserted {
+                    results.append(result)
+                }
+            } catch {
+                firstError = firstError ?? error
+            }
         }
-        return payload.results.compactMap { result in
+        if results.isEmpty, let firstError {
+            throw firstError
+        }
+        return results.compactMap { result in
             guard let rawURL = result.artworkUrl100, let imageURL = URL(string: rawURL.replacingOccurrences(of: "100x100", with: "600x600")) else { return nil }
             return ArtworkSearchSuggestion(
                 id: "itunes-\(result.collectionId)",
@@ -119,51 +167,26 @@ enum ArtworkSearchService {
         }
     }
 
-    private static func searchDeezer(
-        artist: String,
-        albumArtist: String?,
-        album: String?,
-        track: String? = nil
-    ) async throws -> [ArtworkSearchSuggestion] {
-        let query = queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track).joined(separator: " ")
-        var components = URLComponents(string: "https://api.deezer.com/search/album")!
-        components.queryItems = [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "limit", value: "20")
-        ]
-        var payload: DeezerResponse = try await decode(components.url!)
-        if payload.data.isEmpty, let album, !album.isEmpty {
-            components.queryItems?[0] = URLQueryItem(name: "q", value: album)
-            payload = try await decode(components.url!)
-        }
-        return payload.data.compactMap { result in
-            guard let imageURL = URL(string: result.coverXl ?? result.coverBig ?? "") else { return nil }
-            return ArtworkSearchSuggestion(
-                id: "deezer-\(result.id)",
-                title: result.title,
-                subtitle: result.artist.name,
-                source: "Deezer",
-                imageURL: imageURL
-            )
-        }
-    }
-
     private static func searchCoverArtArchive(artist: String, albumArtist: String?, album: String?) async throws -> [ArtworkSearchSuggestion] {
         guard let album, !album.isEmpty else { return [] }
-        let releaseArtist = albumArtist?.isEmpty == false ? albumArtist! : artist
+        let artistCandidates = uniqueIdentityValues([albumArtist, artist])
+        guard !artistCandidates.isEmpty else { return [] }
+        let artistClauses = artistCandidates.map { "artist:\"\($0)\"" }.joined(separator: " OR ")
+        let artistQuery = artistCandidates.count > 1 ? "(\(artistClauses))" : artistClauses
         var components = URLComponents(string: "https://musicbrainz.org/ws/2/release")!
         components.queryItems = [
-            URLQueryItem(name: "query", value: "artist:\"\(releaseArtist)\" AND release:\"\(album)\""),
+            URLQueryItem(name: "query", value: "\(artistQuery) AND release:\"\(album)\""),
             URLQueryItem(name: "fmt", value: "json"),
-            URLQueryItem(name: "limit", value: "8")
+            URLQueryItem(name: "limit", value: "25")
         ]
         let payload: MusicBrainzReleaseResponse = try await decode(components.url!, userAgent: true)
         return payload.releases.compactMap { release in
             guard let imageURL = URL(string: "https://coverartarchive.org/release/\(release.id)/front-500") else { return nil }
+            let creditedArtist = release.artistCredit?.map(\.name).joined(separator: " & ")
             return ArtworkSearchSuggestion(
                 id: "coverart-\(release.id)",
                 title: release.title,
-                subtitle: releaseArtist,
+                subtitle: creditedArtist ?? artistCandidates[0],
                 source: "MusicBrainz Cover Art Archive",
                 imageURL: imageURL
             )
@@ -254,6 +277,27 @@ enum ArtworkSearchService {
         return result
     }
 
+    private static func searchQueries(artist: String, albumArtist: String?, album: String?, track: String?) -> [String] {
+        var result: [String] = []
+        if let album, !album.isEmpty { result.append(album) }
+        let combined = queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track).joined(separator: " ")
+        if !combined.isEmpty,
+           !result.contains(where: { normalizedWords($0) == normalizedWords(combined) }) {
+            result.append(combined)
+        }
+        return result
+    }
+
+    private static func uniqueIdentityValues(_ values: [String?]) -> [String] {
+        var result: [String] = []
+        for value in values {
+            guard let value, !value.isEmpty,
+                  !result.contains(where: { normalizedWords($0) == normalizedWords(value) }) else { continue }
+            result.append(value)
+        }
+        return result
+    }
+
     private static func normalizedWords(_ value: String) -> String {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .unicodeScalars
@@ -266,11 +310,26 @@ enum ArtworkSearchService {
 
     private struct ITunesResponse: Decodable { let results: [ITunesResult] }
     private struct ITunesResult: Decodable { let collectionId: Int; let collectionName: String?; let artistName: String?; let artworkUrl100: String? }
-    private struct DeezerResponse: Decodable { let data: [DeezerResult] }
-    private struct DeezerResult: Decodable { let id: Int; let title: String; let coverXl: String?; let coverBig: String?; let artist: DeezerArtist }
-    private struct DeezerArtist: Decodable { let name: String }
     private struct MusicBrainzReleaseResponse: Decodable { let releases: [MusicBrainzRelease] }
-    private struct MusicBrainzRelease: Decodable { let id: String; let title: String; let date: String? }
+    private struct MusicBrainzRelease: Decodable {
+        let id: String
+        let title: String
+        let date: String?
+        let artistCredit: [MusicBrainzArtistCredit]?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case title
+            case date
+            case artistCredit = "artist-credit"
+        }
+    }
+    private struct MusicBrainzArtistCredit: Decodable { let name: String }
+    private struct ProviderSearchResult: Sendable {
+        let name: String
+        let suggestions: [ArtworkSearchSuggestion]
+        let failed: Bool
+    }
 }
 
 enum ArtworkSearchError: LocalizedError {
@@ -394,7 +453,7 @@ actor StreamingArtworkCache {
 
     private static func firstUsableImage(from suggestions: [ArtworkSearchSuggestion]?) async -> Data? {
         guard let suggestions else { return nil }
-        for suggestion in suggestions.prefix(8) {
+        for suggestion in suggestions.prefix(24) {
             if let data = try? await ArtworkSearchService.imageData(from: suggestion.imageURL) {
                 return data
             }
