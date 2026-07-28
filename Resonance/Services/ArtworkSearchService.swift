@@ -317,11 +317,16 @@ enum ArtworkSearchService {
 
     private static func searchQueries(artist: String, albumArtist: String?, album: String?, track: String?) -> [String] {
         var result: [String] = []
-        if let album, !album.isEmpty { result.append(album) }
-        let combined = queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track).joined(separator: " ")
-        if !combined.isEmpty,
-           !result.contains(where: { normalizedWords($0) == normalizedWords(combined) }) {
-            result.append(combined)
+        let albumVariants = albumTitleVariants(album)
+        for albumVariant in albumVariants {
+            if !result.contains(where: { normalizedWords($0) == normalizedWords(albumVariant) }) {
+                result.append(albumVariant)
+            }
+            let combined = queryParts(artist: artist, albumArtist: albumArtist, album: albumVariant, track: track).joined(separator: " ")
+            if !combined.isEmpty,
+               !result.contains(where: { normalizedWords($0) == normalizedWords(combined) }) {
+                result.append(combined)
+            }
         }
         return result
     }
@@ -338,13 +343,74 @@ enum ArtworkSearchService {
 
     private static func musicBrainzQueries(artistCandidates: [String], album: String) -> [String] {
         var queries: [String] = []
-        if !artistCandidates.isEmpty {
-            let artistClauses = artistCandidates.map { "artist:\"\($0)\"" }.joined(separator: " OR ")
-            let artistQuery = artistCandidates.count > 1 ? "(\(artistClauses))" : artistClauses
-            queries.append("\(artistQuery) AND releasegroup:\"\(album)\"")
+        for albumVariant in albumTitleVariants(album) {
+            if !artistCandidates.isEmpty {
+                let artistClauses = artistCandidates.map { "artist:\"\(musicBrainzLiteral($0))\"" }.joined(separator: " OR ")
+                let artistQuery = artistCandidates.count > 1 ? "(\(artistClauses))" : artistClauses
+                queries.append("\(artistQuery) AND releasegroup:\"\(musicBrainzLiteral(albumVariant))\"")
+            }
+            queries.append("releasegroup:\"\(musicBrainzLiteral(albumVariant))\"")
         }
-        queries.append("releasegroup:\"\(album)\"")
-        return queries
+        return queries.reduce(into: [String]()) { result, query in
+            if !result.contains(query) { result.append(query) }
+        }
+    }
+
+    private static func albumTitleVariants(_ album: String?) -> [String] {
+        guard let album, !album.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        var variants = [album.trimmingCharacters(in: .whitespacesAndNewlines)]
+        var current = variants[0]
+        while let stripped = stripTrailingReleaseMetadata(from: current), stripped != current {
+            current = stripped
+            if !variants.contains(where: { normalizedWords($0) == normalizedWords(current) }) {
+                variants.append(current)
+            }
+        }
+        return variants
+    }
+
+    private static func stripTrailingReleaseMetadata(from value: String) -> String? {
+        var working = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bracketPattern = #"\s*[\(\[\{][^\)\]\}]+[\)\]\}]\s*$"#
+        if let expression = try? NSRegularExpression(pattern: bracketPattern),
+           let match = expression.firstMatch(in: working, range: NSRange(working.startIndex..., in: working)) {
+            let suffix = String(working[Range(match.range, in: working)!])
+            if containsReleaseMetadataMarker(suffix) {
+                working.removeSubrange(Range(match.range, in: working)!)
+                return working.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        var words = working.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        var removed = false
+        while let last = words.last {
+            let normalized = normalizedWords(last)
+            let isYear = normalized.count == 4 && normalized.allSatisfy(\.isNumber)
+            if removed || isYear || containsReleaseMetadataMarker(normalized) {
+                words.removeLast()
+                removed = true
+            } else {
+                break
+            }
+        }
+        guard removed else { return nil }
+        return words.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func containsReleaseMetadataMarker(_ value: String) -> Bool {
+        let normalized = normalizedWords(value)
+        let markers = [
+            "anniversary", "audiophile", "bit", "bits", "deluxe", "digital", "edition",
+            "expanded", "flac", "high resolution", "hi res", "hires", "japanese", "lossless",
+            "master", "remaster", "remastered", "special", "stereo", "vinyl", "wav"
+        ]
+        return markers.contains(where: { normalized == $0 || normalized.contains(" \($0) ") || normalized.hasPrefix("\($0) ") || normalized.hasSuffix(" \($0)") })
+            || normalized.split(separator: " ").contains(where: { $0 == "bit" || $0 == "bits" })
+    }
+
+    private static func musicBrainzLiteral(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     private static func normalizedWords(_ value: String) -> String {

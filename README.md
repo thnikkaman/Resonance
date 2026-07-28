@@ -1307,3 +1307,30 @@ source labels and front artwork, then repeat with an album whose artist or
 album-artist tag is incomplete or composite. Confirm the title-only fallback
 still finds the album and that Streaming automatic artwork resolves the same
 cover. Do not uninstall first.
+
+## Global album-title fallback queries — 2026-07-28
+
+The artwork search no longer assumes an album title must match exactly. Every
+album query now retains the original metadata and also generates generic
+fallback titles by removing recognized trailing release metadata, including
+quality tags such as `24 bit` and parenthesized release tags such as
+`(2011 Japan Remaster)`. These variants are used for both Apple iTunes and
+MusicBrainz/Cover Art Archive queries; no artist- or album-specific exceptions
+or search restrictions are present. Meaningful parenthetical titles remain
+untouched unless they contain release-metadata markers.
+
+Build 109 passed `Tools/RegressionChecks.sh`, `git diff --check`, strict Swift
+6 simulator and generic-device preflight with warnings treated as errors,
+signed arm64 Release compilation, strict deep code-signature verification,
+and in-place installation. `devicectl` verified
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `109` on
+`SaiyanDenawa`. The phone app was not launched. The known empty
+supported-platforms destination warning and harmless AppIntents metadata-skip
+warning remained non-blocking.
+
+Manual test checklist: launch build 109, search for both an exact album title
+and a title with a suffix such as `24 bit` or `(2011 Japan Remaster)`, then
+repeat with Deluxe, Anniversary, FLAC, and other release-metadata suffixes.
+Confirm the results show the canonical album artwork while preserving the
+original local title. Also verify that meaningful parenthetical titles are not
+incorrectly shortened. Do not uninstall first.

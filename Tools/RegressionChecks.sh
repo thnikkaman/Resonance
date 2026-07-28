@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 108;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 109;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -311,6 +311,10 @@ assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artw
 assert 'searchReport' in artwork_search
 assert 'searchQueries' in artwork_search
 assert 'musicBrainzQueries' in artwork_search
+assert 'albumTitleVariants' in artwork_search
+assert 'stripTrailingReleaseMetadata' in artwork_search
+assert 'containsReleaseMetadataMarker' in artwork_search
+assert 'musicBrainzLiteral' in artwork_search
 assert 'release-group' in artwork_search
 assert 'CoverArtArchiveResponse' in artwork_search
 assert 'limit", value: "50"' in artwork_search
@@ -323,7 +327,7 @@ assert 'func seed(' in artwork_search
 assert 'aliases: [String] = []' in artwork_search
 assert 'albumArtist: String? = nil' in artwork_search
 assert 'isCredibleMatch' in artwork_search
-assert 'queryParts(artist: artist, albumArtist: albumArtist, album: album, track: track)' in artwork_search
+assert 'queryParts(artist: artist, albumArtist: albumArtist, album: albumVariant, track: track)' in artwork_search
 assert 'recommendedSuggestionID' in artwork_picker
 assert '.stroke(isSelected ? .red' in artwork_picker
 assert 'onImageAvailabilityChanged' in artwork_picker
