@@ -1607,3 +1607,21 @@ warnings remained non-blocking.
 Manual test checklist: open a Yes artist detail page and verify the hero menu says Download Artist and downloads the
 artist collection. Open Close to the Edge and verify the hero menu says Download Album and starts that album download.
 Confirm the shared progress overlay, duplicate prompt, cancellation, and navigation behavior remain functional.
+
+## Experimental build 125 — extract the remote download service
+
+The remote download subsystem now lives in `Resonance/Services/RemoteDownloadService.swift`. The extraction includes
+`RemoteDownloadManager`, the background URL session delegate, queue/progress models, duplicate/replacement handling,
+resume/cancellation, file finalization, and local-library refresh calls. `RemoteLibraryStore.swift` retains the remote
+catalog and backend responsibilities; views continue using the same shared `RemoteDownloadManager` interface.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `125`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: download from the Streaming root, artist hero/menu/context menu, album hero/menu/context menu,
+and an individual track. Test a missing track in an otherwise downloaded album; mixed existing/new downloads with Keep
+Existing, Replace Existing, and Cancel; progress and per-track cancellation; resume after interruption; navigation
+between root, artist, and album while active; offline playback of completed files; and deletion followed by redownload.

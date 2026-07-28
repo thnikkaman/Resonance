@@ -19,6 +19,7 @@ gapless = (root / 'Resonance/Services/GaplessAudioEngine.swift').read_text()
 database = (root / 'Resonance/Services/LibraryDatabase.swift').read_text()
 views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
 remote = (root / 'Resonance/Services/RemoteLibraryStore.swift').read_text()
+remote_download = (root / 'Resonance/Services/RemoteDownloadService.swift').read_text()
 library_store = (root / 'Resonance/Services/LibraryStore.swift').read_text()
 settings = (root / 'Resonance/Services/AppSettings.swift').read_text()
 settings_view = (root / 'Resonance/Views/SettingsView.swift').read_text()
@@ -37,7 +38,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 124;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 125;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -335,7 +336,7 @@ assert 'recommendedSuggestionID' in artwork_picker
 assert '.stroke(isSelected ? .red' in artwork_picker
 assert 'onImageAvailabilityChanged' in artwork_picker
 assert 'showingArtworkSearch' in album_detail
-assert 'rememberArtwork' in remote
+assert 'rememberArtwork' in remote_download
 assert 'resolvedArtworkData' in streaming
 assert 'fallbackTrackQueries' in streaming
 assert 'StreamingArtworkTrackQuery' in streaming
@@ -434,28 +435,28 @@ assert 'showLockScreenArtwork' in settings
 assert 'streamingGaplessExperimental' in settings
 assert 'Streaming gapless playback is disabled during alpha testing.' not in settings_view
 assert 'return false' in player
-assert 'RemoteDownloadManager' in remote
-assert 'RemoteBackgroundDownloadSession' in remote
-assert 'background(withIdentifier:' in remote
-assert 'sessionSendsLaunchEvents = true' in remote
+assert 'RemoteDownloadManager' in remote_download
+assert 'RemoteBackgroundDownloadSession' in remote_download
+assert 'background(withIdentifier:' in remote_download
+assert 'sessionSendsLaunchEvents = true' in remote_download
 assert 'handleEventsForBackgroundURLSession' in app_source
 assert 'experimentalBackgroundDownloads' in settings
 assert 'Experimental background downloads' in settings_view
-assert 'currentCompletedBytes' in remote
-assert 'requestDownload' in remote
-assert 'confirmReplacement' in remote
-assert 'refreshDownloadedTrack' in remote
-assert 'case cancelled' in remote
-assert 'case queued' in remote
-assert 'downloadQueue' in remote
-assert 'cancelDownload' in remote
+assert 'currentCompletedBytes' in remote_download
+assert 'requestDownload' in remote_download
+assert 'confirmReplacement' in remote_download
+assert 'refreshDownloadedTrack' in remote_download
+assert 'case cancelled' in remote_download
+assert 'case queued' in remote_download
+assert 'downloadQueue' in remote_download
+assert 'cancelDownload' in remote_download
 assert 'Hide download queue' in streaming
 assert 'RemoteDownloadQueueRow' in streaming
 assert 'Remove or Delete Album' in library_view
 assert 'RemoteDownloadOverlay' in streaming
 assert 'Collapse download queue' in streaming
 assert 'refreshDownloadedTrack' in library_store
-assert 'requeueDownload' in remote
+assert 'requeueDownload' in remote_download
 assert 'Requeue' in streaming
 assert 'ignoredLocalPaths' in library_store
 assert 'deletingFiles: Bool' in library_store
@@ -568,15 +569,15 @@ assert 'case .nocturne: ["0B1020", "271A4A", "080B15"]' in settings
 assert 'case .galleryLight: ["F4E5D2", "C97955", "FFF8EE"]' in settings
 assert 'case .colorBloom: ["07142B", "8A245F", "0B4560"]' in settings
 assert 'ThemePsychedelic' in settings
-assert 'removeProgress' in remote
-assert 'prioritizeDownloadQueue' in remote
+assert 'removeProgress' in remote_download
+assert 'prioritizeDownloadQueue' in remote_download
 assert 'showingAlbumOptions' in album_detail
 assert 'browseReady' in streaming
 assert 'value.translation.height > 70' in streaming
 assert 'private struct MetadataTextField' in smart
 assert 'Enter track title' in smart
 assert 'ScrollableArtistName' in library_view
-assert 'resumePersistedDownloads' in remote
+assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming
 assert 'ServerQRCodeScannerView' in settings_view
 assert 'qrcode.viewfinder' in settings_view
