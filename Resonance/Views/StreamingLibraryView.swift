@@ -1825,6 +1825,7 @@ private struct RemoteAlbumDetailView: View {
                 .lineLimit(1)
         }
         .resonanceHeroSurface()
+        .resonanceTabSwipeObserver()
     }
 
     @ViewBuilder
@@ -1971,7 +1972,6 @@ private struct RemoteAlbumDetailView: View {
                 isAutomaticallySelectedArtwork = false
             }
         }
-        .resonanceTabSwipeObserver()
     }
 }
 
@@ -2347,7 +2347,6 @@ private struct RemoteTrackRow: View {
                 context: RemoteArtworkContext(track),
                 size: 42,
             )
-            .resonanceTabSwipeGesture()
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).lineLimit(1)
                 Text("\(track.artist) • \(track.album)")

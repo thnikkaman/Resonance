@@ -91,6 +91,7 @@ struct AlbumDetailView: View {
                 Label("Remove or Delete Album", systemImage: "trash")
             }
         }
+        .resonanceTabSwipeObserver()
     }
 
     @ViewBuilder
@@ -254,7 +255,6 @@ struct AlbumDetailView: View {
                     }
                 }
         )
-        .resonanceTabSwipeObserver()
     }
 }
 
@@ -329,7 +329,6 @@ struct AllAlbumsTrackListView: View {
             .background { ResonanceThemeSurfaceBackdrop() }
             .contentShape(Rectangle())
         }
-        .resonanceTabSwipeObserver()
     }
 }
 
@@ -350,7 +349,6 @@ struct TrackListRow: View {
                     embedded: library.artworkIsEmbedded(for: track),
                     size: large ? max(70, settings.libraryThumbnailSize.points * 1.8) : settings.libraryThumbnailSize.points
                 )
-                .resonanceTabSwipeGesture()
             }
 
             if let leadingNumber {

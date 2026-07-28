@@ -1644,3 +1644,21 @@ Manual test checklist: in Streaming root, long-press one or more artists and one
 toolbar menu, and choose Download Artist(s) or Download Album(s). Verify the duplicate prompt appears when appropriate
 and that Keep Existing, Replace Existing, and Cancel work. Confirm the download window persists while navigating
 root → artist → album, and verify the existing artist/album hero and context-menu actions remain unchanged.
+
+## Experimental build 127 — confine tab swipes to album heroes
+
+Horizontal tab navigation in local and Streaming album detail is now owned by the fixed album hero/artwork area
+above the track list. Individual track rows no longer attach the tab-swipe recognizer, so horizontal interaction on
+a track remains available for its Play Next, Add to Queue, playlist, download, and related row actions. The track-only
+All Albums screens also no longer claim horizontal tab navigation.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `127`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in a local album and a Streaming album, swipe horizontally across the artwork/header area and
+verify tab navigation. Swipe horizontally across several individual tracks and verify tab navigation does not occur;
+the track action menu remains available. Test Play Next, Add to Queue, playlist, and Download Track actions, then verify
+vertical scrolling, Back, downward hierarchy dismissal, and the root/artist/album download overlay remain unchanged.

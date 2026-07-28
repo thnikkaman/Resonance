@@ -38,7 +38,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 126;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 127;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -238,11 +238,12 @@ assert '.scrollDisabled(isTabSwipeActive)' in root_view
 assert 'ResonanceInteractiveTopDownDismissModifier' in root_view
 assert 'gesture: tabSwipeGesture(width: proxy.size.width)' in root_view
 assert 'struct ResonanceTabSwipeActions' in root_view
-assert 'func resonanceTabSwipeGesture()' in root_view
-assert 'content.highPriorityGesture(' in root_view
+assert 'func resonanceTabSwipeGesture()' not in root_view
+assert 'content.highPriorityGesture(' not in root_view
 assert 'func resonanceHierarchySwipeBack' in root_view
-assert '.resonanceTabSwipeGesture()' in album_detail
-assert '.resonanceTabSwipeGesture()' in streaming
+assert '.resonanceTabSwipeObserver()' in album_detail
+assert '.resonanceTabSwipeGesture()' not in album_detail
+assert '.resonanceTabSwipeGesture()' not in streaming
 assert '@Published var dock: MiniPlayerDock = .bottom' in root_view
 assert 'nowPlayingPresentationRequest' in root_view
 assert 'nowPlayingPresentationRequest' in player

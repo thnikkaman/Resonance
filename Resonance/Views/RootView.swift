@@ -68,25 +68,6 @@ extension EnvironmentValues {
   }
 }
 
-struct ResonanceTabSwipeGesture: ViewModifier {
-  @Environment(\.resonanceTabSwipeActions) private var actions
-
-  func body(content: Content) -> some View {
-    // Artwork thumbnails sit inside tappable rows/buttons. Give the drag
-    // recognizer priority so a real swipe cancels the button's pending tap;
-    // with no movement, the button still receives the ordinary tap.
-    content.highPriorityGesture(
-      DragGesture(minimumDistance: 5, coordinateSpace: .local)
-        .onChanged { value in
-          actions.onChanged(value.translation.width, value.translation.height)
-        }
-        .onEnded { value in
-          actions.onEnded(value.translation.width, value.translation.height)
-        }
-    )
-  }
-}
-
 struct ResonanceTabSwipeObserver: ViewModifier {
   @Environment(\.resonanceTabSwipeActions) private var actions
 
@@ -128,10 +109,6 @@ private struct ResonanceSwipeAwareButtonBody: View {
 }
 
 extension View {
-  func resonanceTabSwipeGesture() -> some View {
-    modifier(ResonanceTabSwipeGesture())
-  }
-
   func resonanceTabSwipeObserver() -> some View {
     modifier(ResonanceTabSwipeObserver())
   }
