@@ -1280,3 +1280,30 @@ MusicBrainz/Cover Art Archive candidates appear; verify a failed image card
 disappears and the red recommended outline advances; retry with an album whose
 artist metadata contains an alternate album-artist value; confirm Streaming
 automatic artwork still finds a usable candidate. Do not uninstall first.
+
+## Poweramp-style MusicBrainz artwork queries — 2026-07-28
+
+The previous release-group repair still used an exact MusicBrainz release query
+and synthesized one Cover Art Archive URL per release. The artwork search now
+uses the album title as the primary MusicBrainz release-group query, adds an
+artist-qualified release-group query when artist metadata is available, and
+uses the Cover Art Archive release-group JSON endpoint to obtain only actual
+front-image URLs. This matches the observable current Poweramp behavior more
+closely: album-art lookup is title-driven and uses MusicBrainz/Cover Art Archive
+rather than a generic image search. Apple iTunes remains an additional
+album-first source; Deezer remains removed.
+
+Live endpoint checks returned usable release groups and front images for
+*Thriller*, *The Dark Side of the Moon*, *Abbey Road*, and *OK Computer*.
+`Tools/RegressionChecks.sh`, `git diff --check`, strict Swift 6 simulator and
+generic-device preflight with warnings treated as errors, signed arm64 Release
+compilation, strict deep code-signature verification, and in-place install
+passed. `devicectl` verified `com.example.ResonancePrototype`, version
+`0.3.7.4`, build `108` on `SaiyanDenawa`. The phone app was not launched.
+
+Manual test checklist: launch build 108, open Search Online Artwork for a
+popular album, confirm the result cards show MusicBrainz/Cover Art Archive
+source labels and front artwork, then repeat with an album whose artist or
+album-artist tag is incomplete or composite. Confirm the title-only fallback
+still finds the album and that Streaming automatic artwork resolves the same
+cover. Do not uninstall first.

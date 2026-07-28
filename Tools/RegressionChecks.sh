@@ -37,7 +37,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 107;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 108;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 0.3.7.4;') == 2
@@ -310,7 +310,10 @@ assert 'UIImage(data: data)' not in artwork
 assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artwork_search
 assert 'searchReport' in artwork_search
 assert 'searchQueries' in artwork_search
-assert 'limit", value: "25"' in artwork_search
+assert 'musicBrainzQueries' in artwork_search
+assert 'release-group' in artwork_search
+assert 'CoverArtArchiveResponse' in artwork_search
+assert 'limit", value: "50"' in artwork_search
 assert 'prefix(24)' in artwork_search
 assert 'Deezer' not in artwork_search
 assert 'Deezer' not in settings_view

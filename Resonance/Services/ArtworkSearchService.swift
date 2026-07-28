@@ -170,26 +170,63 @@ enum ArtworkSearchService {
     private static func searchCoverArtArchive(artist: String, albumArtist: String?, album: String?) async throws -> [ArtworkSearchSuggestion] {
         guard let album, !album.isEmpty else { return [] }
         let artistCandidates = uniqueIdentityValues([albumArtist, artist])
-        guard !artistCandidates.isEmpty else { return [] }
-        let artistClauses = artistCandidates.map { "artist:\"\($0)\"" }.joined(separator: " OR ")
-        let artistQuery = artistCandidates.count > 1 ? "(\(artistClauses))" : artistClauses
-        var components = URLComponents(string: "https://musicbrainz.org/ws/2/release")!
-        components.queryItems = [
-            URLQueryItem(name: "query", value: "\(artistQuery) AND release:\"\(album)\""),
-            URLQueryItem(name: "fmt", value: "json"),
-            URLQueryItem(name: "limit", value: "25")
-        ]
-        let payload: MusicBrainzReleaseResponse = try await decode(components.url!, userAgent: true)
-        return payload.releases.compactMap { release in
-            guard let imageURL = URL(string: "https://coverartarchive.org/release/\(release.id)/front-500") else { return nil }
-            let creditedArtist = release.artistCredit?.map(\.name).joined(separator: " & ")
-            return ArtworkSearchSuggestion(
-                id: "coverart-\(release.id)",
-                title: release.title,
-                subtitle: creditedArtist ?? artistCandidates[0],
-                source: "MusicBrainz Cover Art Archive",
-                imageURL: imageURL
-            )
+        let queries = musicBrainzQueries(artistCandidates: artistCandidates, album: album)
+        guard !queries.isEmpty else { return [] }
+
+        var releaseGroups: [MusicBrainzReleaseGroup] = []
+        var seenReleaseGroupIDs = Set<String>()
+        var firstError: Error?
+        for query in queries {
+            var components = URLComponents(string: "https://musicbrainz.org/ws/2/release-group")!
+            components.queryItems = [
+                URLQueryItem(name: "query", value: query),
+                URLQueryItem(name: "fmt", value: "json"),
+                URLQueryItem(name: "limit", value: "50")
+            ]
+            do {
+                let payload: MusicBrainzReleaseGroupResponse = try await decode(components.url!, userAgent: true)
+                for releaseGroup in payload.releaseGroups where seenReleaseGroupIDs.insert(releaseGroup.id).inserted {
+                    releaseGroups.append(releaseGroup)
+                }
+            } catch {
+                firstError = firstError ?? error
+            }
+        }
+        if releaseGroups.isEmpty, let firstError {
+            throw firstError
+        }
+
+        return await withTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
+            for releaseGroup in releaseGroups.prefix(25) {
+                group.addTask {
+                    await coverArtSuggestions(for: releaseGroup)
+                }
+            }
+            var suggestions: [ArtworkSearchSuggestion] = []
+            for await result in group { suggestions.append(contentsOf: result) }
+            return suggestions
+        }
+    }
+
+    private static func coverArtSuggestions(for releaseGroup: MusicBrainzReleaseGroup) async -> [ArtworkSearchSuggestion] {
+        guard let url = URL(string: "https://coverartarchive.org/release-group/\(releaseGroup.id)") else { return [] }
+        do {
+            let payload: CoverArtArchiveResponse = try await decode(url, userAgent: true)
+            let creditedArtist = releaseGroup.artistCredit?.map(\.name).joined(separator: " & ") ?? ""
+            return payload.images.filter(\.front).compactMap { image in
+                let rawURL = image.thumbnails?["500"] ?? image.thumbnails?["large"] ?? image.image
+                guard let rawURL,
+                      let imageURL = URL(string: rawURL.replacingOccurrences(of: "http://", with: "https://")) else { return nil }
+                return ArtworkSearchSuggestion(
+                    id: "coverart-group-\(releaseGroup.id)-\(image.id)",
+                    title: releaseGroup.title,
+                    subtitle: creditedArtist,
+                    source: "MusicBrainz Cover Art Archive",
+                    imageURL: imageURL
+                )
+            }
+        } catch {
+            return []
         }
     }
 
@@ -247,7 +284,8 @@ enum ArtworkSearchService {
         let albumKey = normalizedWords(album ?? "")
         let titleKey = normalizedWords(suggestion.title)
         let subtitleKey = normalizedWords(suggestion.subtitle)
-        let artistMatches = artistMatchScore(subtitleKey: subtitleKey, artistKey: artistKey) > 0
+        let artistMatches = (artistKey.isEmpty && albumArtistKey.isEmpty)
+            || artistMatchScore(subtitleKey: subtitleKey, artistKey: artistKey) > 0
             || artistMatchScore(subtitleKey: subtitleKey, artistKey: albumArtistKey) > 0
         let albumMatches = albumKey.isEmpty
             || titleKey == albumKey
@@ -298,6 +336,17 @@ enum ArtworkSearchService {
         return result
     }
 
+    private static func musicBrainzQueries(artistCandidates: [String], album: String) -> [String] {
+        var queries: [String] = []
+        if !artistCandidates.isEmpty {
+            let artistClauses = artistCandidates.map { "artist:\"\($0)\"" }.joined(separator: " OR ")
+            let artistQuery = artistCandidates.count > 1 ? "(\(artistClauses))" : artistClauses
+            queries.append("\(artistQuery) AND releasegroup:\"\(album)\"")
+        }
+        queries.append("releasegroup:\"\(album)\"")
+        return queries
+    }
+
     private static func normalizedWords(_ value: String) -> String {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .unicodeScalars
@@ -310,21 +359,34 @@ enum ArtworkSearchService {
 
     private struct ITunesResponse: Decodable { let results: [ITunesResult] }
     private struct ITunesResult: Decodable { let collectionId: Int; let collectionName: String?; let artistName: String?; let artworkUrl100: String? }
-    private struct MusicBrainzReleaseResponse: Decodable { let releases: [MusicBrainzRelease] }
-    private struct MusicBrainzRelease: Decodable {
+    private struct MusicBrainzReleaseGroupResponse: Decodable {
+        let releaseGroups: [MusicBrainzReleaseGroup]
+
+        enum CodingKeys: String, CodingKey {
+            case releaseGroups = "release-groups"
+        }
+    }
+    private struct MusicBrainzReleaseGroup: Decodable, Sendable {
         let id: String
         let title: String
-        let date: String?
+        let score: Int?
         let artistCredit: [MusicBrainzArtistCredit]?
 
         enum CodingKeys: String, CodingKey {
             case id
             case title
-            case date
+            case score
             case artistCredit = "artist-credit"
         }
     }
-    private struct MusicBrainzArtistCredit: Decodable { let name: String }
+    private struct MusicBrainzArtistCredit: Decodable, Sendable { let name: String }
+    private struct CoverArtArchiveResponse: Decodable, Sendable { let images: [CoverArtArchiveImage] }
+    private struct CoverArtArchiveImage: Decodable, Sendable {
+        let id: Int
+        let front: Bool
+        let image: String?
+        let thumbnails: [String: String]?
+    }
     private struct ProviderSearchResult: Sendable {
         let name: String
         let suggestions: [ArtworkSearchSuggestion]
