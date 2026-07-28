@@ -520,6 +520,7 @@ struct ArtistCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+    @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
     @State private var artistToRemove: Artist?
     @State private var artistToEdit: Artist?
     @State private var presentedArtist: Artist?
@@ -562,7 +563,8 @@ struct ArtistCollectionView: View {
                             ) { artist in
                                 Button {
                                     guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                    presentedArtist = artist
+                                    layeredNavigation.localArtist = artist
+                                    layeredNavigation.layer = .artist
                                 } label: {
                                     ArtistTile(artist: artist)
                                 }
@@ -591,7 +593,8 @@ struct ArtistCollectionView: View {
                                     ForEach(section.items) { artist in
                                         Button {
                                             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                            presentedArtist = artist
+                                            layeredNavigation.localArtist = artist
+                                            layeredNavigation.layer = .artist
                                         } label: {
                                             ArtistListRow(artist: artist, large: settings.albumLayout == .large)
                                         }
@@ -815,10 +818,12 @@ struct ArtistAlbumLayoutToggle: View {
 
 struct ArtistDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     @State private var artistToEdit: Artist?
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
@@ -980,7 +985,8 @@ struct ArtistDetailView: View {
                                 ) { album in
                                     Button {
                                         guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                        presentedAlbum = album
+                                        layeredNavigationState.localAlbum = album
+                                        layeredNavigationState.layer = .album
                                     } label: {
                                         AlbumTile(album: album)
                                     }
@@ -1031,7 +1037,8 @@ struct ArtistDetailView: View {
                                         ForEach(section.items) { album in
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                                presentedAlbum = album
+                                                layeredNavigationState.localAlbum = album
+                                                layeredNavigationState.layer = .album
                                             } label: {
                                                 HStack(spacing: 12) {
                                                     ArtworkView(
@@ -1101,8 +1108,10 @@ struct ArtistDetailView: View {
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
             }
             ToolbarItemGroup(placement: .topBarLeading) {
@@ -1208,6 +1217,7 @@ struct AlbumCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+    @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
     @State private var presentedAlbum: Album?
@@ -1240,7 +1250,8 @@ struct AlbumCollectionView: View {
     private func albumRow(_ album: Album) -> some View {
         Button {
             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-            presentedAlbum = album
+            layeredNavigation.localAlbum = album
+            layeredNavigation.layer = .album
         } label: {
             if settings.albumLayout == .compact {
                 HStack(spacing: 7) {
@@ -1308,7 +1319,8 @@ struct AlbumCollectionView: View {
                     ) { album in
                         Button {
                             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                            presentedAlbum = album
+                            layeredNavigation.localAlbum = album
+                            layeredNavigation.layer = .album
                         } label: {
                             AlbumTile(album: album)
                         }

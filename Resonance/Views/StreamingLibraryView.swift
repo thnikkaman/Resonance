@@ -764,6 +764,7 @@ private struct RemoteLibraryOptionsSheet: View {
 private struct RemoteArtistCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+  @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
   let artists: [RemoteArtist]
   let sortDirection: SortDirection
   @Binding var selectionMode: Bool
@@ -849,7 +850,8 @@ private struct RemoteArtistCollectionView: View {
             } else if selectionMode {
                 toggleSelection(artist)
             } else {
-                destinationArtist = artist
+                layeredNavigation.remoteArtist = artist
+                layeredNavigation.layer = .artist
             }
         } label: {
             ZStack(alignment: .topTrailing) {
@@ -1000,6 +1002,7 @@ private struct RemoteArtistTile: View {
 private struct RemoteAlbumCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+  @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
   let albums: [RemoteAlbum]
   let sortDirection: SortDirection
   @Binding var selectionMode: Bool
@@ -1095,7 +1098,8 @@ private struct RemoteAlbumCollectionView: View {
             } else if selectionMode {
                 toggleSelection(album)
             } else {
-                destinationAlbum = album
+                layeredNavigation.remoteAlbum = album
+                layeredNavigation.layer = .album
             }
         } label: {
             ZStack(alignment: .topTrailing) {
@@ -1292,14 +1296,16 @@ private struct RemoteTrackCollectionView: View {
     }
 }
 
-private struct RemoteArtistDetailView: View {
+struct RemoteArtistDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: RemoteDownloadManager
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     @State private var presentedAlbum: RemoteAlbum?
     @State private var showingAllAlbums = false
     @State private var showingLibraryOptions = false
@@ -1397,7 +1403,8 @@ private struct RemoteArtistDetailView: View {
     private func albumTile(_ album: RemoteAlbum) -> some View {
         Button {
             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-            presentedAlbum = album
+            layeredNavigationState.remoteAlbum = album
+            layeredNavigationState.layer = .album
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 RemoteArtwork(
@@ -1514,7 +1521,8 @@ private struct RemoteArtistDetailView: View {
                                         ForEach(section.items) { album in
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                                presentedAlbum = album
+                                                layeredNavigationState.remoteAlbum = album
+                                                layeredNavigationState.layer = .album
                                             } label: {
                                                 RemoteCollectionRow(
                                                     title: album.title,
@@ -1709,6 +1717,7 @@ private struct RemoteDownloadHeroMenu: View {
 
 private struct RemoteAllAlbumsTrackListView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -1789,8 +1798,10 @@ private struct RemoteAllAlbumsTrackListView: View {
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
             }
         }
@@ -1807,8 +1818,9 @@ private struct RemoteAllAlbumsTrackListView: View {
     }
 }
 
-private struct RemoteAlbumDetailView: View {
+struct RemoteAlbumDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var player: PlayerController
@@ -1926,8 +1938,10 @@ private struct RemoteAlbumDetailView: View {
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {

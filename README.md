@@ -1697,6 +1697,31 @@ warnings remained non-blocking.
 This build is the rollback and comparison baseline for the navigation rework. Do not uninstall it before testing the
 next navigation build.
 
+## Experimental build 132 — layered vertical navigation
+
+The bottom tab-navigation pane is no longer rendered. RootView now owns a layered vertical navigation coordinator:
+Player, current-track Album, Artist, and Library/Streaming root surfaces remain stacked, and moving upward lowers the
+front surface to reveal the surface beneath it. The Player’s top-center Album control, Album’s Artist control, and
+Artist’s Library/Streaming root control use the same animated surface transitions; downward swipes perform the matching
+reverse transition. The root surface has a single Library/Streaming switch control and a gear control that presents
+Settings from the bottom. The mini-player is now a compact bottom Player surface rather than part of a bottom tab pane.
+
+The current track resolves its local or remote album and artist context. Library and Streaming artist/album selections
+now route into the same layered coordinator, while existing screen-specific menus and actions remain in place. Detail
+surfaces hide their legacy Back buttons and bottom tab/mini-player insets when participating in the layered flow.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `132`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: launch build 132 and confirm the bottom tab bar is absent. Start a local track and a Streaming
+track, open the Player, press Album ↑, and verify the Player lowers to reveal the correct album. Press Artist ↑, then
+Library/Streaming ↑, and verify the vertical transitions. Test downward swipes at each layer. From each root, use the
+Library/Streaming switch and gear Settings control; close Settings downward. Confirm existing menus, playback controls,
+track actions, downloads, artwork, and metadata actions remain usable. Keep build 130 installed as the rollback baseline.
+
 ## Experimental build 129 — restore All Albums replacement prompt
 
 The Streaming All Albums track-list screen now renders the shared `RemoteDownloadOverlay`. Download requests from

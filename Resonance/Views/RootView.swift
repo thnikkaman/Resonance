@@ -124,6 +124,296 @@ final class ResonanceMiniPlayerNavigation: ObservableObject {
   @Published var dock: MiniPlayerDock = .bottom
 }
 
+enum ResonanceBrowseRoot: String {
+  case library, streaming
+}
+
+enum ResonanceLayer: Int {
+  case root = 0, artist = 1, album = 2, player = 3, settings = 4
+}
+
+@MainActor
+final class ResonanceLayerNavigation: ObservableObject {
+  @Published var root: ResonanceBrowseRoot = .library
+  @Published var layer: ResonanceLayer = .root
+  @Published var localArtist: Artist?
+  @Published var localAlbum: Album?
+  @Published var remoteArtist: RemoteArtist?
+  @Published var remoteAlbum: RemoteAlbum?
+  private var layerBeforeSettings: ResonanceLayer = .root
+
+  func showPlayer() {
+    layer = .player
+  }
+
+  func showAlbum() {
+    guard localAlbum != nil || remoteAlbum != nil else { return }
+    layer = .album
+  }
+
+  func showArtist() {
+    guard localArtist != nil || remoteArtist != nil else { return }
+    layer = .artist
+  }
+
+  func showRoot() {
+    layer = .root
+  }
+
+  func showSettings() {
+    layerBeforeSettings = layer
+    layer = .settings
+  }
+
+  func closeSettings() {
+    layer = layerBeforeSettings
+  }
+}
+
+private struct ResonanceLayeredNavigationActiveKey: EnvironmentKey {
+  static let defaultValue = false
+}
+
+extension EnvironmentValues {
+  var resonanceLayeredNavigationActive: Bool {
+    get { self[ResonanceLayeredNavigationActiveKey.self] }
+    set { self[ResonanceLayeredNavigationActiveKey.self] = newValue }
+  }
+}
+
+private struct ResonanceLayeredNavigationView: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var remote: RemoteLibraryStore
+  @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
+  @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
+  @StateObject private var navigation = ResonanceLayerNavigation()
+
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .top) {
+        rootSurface
+          .offset(y: offset(for: .root, height: proxy.size.height))
+          .zIndex(0)
+
+        if let artist = navigation.localArtist {
+          NavigationStack {
+            ArtistDetailView(artist: artist)
+          }
+          .layeredSurface { navigation.showRoot() }
+          .offset(y: offset(for: .artist, height: proxy.size.height))
+          .zIndex(1)
+        } else if let artist = navigation.remoteArtist {
+          NavigationStack {
+            RemoteArtistDetailView(artist: artist)
+          }
+          .layeredSurface { navigation.showRoot() }
+          .offset(y: offset(for: .artist, height: proxy.size.height))
+          .zIndex(1)
+        }
+
+        if let album = navigation.localAlbum {
+          NavigationStack {
+            AlbumDetailView(album: album)
+          }
+          .layeredSurface { navigation.showArtist() }
+          .offset(y: offset(for: .album, height: proxy.size.height))
+          .zIndex(2)
+        } else if let album = navigation.remoteAlbum {
+          NavigationStack {
+            RemoteAlbumDetailView(album: album)
+          }
+          .layeredSurface { navigation.showArtist() }
+          .offset(y: offset(for: .album, height: proxy.size.height))
+          .zIndex(2)
+        }
+
+        NavigationStack {
+          NowPlayingView(openLibrary: navigation.showRoot)
+        }
+        .layeredSurface { navigation.showAlbum() }
+        .offset(y: offset(for: .player, height: proxy.size.height))
+        .zIndex(3)
+
+        NavigationStack {
+          SettingsView(openLibrary: navigation.showRoot)
+        }
+        .layeredSurface { navigation.closeSettings() }
+        .offset(y: navigation.layer == .settings ? 0 : proxy.size.height)
+        .zIndex(10)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .overlay(alignment: .top) {
+        ResonanceLayerHeader(navigation: navigation)
+      }
+      .overlay(alignment: .bottom) {
+        if player.currentTrack != nil,
+           navigation.layer != .player,
+           navigation.layer != .settings {
+          MiniPlayerView(
+            dock: .bottom,
+            openNowPlaying: {
+              prepareCurrentContext()
+              navigation.showPlayer()
+            },
+            onDock: { _ in }
+          )
+          .padding(.horizontal, 8)
+          .padding(.bottom, 8)
+        }
+      }
+      .safeAreaPadding(.bottom, player.currentTrack != nil && navigation.layer != .player ? 76 : 0)
+      .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
+        prepareCurrentContext()
+        navigation.showPlayer()
+      }
+      .task {
+        prepareCurrentContext()
+      }
+    }
+    .environmentObject(navigation)
+    .environment(\.resonanceLayeredNavigationActive, true)
+    .environment(\.resonanceMiniPlayerBottomInset, player.currentTrack != nil ? 76 : 0)
+    .environmentObject(gestureCoordinator)
+    .environmentObject(miniPlayerNavigation)
+  }
+
+  @ViewBuilder
+  private var rootSurface: some View {
+    NavigationStack {
+      if navigation.root == .library {
+        LibraryView()
+      } else {
+        StreamingLibraryView(
+          openLibrary: { navigation.root = .library },
+          openSettings: navigation.showSettings
+        )
+      }
+    }
+    .layeredSurface()
+  }
+
+  private func offset(for layer: ResonanceLayer, height: CGFloat) -> CGFloat {
+    switch navigation.layer {
+    case .root:
+      return layer == .root ? 0 : height
+    case .artist:
+      return layer.rawValue <= ResonanceLayer.artist.rawValue ? 0 : height
+    case .album:
+      return layer.rawValue <= ResonanceLayer.album.rawValue ? 0 : height
+    case .player:
+      return layer.rawValue <= ResonanceLayer.player.rawValue ? 0 : height
+    case .settings:
+      return layer == .settings ? 0 : 0
+    }
+  }
+
+  private func prepareCurrentContext() {
+    guard let track = player.currentTrack else { return }
+    if track.isRemote, let remoteTrack = remote.tracks.first(where: { $0.id == track.id }) {
+      navigation.root = .streaming
+      navigation.remoteAlbum = remote.albums.first {
+        $0.tracks.contains(where: { $0.id == remoteTrack.id })
+      }
+      navigation.remoteArtist = remote.artists.first {
+        $0.tracks.contains(where: { $0.id == remoteTrack.id })
+      }
+      navigation.localAlbum = nil
+      navigation.localArtist = nil
+    } else {
+      navigation.root = .library
+      navigation.localAlbum = library.albums.first {
+        $0.tracks.contains(where: { $0.id == track.id })
+      }
+      navigation.localArtist = library.artists.first {
+        $0.albums.contains(where: { $0.tracks.contains(where: { $0.id == track.id }) })
+      }
+      navigation.remoteAlbum = nil
+      navigation.remoteArtist = nil
+    }
+  }
+}
+
+private struct ResonanceLayerHeader: View {
+  @ObservedObject var navigation: ResonanceLayerNavigation
+
+  var body: some View {
+    Group {
+      switch navigation.layer {
+      case .root:
+        HStack {
+          Button {
+            navigation.root = navigation.root == .library ? .streaming : .library
+          } label: {
+            Image(systemName: navigation.root == .library ? "arrow.right.circle" : "arrow.left.circle")
+          }
+          .accessibilityLabel(navigation.root == .library ? "Open Streaming" : "Open Library")
+          Spacer()
+          Button { navigation.showSettings() } label: {
+            Image(systemName: "gearshape")
+          }
+          .accessibilityLabel("Open Settings")
+        }
+      case .artist:
+        layerButton(title: navigation.root == .library ? "Library" : "Streaming") {
+          navigation.showRoot()
+        }
+      case .album:
+        layerButton(title: "Artist") {
+          navigation.showArtist()
+        }
+      case .player:
+        layerButton(title: "Album") {
+          navigation.showAlbum()
+        }
+      case .settings:
+        layerButton(title: "Close Settings") {
+          navigation.closeSettings()
+        }
+      }
+    }
+    .font(.headline.weight(.semibold))
+    .padding(.horizontal, 18)
+    .padding(.top, 8)
+    .padding(.bottom, 8)
+    .background(.ultraThinMaterial)
+    .contentShape(Rectangle())
+  }
+
+  private func layerButton(title: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 5) {
+        Text(title)
+        Image(systemName: "chevron.up")
+      }
+    }
+    .accessibilityLabel("(title), move up")
+  }
+}
+
+private extension View {
+  func layeredSurface() -> some View {
+    self
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background { ResonanceThemeBackdrop() }
+      .clipped()
+  }
+
+  func layeredSurface(onDown: @escaping () -> Void) -> some View {
+    layeredSurface()
+      .simultaneousGesture(
+        DragGesture(minimumDistance: 45, coordinateSpace: .local)
+          .onEnded { value in
+            guard value.translation.height > 70,
+                  value.translation.height > abs(value.translation.width) + 4
+            else { return }
+            onDown()
+          }
+      )
+  }
+}
+
 struct RootView: View {
     @EnvironmentObject private var player: PlayerController
   @StateObject private var tabNavigation = ResonanceTabNavigation()
@@ -139,6 +429,14 @@ struct RootView: View {
   }
 
     var body: some View {
+        ResonanceLayeredNavigationView()
+            .environmentObject(gestureCoordinator)
+            .environmentObject(miniPlayerNavigation)
+            .environmentObject(tabNavigation)
+            .environmentObject(player)
+    }
+
+    var legacyBody: some View {
         ZStack {
             activeTabContent
                 .environmentObject(gestureCoordinator)
@@ -509,7 +807,8 @@ struct ResonanceTabBar: View {
 }
 
 struct ResonanceDetailTabNavigation: ViewModifier {
-    @Environment(\.dismiss) private var dismiss
+  @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var tabNavigation: ResonanceTabNavigation
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
@@ -545,7 +844,8 @@ struct ResonanceDetailTabNavigation: ViewModifier {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                if miniPlayerNavigation.dock == .top, player.currentTrack != nil {
+                if !layeredNavigation,
+                   miniPlayerNavigation.dock == .top, player.currentTrack != nil {
                     MiniPlayerOverlay(
                         isVisible: true,
                         dock: .top,
@@ -557,18 +857,20 @@ struct ResonanceDetailTabNavigation: ViewModifier {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    if miniPlayerNavigation.dock == .bottom, player.currentTrack != nil {
-                        MiniPlayerOverlay(
-                            isVisible: true,
-                            dock: .bottom,
-                            openNowPlaying: { tabNavigation.select(.playing) },
-                            onDock: { miniPlayerNavigation.dock = $0 }
-                        )
-                        .padding(.horizontal, 8)
-                        .padding(.bottom, 6)
+                if !layeredNavigation {
+                    VStack(spacing: 0) {
+                        if miniPlayerNavigation.dock == .bottom, player.currentTrack != nil {
+                            MiniPlayerOverlay(
+                                isVisible: true,
+                                dock: .bottom,
+                                openNowPlaying: { tabNavigation.select(.playing) },
+                                onDock: { miniPlayerNavigation.dock = $0 }
+                            )
+                            .padding(.horizontal, 8)
+                            .padding(.bottom, 6)
+                        }
+                        ResonanceTabBar()
                     }
-                    ResonanceTabBar()
                 }
             }
             .onChange(of: tabNavigation.requestID) { _, _ in

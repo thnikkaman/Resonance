@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AlbumDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
@@ -139,8 +140,10 @@ struct AlbumDetailView: View {
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -260,6 +263,7 @@ struct AlbumDetailView: View {
 
 struct AllAlbumsTrackListView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var settings: AppSettings
     let artistName: String
@@ -313,8 +317,10 @@ struct AllAlbumsTrackListView: View {
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
             }
         }
