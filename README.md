@@ -1349,10 +1349,11 @@ rescan behavior.
 
 Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, a Debug
 simulator build, and `Tools/PreflightBuild.sh` with Swift 6 strict concurrency
-and warnings treated as errors for simulator and generic device. The preflight
-reported only the existing no-scheme destination and harmless AppIntents
-metadata-skip warnings. This source was not installed on or launched on the
-physical phone.
+and warnings treated as errors for simulator and generic device. A signed
+Release build passed deep strict code-signature verification and was installed
+in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`, build `109`.
+The physical app was not launched. The preflight reported only the existing
+no-scheme destination and harmless AppIntents metadata-skip warnings.
 
 Manual checklist: edit a local FLAC and MP3 track, album, and artist; verify
 successful writes, partial failures, unsupported-format errors, artwork
