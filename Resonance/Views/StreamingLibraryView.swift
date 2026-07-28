@@ -369,7 +369,39 @@ struct RemoteDownloadOverlay: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            if downloads.isDownloading {
+            if downloads.pendingReplacementCount > 0 {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Files Already Exist")
+                        .font(.headline)
+                    Text(downloads.pendingReplacementDescription)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Button("Keep Existing") {
+                            downloads.keepExistingAndDownloadNew()
+                        }
+                        .buttonStyle(.bordered)
+                        Spacer(minLength: 8)
+                        Button("Replace Existing", role: .destructive) {
+                            downloads.confirmReplacement()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Button("Cancel", role: .cancel) {
+                        downloads.cancelPendingReplacement()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(settings.themeSurfaceGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+                .padding(.horizontal, 12)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("File replacement options")
+            } else if downloads.isDownloading {
                 RemoteDownloadBanner(
                     title: downloads.currentTitle,
                     completed: downloads.completedCount,
@@ -403,22 +435,6 @@ struct RemoteDownloadOverlay: View {
             } else {
                 EmptyView()
             }
-        }
-        .alert(
-            "File Already Exists",
-            isPresented: Binding(
-                get: { downloads.pendingReplacementCount > 0 },
-                set: { if !$0 { downloads.cancelPendingReplacement() } }
-            )
-        ) {
-            Button("Replace Existing", role: .destructive) {
-                downloads.confirmReplacement()
-            }
-            Button("Keep Existing", role: .cancel) {
-                downloads.keepExistingAndDownloadNew()
-            }
-        } message: {
-            Text(downloads.pendingReplacementDescription)
         }
     }
 }
@@ -1356,6 +1372,13 @@ private struct RemoteArtistDetailView: View {
         }
         .buttonStyle(.plain)
         .buttonStyle(ResonanceSwipeAwareButtonStyle())
+        .contextMenu {
+            Button {
+                downloads.requestDownload(allTracks, into: library)
+            } label: {
+                Label("Download Artist", systemImage: "arrow.down.circle")
+            }
+        }
     }
 
     @ViewBuilder
@@ -1379,6 +1402,13 @@ private struct RemoteArtistDetailView: View {
         }
         .buttonStyle(.plain)
         .buttonStyle(ResonanceSwipeAwareButtonStyle())
+        .contextMenu {
+            Button {
+                downloads.requestDownload(album.tracks, into: library)
+            } label: {
+                Label("Download Album", systemImage: "arrow.down.circle")
+            }
+        }
     }
 
     var body: some View {
@@ -1485,6 +1515,13 @@ private struct RemoteArtistDetailView: View {
                                             }
                                             .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                             .listRowBackground(Color.clear)
+                                            .contextMenu {
+                                                Button {
+                                                    downloads.requestDownload(album.tracks, into: library)
+                                                } label: {
+                                                    Label("Download Album", systemImage: "arrow.down.circle")
+                                                }
+                                            }
                                         }
                                     } header: {
                                         Text(section.key)
@@ -1544,6 +1581,15 @@ private struct RemoteArtistDetailView: View {
                 ) {
                     showingLibraryOptions = true
                 }
+
+                Menu {
+                    Button("Download Artist") {
+                        downloads.requestDownload(allTracks, into: library)
+                    }
+                } label: {
+                    ResonanceToolbarIconLabel(systemImage: "arrow.down.circle")
+                }
+                .accessibilityLabel("Download artist")
 
                 Menu {
                     NavigationLink {

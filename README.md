@@ -1554,3 +1554,23 @@ visible there; from an album detail page, start an album download and verify the
 visible without returning to the Streaming root. Delete one track from an album, request the album again, and confirm
 only the missing track downloads. Test a mixed existing/new batch with Keep Existing and Replace Existing, navigate
 between artist, album, and Streaming root while active, and cancel from each visible overlay.
+
+## Experimental build 122 — stabilize detail download controls and replacement UI
+
+Streaming artist detail now has a toolbar download control plus context-menu actions for the artist collection, All
+Albums, and individual albums. The shared `RemoteDownloadOverlay` now renders replacement choices in-app instead of
+using competing system alerts from multiple presentation levels; this keeps the prompt visible on the active detail
+surface and prevents it from flashing away when the full-screen detail presentation changes. The single shared queue
+and manager remain unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `122`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: on a Streaming artist detail page, use the toolbar download control, long-press All Albums and
+an album, and confirm each offers a download action. On an album detail page, start a duplicate-containing download
+and verify the in-app Files Already Exist prompt stays visible with Keep Existing, Replace Existing, and Cancel. Confirm
+the detail page remains open, the shared overlay shows progress, and navigation to the Streaming root preserves the
+same queue.
