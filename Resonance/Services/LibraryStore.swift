@@ -123,22 +123,32 @@ final class LibraryStore: ObservableObject {
         knownModificationDates = await Task.detached(priority: .utility) {
             Self.modificationDates(for: stored)
         }.value
-        await scanDocuments(forceMetadataRefresh: false)
 
         if tracks.isEmpty {
+            // There is no persisted library to trust on first launch, so the
+            // initial scan is still required to discover transferred files.
+            await scanDocuments(forceMetadataRefresh: false)
             tracks = Self.demoTracks
             scanStatus = "Shared folder ready — no transferred music found"
+        } else {
+            // The local library changes rarely. Treat the database snapshot as
+            // authoritative at startup and leave an explicit scan action for
+            // users who have transferred new or changed files.
+            sharedFolderTrackCount = stored.reduce(into: 0) { count, track in
+                guard let url = track.fileURL, !track.isRemote else { return }
+                if url.standardizedFileURL.path.hasPrefix(sharedMusicFolderURL.standardizedFileURL.path + "/") {
+                    count += 1
+                }
+            }
+            scanStatus = "Cached library ready — (tracks.count) tracks"
         }
     }
 
     func refreshForActiveState() async {
         if didBootstrap {
-            let now = Date()
-            if let lastActiveRefresh, now.timeIntervalSince(lastActiveRefresh) < 30 {
-                return
-            }
-            lastActiveRefresh = now
-            await scanDocuments(forceMetadataRefresh: false)
+            // Startup and foreground transitions use the cached database.
+            // Explicit Library/Settings scan controls handle rare file changes.
+            return
         } else {
             await bootstrap()
         }

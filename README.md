@@ -26,6 +26,20 @@ updating, and the album art has no red border. Confirm Apply to App still shows 
 setting is enabled. Verify the album title/artwork after relaunch and confirm unrelated playback and library browsing
 remain responsive.
 
+## Experimental build 112 — cache-first startup
+
+Startup now treats the persisted local SQLite library and cached remote catalog as authoritative. With cached data
+available, app activation no longer scans the local Documents tree or performs a remote server/catalog status check.
+The first launch without a local library still performs the initial discovery scan, and the explicit Library/Settings
+scan and Streaming refresh controls remain available for rare changes.
+
+Manual test checklist: launch with cached local and Streaming data while observing that the Library and Streaming tabs
+open without a scan/status panel; confirm cached tracks, albums, artists, and artwork appear immediately. Add or alter
+a local file, verify it does not appear until the explicit Library scan, then confirm the scan finds it. Change the
+remote catalog or server availability, confirm cached Streaming data remains usable at launch, and use explicit
+Streaming/Settings refresh to retrieve the change or show the connection error. Verify metadata saves, downloads,
+playback, tab switching, and relaunch behavior remain intact.
+
 Version: **0.3.7.4**  
 Build: **106**
 

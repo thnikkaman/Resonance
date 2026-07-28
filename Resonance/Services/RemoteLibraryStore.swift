@@ -686,6 +686,12 @@ final class RemoteLibraryStore: ObservableObject {
                     "remote.catalogCache.activated",
                     details: ["trackCount": String(tracks.count)]
                 )
+                if !forceCheck {
+                    // Cached remote data is authoritative during startup. The
+                    // explicit Streaming refresh control and Settings check
+                    // remain available when the user wants server changes.
+                    return
+                }
             } catch {
                 catalogSyncStatus = "Cached catalog could not be activated: \(error.localizedDescription)"
             }
