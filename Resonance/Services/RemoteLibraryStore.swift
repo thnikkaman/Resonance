@@ -1171,16 +1171,7 @@ final class RemoteLibraryStore: ObservableObject {
         components.query = nil
         components.fragment = nil
 
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let requestedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        if requestedPath.isEmpty {
-            components.path = basePath.isEmpty ? "/" : "/" + basePath
-        } else if basePath == requestedPath || basePath.hasSuffix("/" + requestedPath) {
-            components.path = "/" + basePath
-        } else {
-            components.path = "/" + [basePath, requestedPath].filter { !$0.isEmpty }.joined(separator: "/")
-        }
-        return components.url
+        return RemoteURLSupport.appendingPath(path, to: components, clearQueryAndFragment: true)
     }
 
     private func preparePlaybackTracks(
@@ -1222,8 +1213,8 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     private func resolveManifestTrack(_ record: RemoteTrackRecord, relativeTo manifestURL: URL) -> RemoteTrackItem? {
-        guard let streamURL = URL(string: record.path, relativeTo: manifestURL)?.absoluteURL else { return nil }
-        let artworkURL = record.artwork.flatMap { URL(string: $0, relativeTo: manifestURL)?.absoluteURL }
+        guard let streamURL = RemoteURLSupport.resolve(record.path, relativeTo: manifestURL) else { return nil }
+        let artworkURL = record.artwork.flatMap { RemoteURLSupport.resolve($0, relativeTo: manifestURL) }
         let stableSource = record.id?.nonEmpty ?? streamURL.absoluteString
         return RemoteTrackItem(
             id: UUID(uuidString: stableSource) ?? Self.stableUUID(for: stableSource),
@@ -1261,6 +1252,34 @@ final class RemoteLibraryStore: ObservableObject {
         let raw = String(format: "%016llX%016llX", high, low)
         let uuidString = "\(raw.prefix(8))-\(raw.dropFirst(8).prefix(4))-\(raw.dropFirst(12).prefix(4))-\(raw.dropFirst(16).prefix(4))-\(raw.dropFirst(20).prefix(12))"
         return UUID(uuidString: uuidString) ?? UUID()
+    }
+}
+
+private enum RemoteURLSupport {
+    static func appendingPath(
+        _ path: String,
+        to components: URLComponents,
+        clearQueryAndFragment: Bool = false
+    ) -> URL? {
+        var components = components
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let requestedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if requestedPath.isEmpty {
+            components.path = basePath.isEmpty ? "/" : "/" + basePath
+        } else if basePath == requestedPath || basePath.hasSuffix("/" + requestedPath) {
+            components.path = "/" + basePath
+        } else {
+            components.path = "/" + [basePath, requestedPath].filter { !$0.isEmpty }.joined(separator: "/")
+        }
+        if clearQueryAndFragment {
+            components.query = nil
+            components.fragment = nil
+        }
+        return components.url
+    }
+
+    static func resolve(_ path: String, relativeTo baseURL: URL) -> URL? {
+        URL(string: path, relativeTo: baseURL)?.absoluteURL
     }
 }
 
@@ -1530,11 +1549,11 @@ private struct SubsonicClient: Sendable {
     }
 
     private func endpointURL(_ endpoint: String, queryItems: [URLQueryItem]) throws -> URL {
-        guard var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false) else {
+        guard let baseComponents = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false),
+              let endpointURL = RemoteURLSupport.appendingPath(endpoint, to: baseComponents),
+              var components = URLComponents(url: endpointURL, resolvingAgainstBaseURL: false) else {
             throw RemoteLibraryError.invalidServerAddress
         }
-        let basePath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
-        components.path = basePath + "/" + endpoint
 
         let salt = UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16).lowercased()
         let tokenSource = Data((password + salt).utf8)

@@ -1482,3 +1482,20 @@ warnings remained non-blocking.
 Manual test checklist: open Acoustica, save artwork to the album and to two individual MP3 files, and confirm the album
 hero, track rows, relaunch, and an external tag reader all show the image. Confirm Mer de Noms still uses valid fallback
 artwork when one track is artless. Test one FLAC artwork save as a regression check.
+
+## Experimental build 118 — unify remote URL resolution
+
+Manifest base URLs, Subsonic endpoint URLs, and manifest-relative stream/artwork URLs now share one small URL-support
+utility for path joining and relative resolution. Backend-specific request headers, authentication query construction,
+response validation, and download behavior remain separate. The change preserves existing host/path normalization while
+removing duplicate URL path logic.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `118`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: verify a Resonance Manifest server with a host path, relative track/artwork paths, and absolute
+URLs; verify Navidrome/Subsonic login, catalog refresh, album artwork, playback, playlist actions, and downloads. Test
+host-only, host-plus-port, HTTPS, and a server URL that already includes the manifest/API path. Do not uninstall first.
