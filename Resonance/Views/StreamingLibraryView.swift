@@ -1667,7 +1667,7 @@ private struct RemoteDownloadHeroMenu: View {
 
     var body: some View {
         Menu {
-            Button("Download (scope)") {
+            Button("Download \(scope)") {
                 downloads.requestDownload(tracks, into: library)
             }
         } label: {
@@ -1691,7 +1691,7 @@ private struct RemoteDownloadHeroMenu: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Download (scope)")
+        .accessibilityLabel("Download \(scope)")
     }
 }
 

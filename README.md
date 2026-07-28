@@ -1591,3 +1591,19 @@ Manual test checklist: tap the artist hero Download control and confirm its menu
 hero Download control and confirm its menu offers Download Album. Choose each action and verify the shared overlay and
 replacement prompt behave exactly like the context-menu path. Confirm Play, Play Next, Add to Queue, and navigation
 remain unchanged.
+
+## Experimental build 124 — correct hero menu scope labels
+
+The shared hero download menu now interpolates its scope correctly. The artist hero menu displays Download Artist and
+the album hero menu displays Download Album; both actions invoke the same shared download manager and queue as the
+context-menu actions.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `124`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open a Yes artist detail page and verify the hero menu says Download Artist and downloads the
+artist collection. Open Close to the Edge and verify the hero menu says Download Album and starts that album download.
+Confirm the shared progress overlay, duplicate prompt, cancellation, and navigation behavior remain functional.
