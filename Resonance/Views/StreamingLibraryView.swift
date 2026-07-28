@@ -368,7 +368,7 @@ private struct RemoteDownloadOverlay: View {
     @EnvironmentObject private var library: LibraryStore
 
     var body: some View {
-        Group {
+        ZStack(alignment: .top) {
             if downloads.isDownloading {
                 RemoteDownloadBanner(
                     title: downloads.currentTitle,
@@ -415,7 +415,7 @@ private struct RemoteDownloadOverlay: View {
                 downloads.confirmReplacement()
             }
             Button("Keep Existing", role: .cancel) {
-                downloads.cancelPendingReplacement()
+                downloads.keepExistingAndDownloadNew()
             }
         } message: {
             Text(downloads.pendingReplacementDescription)

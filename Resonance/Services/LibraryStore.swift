@@ -731,15 +731,38 @@ final class LibraryStore: ObservableObject {
         persistRecentPlays()
         persistPlaylists()
         persistMetadataOverrides()
+        var deletedCount = 0
+        var failedDeleteCount = 0
+        var missingCount = 0
         for track in removed {
             guard let url = track.fileURL else { continue }
             let path = normalizedPath(url)
             if deletingFiles {
                 ignoredLocalPaths.remove(path)
-                try? FileManager.default.removeItem(at: url)
+                if !FileManager.default.fileExists(atPath: url.path) {
+                    missingCount += 1
+                } else {
+                    do {
+                        try FileManager.default.removeItem(at: url)
+                        deletedCount += 1
+                    } catch {
+                        failedDeleteCount += 1
+                    }
+                }
             } else {
                 ignoredLocalPaths.insert(path)
             }
+        }
+        if deletingFiles {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.fileDelete",
+                details: [
+                    "requested": String(removed.filter { $0.fileURL != nil }.count),
+                    "deleted": String(deletedCount),
+                    "missing": String(missingCount),
+                    "failed": String(failedDeleteCount)
+                ]
+            )
         }
         persistIgnoredLocalPaths()
         await database.replaceAll(with: tracks.filter { $0.fileURL != nil })

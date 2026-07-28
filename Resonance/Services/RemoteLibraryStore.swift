@@ -2144,6 +2144,7 @@ final class RemoteDownloadManager: ObservableObject {
     private var requeueRequests: [UUID: RemoteTrackItem] = [:]
     private var activeTracksByID: [UUID: RemoteTrackItem] = [:]
     private var pendingTracks: [RemoteTrackItem] = []
+    private var pendingNewTracks: [RemoteTrackItem] = []
     private var artworkByAlbumKey: [String: Data] = [:]
     private weak var pendingLibrary: LibraryStore?
     private let backgroundSession = RemoteBackgroundDownloadSession.shared
@@ -2213,12 +2214,19 @@ final class RemoteDownloadManager: ObservableObject {
             FileManager.default.fileExists(atPath: Self.destinationURL(for: $0, in: library.sharedMusicFolderURL).path)
         }
         if !duplicates.isEmpty {
-            pendingTracks = tracks
+            pendingTracks = duplicates
+            pendingNewTracks = tracks.filter { track in
+                !duplicates.contains(where: { $0.id == track.id })
+            }
             pendingLibrary = library
             pendingReplacementCount = duplicates.count
-            pendingReplacementDescription = duplicates.count == 1
-                ? "A local file with the same name already exists. Replace it?"
-                : "\(duplicates.count) local files with the same names already exist. Replace them?"
+            let duplicateText = duplicates.count == 1
+                ? "One local file with the same name already exists."
+                : "\(duplicates.count) local files with the same names already exist."
+            let newText = pendingNewTracks.isEmpty
+                ? ""
+                : " \(pendingNewTracks.count) other download\(pendingNewTracks.count == 1 ? "" : "s") will be available either way."
+            pendingReplacementDescription = "\(duplicateText) Replace the existing file\(duplicates.count == 1 ? "" : "s")?\(newText)"
             return
         }
 
@@ -2235,8 +2243,23 @@ final class RemoteDownloadManager: ObservableObject {
         startDownload(tracks, into: library, replacingExisting: true)
     }
 
+    func keepExistingAndDownloadNew() {
+        guard let library = pendingLibrary else {
+            cancelPendingReplacement()
+            return
+        }
+        let tracks = pendingNewTracks
+        cancelPendingReplacement()
+        guard !tracks.isEmpty else {
+            lastMessage = "The selected files are already on this iPhone"
+            return
+        }
+        startDownload(tracks, into: library, replacingExisting: false)
+    }
+
     func cancelPendingReplacement() {
         pendingTracks = []
+        pendingNewTracks = []
         pendingLibrary = nil
         pendingReplacementCount = 0
         pendingReplacementDescription = ""

@@ -1516,3 +1516,21 @@ Manual test checklist: use Navidrome/Subsonic only—sign in or reconnect, refre
 tracks, load artwork, play a remote track, test playlists and favorites, and start, cancel, and resume a download.
 Also test host-only, host-plus-port, HTTPS, and any server URL that includes a path. Confirm streaming behavior is
 unchanged. Do not uninstall first.
+
+## Experimental build 120 — repair duplicate downloads and deletion reporting
+
+Download requests now separate existing destination files from new tracks. The replacement alert is hosted by a stable
+visible container; choosing Replace Existing downloads the duplicate and new tracks, while choosing Keep Existing skips
+duplicates and downloads the remaining tracks. Local file deletion now records credential-free requested, deleted,
+missing, and failed counts so deletion problems can be distinguished from filename collisions.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `120`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: delete one downloaded track with Delete from iPhone and confirm it disappears after a library
+refresh; download a track that is not present; select a mix of an existing and a new track and verify the prompt appears.
+Choose Keep Existing and confirm only the new track downloads, then repeat and choose Replace Existing to confirm both
+download. Also test deleting an album and artist, and inspect diagnostics afterward for the deletion counts.
