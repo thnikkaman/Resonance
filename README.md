@@ -1809,3 +1809,18 @@ warnings remained non-blocking.
 Manual test checklist: open Streaming → artist → All Albums, invoke Download from a track menu or right-to-left
 track swipe, and confirm the download window and existing-file prompt appear on the All Albums screen. Test Keep
 Existing, Replace Existing, and Cancel, then verify progress persists while returning to the artist and Streaming root.
+
+## Experimental build 139 — extend themed surfaces through the status area
+
+The active themed page backdrop now extends through the iPhone status-bar safe area, so the region behind the time,
+network, and battery indicators no longer appears black. Layer headers and navigation controls remain inside the safe
+area and therefore stay below those system indicators.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and a Debug simulator build for iPhone 17 Pro.
+Build 139 was installed and launched in place on the configured simulator, and a screenshot confirmed the active theme
+fills the status-bar region while the header controls remain below it. The physical device was not changed or launched.
+
+Manual test checklist: switch among Gallery Light, Nocturne Glass, Color Bloom, Electronic, Psychedelic, and other
+themes; inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings; confirm the theme reaches behind
+the system status indicators and every navigation control remains below them. With frame diagnostics enabled, confirm
+the header frame still begins below the status area.

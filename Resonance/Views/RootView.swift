@@ -321,6 +321,13 @@ private struct ResonanceLayeredNavigationView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .clipped()
+      .background {
+        // The page backdrop owns the full phone surface, including the
+        // status-bar safe area. The layer header remains inside the safe area
+        // so its controls stay below the clock and system indicators.
+        ResonanceThemeBackdrop()
+          .ignoresSafeArea()
+      }
       .overlay(alignment: .top) {
         ResonanceLayerHeader(navigation: navigation)
       }
