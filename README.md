@@ -1,13 +1,13 @@
 # Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
-## Current stable beta — 0.3.7.5 (build 150)
+## Current stable beta — 0.3.7.6 (build 186)
 
-The current stable beta is the recovered simulator artifact with the Library header layout matching the approved
-reference image: Streaming Library, Library Options, and Playlists are grouped at the upper left, with refresh,
-add, and Settings at the upper right. The release identifier was advanced from 0.3.7.4/build 149 without changing
-the recovered app behavior.
+The current stable beta is the current navigation-polish source. It adds layered upward navigation for Library → Artist
+→ Album → Now Playing, matching reverse reveal animations, centered Artist/Album/Library headers, compact toolbar
+controls, linked Settings and playlist actions, and continuous themed Library/Streaming backgrounds through the bottom
+safe area. Browse content can extend behind the mini-player without an artificial bottom clearance block.
 
-Simulator artifact: `.build/stable-beta-0.3.7.5/Build/Products/Debug-iphonesimulator/Resonance.app`
+Latest simulator source build: `.build/library-artwork-miniplayer-186/Build/Products/Debug-iphonesimulator/Resonance.app`
 
 ## Experimental build 110 — metadata-save regression repair
 

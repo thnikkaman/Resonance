@@ -238,6 +238,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showRoot() }
           .resonanceFrameDebug("Artist: Local")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
         } else if let artist = navigation.remoteArtist {
@@ -249,6 +250,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showRoot() }
           .resonanceFrameDebug("Artist: Streaming")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
         }
@@ -263,6 +265,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("All Albums: Local")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .allAlbums, height: proxy.size.height))
           .zIndex(2)
         } else if let artistName = navigation.remoteAllAlbumsArtistName,
@@ -275,6 +278,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("All Albums: Streaming")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .allAlbums, height: proxy.size.height))
           .zIndex(2)
         }
@@ -288,6 +292,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("Album: Local")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(3)
         } else if let album = navigation.remoteAlbum {
@@ -299,6 +304,7 @@ private struct ResonanceLayeredNavigationView: View {
           .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("Album: Streaming")
+          .transition(.move(edge: .bottom))
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(3)
         }
@@ -328,7 +334,6 @@ private struct ResonanceLayeredNavigationView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .clipped()
       .background {
         // The page backdrop owns the full phone surface, including the
         // status-bar safe area. The layer header remains inside the safe area
@@ -356,7 +361,6 @@ private struct ResonanceLayeredNavigationView: View {
           .resonanceFrameDebug("Mini Player")
         }
       }
-      .safeAreaPadding(.bottom, player.currentTrack != nil && navigation.layer != .player ? 76 : 0)
       .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
         prepareCurrentContext()
         navigation.showPlayer()
@@ -378,7 +382,10 @@ private struct ResonanceLayeredNavigationView: View {
   private var rootSurface: some View {
     NavigationStack {
       if navigation.root == .library {
-        LibraryView(openStreaming: { navigation.root = .streaming })
+        LibraryView(
+          openStreaming: { navigation.root = .streaming },
+          openSettings: navigation.showSettings
+        )
       } else {
         StreamingLibraryView(
           openLibrary: { navigation.root = .library },
@@ -390,7 +397,6 @@ private struct ResonanceLayeredNavigationView: View {
     .toolbarBackground(.hidden, for: .navigationBar)
     .background(Color.clear)
     .layeredSurface()
-    .resonanceFrameDebug(navigation.root == .library ? "Root: Library" : "Root: Streaming")
   }
 
   private func offset(for layer: ResonanceLayer, height: CGFloat) -> CGFloat {
@@ -444,23 +450,9 @@ private struct ResonanceLayerHeader: View {
     Group {
       switch navigation.layer {
       case .root:
-        HStack {
-          Button {
-            navigation.root = navigation.root == .library ? .streaming : .library
-          } label: {
-            Image(systemName: navigation.root == .library ? "arrow.right.circle" : "arrow.left.circle")
-          }
-          .accessibilityLabel(navigation.root == .library ? "Open Streaming" : "Open Library")
-          Spacer()
-          Button { navigation.showSettings() } label: {
-            Image(systemName: "gearshape")
-          }
-          .accessibilityLabel("Open Settings")
-        }
+        EmptyView()
       case .artist:
-        layerButton(title: navigation.root == .library ? "Library" : "Streaming") {
-          navigation.showRoot()
-        }
+        EmptyView()
       case .allAlbums:
         layerButton(title: "Artist") {
           navigation.showArtist()
@@ -565,32 +557,17 @@ struct RootView: View {
   }
 
     var body: some View {
-        ResonanceLayeredNavigationView()
-            .environmentObject(gestureCoordinator)
-            .environmentObject(miniPlayerNavigation)
-            .environmentObject(tabNavigation)
-            .environmentObject(player)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                ResonanceThemeBackdrop()
-                    .ignoresSafeArea()
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                ZStack {
-                    settings.themeBackgroundGradient
-                    if let imageName = settings.visualTheme.backgroundImageName {
-                        Image(imageName)
-                            .resizable()
-                            .scaledToFill()
-                            .opacity(0.42)
-                    }
-                }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                    .clipped()
-                    .allowsHitTesting(false)
-            }
-            .ignoresSafeArea(edges: .bottom)
+        ZStack {
+            ResonanceThemeBackdrop()
+            ResonanceLayeredNavigationView()
+                .environmentObject(gestureCoordinator)
+                .environmentObject(miniPlayerNavigation)
+                .environmentObject(tabNavigation)
+                .environmentObject(player)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 
     var legacyBody: some View {
@@ -725,7 +702,10 @@ struct RootView: View {
                     )
                 }
                 tabPage(.library, width: proxy.size.width) {
-                    LibraryView(openStreaming: { tabNavigation.select(.streaming) })
+                    LibraryView(
+                        openStreaming: { tabNavigation.select(.streaming) },
+                        openSettings: { tabNavigation.select(.settings) }
+                    )
                 }
                 tabPage(.streaming, width: proxy.size.width) {
                     StreamingLibraryView(
@@ -1145,10 +1125,11 @@ extension View {
 }
 
 private struct ResonanceBrowseBottomClearance: ViewModifier {
-    @Environment(\.resonanceMiniPlayerBottomInset) private var miniPlayerBottomInset
-
     func body(content: Content) -> some View {
-        content.safeAreaPadding(.bottom, max(72, miniPlayerBottomInset))
+        // Browse content can extend behind the floating mini-player so the
+        // final album artwork reaches the bottom edge instead of stopping at
+        // an artificial clearance block.
+        content
     }
 }
 

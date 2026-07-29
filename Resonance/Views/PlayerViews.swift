@@ -4,6 +4,7 @@ struct NowPlayingView: View {
   @EnvironmentObject private var player: PlayerController
   @EnvironmentObject private var library: LibraryStore
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
   @State private var showingQueue = false
   @State private var showingBookmarks = false
   @State private var showingPlaylistPicker = false
@@ -270,6 +271,17 @@ struct NowPlayingView: View {
         Button(action: openLibrary) {
           Label("Library", systemImage: "chevron.left")
         }
+      }
+      ToolbarItem(placement: .principal) {
+        Button {
+          layeredNavigationState.showAlbum()
+        } label: {
+          HStack(spacing: 4) {
+            Text("Album")
+            Image(systemName: "chevron.up")
+          }
+        }
+        .accessibilityLabel("Album, move up")
       }
       ToolbarItemGroup(placement: .topBarTrailing) {
         if player.currentTrack != nil {

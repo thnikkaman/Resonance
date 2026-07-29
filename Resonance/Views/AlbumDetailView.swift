@@ -6,12 +6,14 @@ struct AlbumDetailView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     @State private var showingPlaylistPicker = false
     @State private var showingMetadataEditor = false
     @State private var showingArtworkSearch = false
     @State private var didOfferArtworkSearch = false
     @State private var showingRemovalOptions = false
     @State private var showingAlbumOptions = false
+    @State private var showingLibraryOptions = false
     let album: Album
 
     private var liveTracks: [Track] {
@@ -146,36 +148,62 @@ struct AlbumDetailView: View {
                     }
                 }
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarLeading) {
                 ResonanceToolbarIconButton(
-                    accessibilityLabel: "Album options",
-                    systemImage: "ellipsis.circle"
+                    accessibilityLabel: "Album view settings",
+                    systemImage: "slider.horizontal.3"
                 ) {
-                    showingAlbumOptions = true
+                    showingLibraryOptions = true
                 }
 
-                Button { showingMetadataEditor = true } label: {
-                    Image(systemName: "pencil")
-                }
-                .accessibilityLabel("Edit album metadata")
-
-                Button { library.toggleFavorite(liveAlbum) } label: {
-                    Image(systemName: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart")
-                }
-                .accessibilityLabel(library.isAlbumFavorite(liveAlbum) ? "Remove album from favorites" : "Add album to favorites")
-
-                Button {
-                    showingPlaylistPicker = true
+                NavigationLink {
+                    PlaylistCollectionView()
                 } label: {
-                    Image(systemName: "text.badge.plus")
+                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
                 }
-                .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add album to playlist")
-                Button { showingRemovalOptions = true } label: {
-                    Image(systemName: "trash")
-                }
-                .foregroundStyle(.red)
-                .accessibilityLabel("Remove or delete album")
+                .buttonStyle(.plain)
+                .help("Open playlists")
+                .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
+            ToolbarItem(placement: .principal) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        layeredNavigationState.showArtist()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Artist")
+                        Image(systemName: "chevron.up")
+                    }
+                }
+                .accessibilityLabel("Artist, move up")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    Button { showingMetadataEditor = true } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel("Edit album metadata")
+
+                    Button {
+                        showingPlaylistPicker = true
+                    } label: {
+                        Image(systemName: "text.badge.plus")
+                    }
+                    .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add album to playlist")
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape"
+                    ) {
+                        layeredNavigationState.showSettings()
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingLibraryOptions) {
+            LibraryOptionsSheet()
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showingPlaylistPicker) {
             PlaylistPickerSheet(tracks: liveAlbum.tracks)

@@ -8,9 +8,14 @@ struct LibraryView: View {
     @State private var importing = false
     @State private var showingLibraryOptions = false
     let openStreaming: () -> Void
+    let openSettings: () -> Void
 
-    init(openStreaming: @escaping () -> Void = {}) {
+    init(
+        openStreaming: @escaping () -> Void = {},
+        openSettings: @escaping () -> Void = {}
+    ) {
         self.openStreaming = openStreaming
+        self.openSettings = openSettings
     }
 
     var body: some View {
@@ -59,48 +64,58 @@ struct LibraryView: View {
             ResonanceThemeBackdrop()
         }
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Open Streaming library",
-                    systemImage: "arrow.right.circle",
-                    action: openStreaming
-                )
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Streaming library",
+                        systemImage: "arrow.right.circle",
+                        action: openStreaming
+                    )
 
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: library.grouping == .albums
-                        ? "Album view settings"
-                        : library.grouping == .artists || library.grouping == .albumArtists
-                            ? "Artist view settings"
-                            : "Library view and sort options",
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    showingLibraryOptions = true
-                }
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: library.grouping == .albums
+                            ? "Album view settings"
+                            : library.grouping == .artists || library.grouping == .albumArtists
+                                ? "Artist view settings"
+                                : "Library view and sort options",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingLibraryOptions = true
+                    }
 
-                NavigationLink {
-                    PlaylistCollectionView()
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    NavigationLink {
+                        PlaylistCollectionView()
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open playlists")
+                    .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
                 }
-                .buttonStyle(.plain)
-                .help("Open playlists")
-                .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
 
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Scan Resonance Music folder",
-                    systemImage: "arrow.clockwise"
-                ) {
-                    Task { await library.scanSharedMusicFolder(forceMetadataRefresh: true) }
-                }
-                .disabled(library.isScanning)
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Scan Resonance Music folder",
+                        systemImage: "arrow.clockwise"
+                    ) {
+                        Task { await library.scanSharedMusicFolder(forceMetadataRefresh: true) }
+                    }
+                    .disabled(library.isScanning)
 
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Add music to library",
-                    systemImage: "plus"
-                ) {
-                    importing = true
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Add music to library",
+                        systemImage: "plus"
+                    ) {
+                        importing = true
+                    }
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape",
+                        action: openSettings
+                    )
                 }
             }
         }
@@ -120,7 +135,7 @@ struct LibraryView: View {
     }
 }
 
-private struct LibraryOptionsSheet: View {
+struct LibraryOptionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
@@ -574,8 +589,10 @@ struct ArtistCollectionView: View {
                             ) { artist in
                                 Button {
                                     guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                    layeredNavigation.localArtist = artist
-                                    layeredNavigation.layer = .artist
+                                    withAnimation(.easeInOut(duration: 0.35)) {
+                                        layeredNavigation.localArtist = artist
+                                        layeredNavigation.layer = .artist
+                                    }
                                 } label: {
                                     ArtistTile(artist: artist)
                                 }
@@ -604,8 +621,10 @@ struct ArtistCollectionView: View {
                                     ForEach(section.items) { artist in
                                         Button {
                                             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                            layeredNavigation.localArtist = artist
-                                            layeredNavigation.layer = .artist
+                                            withAnimation(.easeInOut(duration: 0.35)) {
+                                                layeredNavigation.localArtist = artist
+                                                layeredNavigation.layer = .artist
+                                            }
                                         } label: {
                                             ArtistListRow(artist: artist, large: settings.albumLayout == .large)
                                         }
@@ -839,6 +858,7 @@ struct ArtistDetailView: View {
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
     @State private var showingLibraryOptions = false
+    @State private var showingPlaylistPicker = false
     @State private var presentedAlbum: Album?
     @State private var showingAllAlbums = false
     let artist: Artist
@@ -987,10 +1007,12 @@ struct ArtistDetailView: View {
                                         Button {
                                             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                             if layeredNavigation {
-                                                layeredNavigationState.showLocalAllAlbums(
-                                                    artistName: liveArtist.name,
-                                                    tracks: allTracks
-                                                )
+                                                withAnimation(.easeInOut(duration: 0.35)) {
+                                                    layeredNavigationState.showLocalAllAlbums(
+                                                        artistName: liveArtist.name,
+                                                        tracks: allTracks
+                                                    )
+                                                }
                                             } else {
                                                 showingAllAlbums = true
                                             }
@@ -1003,8 +1025,10 @@ struct ArtistDetailView: View {
                                 ) { album in
                                     Button {
                                         guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                        layeredNavigationState.localAlbum = album
-                                        layeredNavigationState.layer = .album
+                                        withAnimation(.easeInOut(duration: 0.35)) {
+                                            layeredNavigationState.localAlbum = album
+                                            layeredNavigationState.layer = .album
+                                        }
                                     } label: {
                                         AlbumTile(album: album)
                                     }
@@ -1033,10 +1057,12 @@ struct ArtistDetailView: View {
                                 Button {
                                     guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                     if layeredNavigation {
-                                        layeredNavigationState.showLocalAllAlbums(
-                                            artistName: liveArtist.name,
-                                            tracks: allTracks
-                                        )
+                                        withAnimation(.easeInOut(duration: 0.35)) {
+                                            layeredNavigationState.showLocalAllAlbums(
+                                                artistName: liveArtist.name,
+                                                tracks: allTracks
+                                            )
+                                        }
                                     } else {
                                         showingAllAlbums = true
                                     }
@@ -1062,8 +1088,10 @@ struct ArtistDetailView: View {
                                         ForEach(section.items) { album in
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                                layeredNavigationState.localAlbum = album
-                                                layeredNavigationState.layer = .album
+                                                withAnimation(.easeInOut(duration: 0.35)) {
+                                                    layeredNavigationState.localAlbum = album
+                                                    layeredNavigationState.layer = .album
+                                                }
                                             } label: {
                                                 HStack(spacing: 12) {
                                                     ArtworkView(
@@ -1156,9 +1184,52 @@ struct ArtistDetailView: View {
                 .help("Open playlists")
                 .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
+            ToolbarItem(placement: .principal) {
+                Button {
+                    if layeredNavigation {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showRoot()
+                        }
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Library")
+                        Image(systemName: "chevron.up")
+                    }
+                }
+                .accessibilityLabel("Library, move up")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    Button { artistToEdit = liveArtist } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel("Edit artist metadata")
+
+                    Button {
+                        showingPlaylistPicker = true
+                    } label: {
+                        Image(systemName: "text.badge.plus")
+                    }
+                    .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add artist to playlist")
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape"
+                    ) {
+                        layeredNavigationState.showSettings()
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingLibraryOptions) {
             LibraryOptionsSheet()
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showingPlaylistPicker) {
+            PlaylistPickerSheet(tracks: allTracks)
                 .presentationDetents([.medium, .large])
         }
         .sheet(item: $artistToEdit) { artist in
