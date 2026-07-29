@@ -129,7 +129,7 @@ enum ResonanceBrowseRoot: String {
 }
 
 enum ResonanceLayer: Int {
-  case root = 0, artist = 1, album = 2, player = 3, settings = 4
+  case root = 0, artist = 1, allAlbums = 2, album = 3, player = 4, settings = 5
 }
 
 @MainActor
@@ -138,8 +138,12 @@ final class ResonanceLayerNavigation: ObservableObject {
   @Published var layer: ResonanceLayer = .root
   @Published var localArtist: Artist?
   @Published var localAlbum: Album?
+  @Published var localAllAlbumsArtistName: String?
+  @Published var localAllAlbumsTracks: [Track]?
   @Published var remoteArtist: RemoteArtist?
   @Published var remoteAlbum: RemoteAlbum?
+  @Published var remoteAllAlbumsArtistName: String?
+  @Published var remoteAllAlbumsTracks: [RemoteTrackItem]?
   private var layerBeforeSettings: ResonanceLayer = .root
 
   func showPlayer() {
@@ -149,6 +153,22 @@ final class ResonanceLayerNavigation: ObservableObject {
   func showAlbum() {
     guard localAlbum != nil || remoteAlbum != nil else { return }
     layer = .album
+  }
+
+  func showLocalAllAlbums(artistName: String, tracks: [Track]) {
+    localAllAlbumsArtistName = artistName
+    localAllAlbumsTracks = tracks
+    remoteAllAlbumsArtistName = nil
+    remoteAllAlbumsTracks = nil
+    layer = .allAlbums
+  }
+
+  func showRemoteAllAlbums(artistName: String, tracks: [RemoteTrackItem]) {
+    remoteAllAlbumsArtistName = artistName
+    remoteAllAlbumsTracks = tracks
+    localAllAlbumsArtistName = nil
+    localAllAlbumsTracks = nil
+    layer = .allAlbums
   }
 
   func showArtist() {
@@ -202,6 +222,8 @@ private struct ResonanceLayeredNavigationView: View {
             ArtistDetailView(artist: artist)
           }
           .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
           .layeredSurface { navigation.showRoot() }
           .resonanceFrameDebug("Artist: Local")
           .offset(y: offset(for: .artist, height: proxy.size.height))
@@ -211,10 +233,38 @@ private struct ResonanceLayeredNavigationView: View {
             RemoteArtistDetailView(artist: artist)
           }
           .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
           .layeredSurface { navigation.showRoot() }
           .resonanceFrameDebug("Artist: Streaming")
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
+        }
+
+        if let artistName = navigation.localAllAlbumsArtistName,
+           let tracks = navigation.localAllAlbumsTracks {
+          NavigationStack {
+            AllAlbumsTrackListView(artistName: artistName, tracks: tracks)
+          }
+          .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
+          .layeredSurface { navigation.showArtist() }
+          .resonanceFrameDebug("All Albums: Local")
+          .offset(y: offset(for: .allAlbums, height: proxy.size.height))
+          .zIndex(2)
+        } else if let artistName = navigation.remoteAllAlbumsArtistName,
+                  let tracks = navigation.remoteAllAlbumsTracks {
+          NavigationStack {
+            RemoteAllAlbumsTrackListView(artistName: artistName, tracks: tracks)
+          }
+          .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
+          .layeredSurface { navigation.showArtist() }
+          .resonanceFrameDebug("All Albums: Streaming")
+          .offset(y: offset(for: .allAlbums, height: proxy.size.height))
+          .zIndex(2)
         }
 
         if let album = navigation.localAlbum {
@@ -222,37 +272,47 @@ private struct ResonanceLayeredNavigationView: View {
             AlbumDetailView(album: album)
           }
           .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("Album: Local")
           .offset(y: offset(for: .album, height: proxy.size.height))
-          .zIndex(2)
+          .zIndex(3)
         } else if let album = navigation.remoteAlbum {
           NavigationStack {
             RemoteAlbumDetailView(album: album)
           }
           .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
           .layeredSurface { navigation.showArtist() }
           .resonanceFrameDebug("Album: Streaming")
           .offset(y: offset(for: .album, height: proxy.size.height))
-          .zIndex(2)
+          .zIndex(3)
         }
 
         NavigationStack {
           NowPlayingView(openLibrary: navigation.showRoot)
         }
         .environment(\.resonanceLayeredNavigationActive, true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .background(Color.clear)
         .layeredSurface { navigation.showAlbum() }
         .resonanceFrameDebug("Player")
         .offset(y: offset(for: .player, height: proxy.size.height))
-        .zIndex(3)
+        .zIndex(4)
 
         NavigationStack {
           SettingsView(openLibrary: navigation.showRoot)
         }
         .environment(\.resonanceLayeredNavigationActive, true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .background(Color.clear)
         .layeredSurface { navigation.closeSettings() }
         .resonanceFrameDebug("Settings")
-        .offset(y: navigation.layer == .settings ? 0 : proxy.size.height)
+        // A one-pixel offset would leave the diagnostic border sitting on the
+        // bottom edge. Move the complete inactive surface beyond the viewport.
+        .offset(y: navigation.layer == .settings ? 0 : proxy.size.height + 2)
         .zIndex(10)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -305,6 +365,8 @@ private struct ResonanceLayeredNavigationView: View {
       }
     }
     .environment(\.resonanceLayeredNavigationActive, true)
+    .toolbarBackground(.hidden, for: .navigationBar)
+    .background(Color.clear)
     .layeredSurface()
     .resonanceFrameDebug(navigation.root == .library ? "Root: Library" : "Root: Streaming")
   }
@@ -315,6 +377,8 @@ private struct ResonanceLayeredNavigationView: View {
       return layer == .root ? 0 : height
     case .artist:
       return layer.rawValue <= ResonanceLayer.artist.rawValue ? 0 : height
+    case .allAlbums:
+      return layer.rawValue <= ResonanceLayer.allAlbums.rawValue ? 0 : height
     case .album:
       return layer.rawValue <= ResonanceLayer.album.rawValue ? 0 : height
     case .player:
@@ -375,6 +439,10 @@ private struct ResonanceLayerHeader: View {
         layerButton(title: navigation.root == .library ? "Library" : "Streaming") {
           navigation.showRoot()
         }
+      case .allAlbums:
+        layerButton(title: "Artist") {
+          navigation.showArtist()
+        }
       case .album:
         layerButton(title: "Artist") {
           navigation.showArtist()
@@ -393,7 +461,7 @@ private struct ResonanceLayerHeader: View {
     .padding(.horizontal, 18)
     .padding(.top, 8)
     .padding(.bottom, 8)
-    .background(.ultraThinMaterial)
+    .background(Color.clear)
     .contentShape(Rectangle())
     .resonanceFrameDebug("Layer Header")
   }

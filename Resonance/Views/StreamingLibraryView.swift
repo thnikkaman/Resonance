@@ -1367,7 +1367,14 @@ struct RemoteArtistDetailView: View {
     private func allAlbumsTile() -> some View {
         Button {
             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-            showingAllAlbums = true
+            if layeredNavigation {
+                layeredNavigationState.showRemoteAllAlbums(
+                    artistName: artist.name,
+                    tracks: allTracks
+                )
+            } else {
+                showingAllAlbums = true
+            }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 ZStack {
@@ -1504,7 +1511,14 @@ struct RemoteArtistDetailView: View {
                             List {
                                 Button {
                                     guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                    showingAllAlbums = true
+                                    if layeredNavigation {
+                                        layeredNavigationState.showRemoteAllAlbums(
+                                            artistName: artist.name,
+                                            tracks: allTracks
+                                        )
+                                    } else {
+                                        showingAllAlbums = true
+                                    }
                                 } label: {
                                     RemoteCollectionRow(
                                         title: "All Albums",
@@ -1715,7 +1729,7 @@ private struct RemoteDownloadHeroMenu: View {
     }
 }
 
-private struct RemoteAllAlbumsTrackListView: View {
+struct RemoteAllAlbumsTrackListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var settings: AppSettings

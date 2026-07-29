@@ -1722,6 +1722,25 @@ Library/Streaming ↑, and verify the vertical transitions. Test downward swipes
 Library/Streaming switch and gear Settings control; close Settings downward. Confirm existing menus, playback controls,
 track actions, downloads, artwork, and metadata actions remain usable. Keep build 130 installed as the rollback baseline.
 
+## Experimental build 134 — transparent layered surfaces and All Albums navigation
+
+The inactive Settings layer now sits completely below the viewport rather than beginning on the bottom pixel. New layered
+NavigationStacks and the custom layer header hide their system navigation backgrounds and use clear surfaces so the shared
+theme backdrop remains visible through Library, Streaming, Artist, Album, All Albums, Player, and Settings. Local and
+Streaming All Albums destinations now participate in the layered coordinator and expose the same `Artist ↑` navigation as
+the other artist-level children instead of bypassing the new navigation through a legacy full-screen cover.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed strict
+deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`,
+build `134`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip warnings
+remained non-blocking.
+
+Manual test checklist: open local and Streaming Artist views, enter All Albums from both grid and list layouts, and verify
+the `Artist ↑` header appears and returns to the artist. Repeat for normal albums, Player, and Settings. Enable frame
+diagnostics and verify Settings has no border or label at the bottom while hidden. Switch through transparent-theme and
+image-theme palettes and confirm the theme background remains visible behind every layered module and header.
+
 ## Experimental build 133 — frame diagnostics for layered navigation
 
 Build 133 keeps the layered vertical navigation and adds a persisted Settings → Appearance → **Show frame diagnostics**

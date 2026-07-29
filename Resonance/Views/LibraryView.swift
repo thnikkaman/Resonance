@@ -975,7 +975,14 @@ struct ArtistDetailView: View {
                                     leadingContent: AnyView(
                                         Button {
                                             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                            showingAllAlbums = true
+                                            if layeredNavigation {
+                                                layeredNavigationState.showLocalAllAlbums(
+                                                    artistName: liveArtist.name,
+                                                    tracks: allTracks
+                                                )
+                                            } else {
+                                                showingAllAlbums = true
+                                            }
                                         } label: {
                                             AllAlbumsTile(artist: liveArtist)
                                         }
@@ -1014,7 +1021,14 @@ struct ArtistDetailView: View {
                             List {
                                 Button {
                                     guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                    showingAllAlbums = true
+                                    if layeredNavigation {
+                                        layeredNavigationState.showLocalAllAlbums(
+                                            artistName: liveArtist.name,
+                                            tracks: allTracks
+                                        )
+                                    } else {
+                                        showingAllAlbums = true
+                                    }
                                 } label: {
                                     HStack(spacing: 12) {
                                         PlaceholderArtwork(
