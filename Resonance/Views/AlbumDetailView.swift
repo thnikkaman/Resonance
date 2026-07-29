@@ -167,14 +167,27 @@ struct AlbumDetailView: View {
             }
             ToolbarItem(placement: .principal) {
                 Button {
+                    guard layeredNavigation else {
+                        dismiss()
+                        return
+                    }
+                    guard let artist = library.artists.first(where: { candidate in
+                        candidate.albums.contains(where: { $0.id == liveAlbum.id })
+                            || candidate.name.localizedCaseInsensitiveCompare(liveAlbum.artist) == .orderedSame
+                    }) else {
+                        ResonanceDiagnostics.shared.recordDeferred(
+                            "navigation.albumArtist.missing",
+                            details: ["source": "library"]
+                        )
+                        return
+                    }
+                    layeredNavigationState.localArtist = artist
+                    layeredNavigationState.remoteArtist = nil
                     withAnimation(.easeInOut(duration: 0.35)) {
                         layeredNavigationState.showArtist()
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        Text("Artist")
-                        Image(systemName: "chevron.up")
-                    }
+                    ResonanceHierarchyNavigationLabel(title: "Artist")
                 }
                 .accessibilityLabel("Artist, move up")
             }
@@ -294,6 +307,7 @@ struct AllAlbumsTrackListView: View {
     @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     let artistName: String
     let tracks: [Track]
 
@@ -350,6 +364,20 @@ struct AllAlbumsTrackListView: View {
                         Label("Back", systemImage: "chevron.left")
                     }
                 }
+            }
+            ToolbarItem(placement: .principal) {
+                Button {
+                    if layeredNavigation {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showArtist()
+                        }
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    ResonanceHierarchyNavigationLabel(title: "Artist")
+                }
+                .accessibilityLabel("Artist, move up")
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {

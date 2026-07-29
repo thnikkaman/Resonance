@@ -3,6 +3,7 @@ import SwiftUI
 struct NowPlayingView: View {
   @EnvironmentObject private var player: PlayerController
   @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var remote: RemoteLibraryStore
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
   @State private var showingQueue = false
@@ -274,12 +275,9 @@ struct NowPlayingView: View {
       }
       ToolbarItem(placement: .principal) {
         Button {
-          layeredNavigationState.showAlbum()
+          openCurrentAlbum()
         } label: {
-          HStack(spacing: 4) {
-            Text("Album")
-            Image(systemName: "chevron.up")
-          }
+          ResonanceHierarchyNavigationLabel(title: "Album")
         }
         .accessibilityLabel("Album, move up")
       }
@@ -315,6 +313,58 @@ struct NowPlayingView: View {
           .presentationDetents([.medium, .large])
       }
     }
+  }
+
+  private func openCurrentAlbum() {
+    guard let track = player.currentTrack else { return }
+
+    if track.isRemote {
+      let remoteTrack = remote.tracks.first(where: { $0.id == track.id })
+        ?? remote.albums.flatMap(\.tracks).first(where: { $0.id == track.id })
+      let album = remote.albums.first { candidate in
+        if let remoteTrack {
+          return candidate.tracks.contains(where: { $0.id == remoteTrack.id })
+        }
+        return candidate.title.localizedCaseInsensitiveCompare(track.album) == .orderedSame
+          && candidate.artist.localizedCaseInsensitiveCompare(track.albumArtist) == .orderedSame
+      }
+
+      guard let album else {
+        ResonanceDiagnostics.shared.recordDeferred(
+          "navigation.nowPlayingAlbum.missing",
+          details: ["source": "streaming"]
+        )
+        return
+      }
+
+      layeredNavigationState.root = .streaming
+      layeredNavigationState.localAlbum = nil
+      layeredNavigationState.localArtist = nil
+      layeredNavigationState.remoteAlbum = album
+      layeredNavigationState.remoteArtist = remote.artists.first { artist in
+        artist.albums.contains(where: { $0.id == album.id })
+      }
+    } else {
+      guard let album = library.albums.first(where: { album in
+        album.tracks.contains(where: { $0.id == track.id })
+      }) else {
+        ResonanceDiagnostics.shared.recordDeferred(
+          "navigation.nowPlayingAlbum.missing",
+          details: ["source": "library"]
+        )
+        return
+      }
+
+      layeredNavigationState.root = .library
+      layeredNavigationState.remoteAlbum = nil
+      layeredNavigationState.remoteArtist = nil
+      layeredNavigationState.localAlbum = album
+      layeredNavigationState.localArtist = library.artists.first { artist in
+        artist.albums.contains(where: { $0.id == album.id })
+      }
+    }
+
+    layeredNavigationState.showAlbum()
   }
 }
 

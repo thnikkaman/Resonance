@@ -1194,10 +1194,7 @@ struct ArtistDetailView: View {
                         dismiss()
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        Text("Library")
-                        Image(systemName: "chevron.up")
-                    }
+                    ResonanceHierarchyNavigationLabel(title: "Library")
                 }
                 .accessibilityLabel("Library, move up")
             }

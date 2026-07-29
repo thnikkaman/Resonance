@@ -203,8 +203,8 @@ final class AppSettings: ObservableObject {
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
     @AppStorage("heroButtonStyle") private var heroButtonStyleRaw = ResonanceHeroButtonStyle.softGlass.rawValue
-    @AppStorage("accentHex") var accentHex = "A855F7"
-    @AppStorage("applyThemeColorToText") var applyThemeColorToText = true
+    @AppStorage("accentHex") private var accentHexStorage = "A855F7"
+    @AppStorage("applyThemeColorToText") private var applyThemeColorToTextStorage = true
     @AppStorage("applyThemeColorToTextConfigured") private var applyThemeColorToTextConfigured = false
     @AppStorage("albumLayout") private var albumLayoutRaw = AlbumLayout.grid.rawValue
     @AppStorage("artistAlbumLayout") private var artistAlbumLayoutRaw = ArtistAlbumLayout.grid.rawValue
@@ -342,6 +342,22 @@ final class AppSettings: ObservableObject {
     var normalizedAccentHex: String {
         let cleaned = accentHex.uppercased().filter { $0.isHexDigit }
         return String(cleaned.prefix(6)).padding(toLength: 6, withPad: "0", startingAt: 0)
+    }
+
+    var accentHex: String {
+        get { accentHexStorage }
+        set {
+            objectWillChange.send()
+            accentHexStorage = newValue
+        }
+    }
+
+    var applyThemeColorToText: Bool {
+        get { applyThemeColorToTextStorage }
+        set {
+            objectWillChange.send()
+            applyThemeColorToTextStorage = newValue
+        }
     }
 
     var accentColor: Color {

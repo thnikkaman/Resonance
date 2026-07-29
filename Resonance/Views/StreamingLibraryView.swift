@@ -126,87 +126,92 @@ struct StreamingLibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                ContentUnavailableView {
-                    Label("No Remote Server", systemImage: "externaldrive.badge.wifi")
-                } description: {
-                    Text("Add a server URL or Tailscale host and choose the correct backend in Settings.")
-                } actions: {
-                    Button("Open Streaming Settings", action: openSettings)
-                        .buttonStyle(.borderedProminent)
-                }
-            } else {
-                    RemoteDownloadOverlay()
-                        .padding(.top, 84)
+            Group {
+                if settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    ContentUnavailableView {
+                        Label("No Remote Server", systemImage: "externaldrive.badge.wifi")
+                    } description: {
+                        Text("Add a server URL or Tailscale host and choose the correct backend in Settings.")
+                    } actions: {
+                        Button("Open Streaming Settings", action: openSettings)
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if !browseReady {
+                    ProgressView("Preparing Streaming…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
                     if remote.hasConnectionIssue {
                         RemoteServerHeader()
                     }
-                    if browseReady {
-                        Group {
-                            switch remote.grouping {
-                            case .artists:
-                                RemoteArtistCollectionView(
-                                    artists: visibleArtists,
-                                    sortDirection: remote.sortDirection,
-                                    selectionMode: $downloadSelectionMode,
-                                    selectedIDs: $selectedArtistIDs,
-                                    onBeginSelection: { artistID in
-                                        selectedAlbumIDs.removeAll()
-                                        selectedArtistIDs = [artistID]
-                                        downloadSelectionMode = true
-                                    }
-                                )
-                            case .albumArtists:
-                                RemoteArtistCollectionView(
-                                    artists: visibleArtists,
-                                    sortDirection: remote.sortDirection,
-                                    selectionMode: $downloadSelectionMode,
-                                    selectedIDs: $selectedArtistIDs,
-                                    onBeginSelection: { artistID in
-                                        selectedAlbumIDs.removeAll()
-                                        selectedArtistIDs = [artistID]
-                                        downloadSelectionMode = true
-                                    }
-                                )
-                            case .albums:
-                                RemoteAlbumCollectionView(
-                                    albums: visibleAlbums,
-                                    sortDirection: remote.sortDirection,
-                                    selectionMode: $downloadSelectionMode,
-                                    selectedIDs: $selectedAlbumIDs,
-                                    onBeginSelection: { albumID in
-                                        selectedArtistIDs.removeAll()
-                                        selectedAlbumIDs = [albumID]
-                                        downloadSelectionMode = true
-                                    }
-                                )
-                            case .songs:
-                                RemoteTrackCollectionView(tracks: remote.filteredTracks)
-                            case .favorites:
-                                RemoteTrackCollectionView(tracks: remote.favoriteTracks)
-                            case .recentlyAdded:
-                                RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
-                            case .recentlyPlayed:
-                                RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
-                            }
+                    Group {
+                        switch remote.grouping {
+                        case .artists:
+                            RemoteArtistCollectionView(
+                                artists: visibleArtists,
+                                sortDirection: remote.sortDirection,
+                                selectionMode: $downloadSelectionMode,
+                                selectedIDs: $selectedArtistIDs,
+                                onBeginSelection: { artistID in
+                                    selectedAlbumIDs.removeAll()
+                                    selectedArtistIDs = [artistID]
+                                    downloadSelectionMode = true
+                                }
+                            )
+                        case .albumArtists:
+                            RemoteArtistCollectionView(
+                                artists: visibleArtists,
+                                sortDirection: remote.sortDirection,
+                                selectionMode: $downloadSelectionMode,
+                                selectedIDs: $selectedArtistIDs,
+                                onBeginSelection: { artistID in
+                                    selectedAlbumIDs.removeAll()
+                                    selectedArtistIDs = [artistID]
+                                    downloadSelectionMode = true
+                                }
+                            )
+                        case .albums:
+                            RemoteAlbumCollectionView(
+                                albums: visibleAlbums,
+                                sortDirection: remote.sortDirection,
+                                selectionMode: $downloadSelectionMode,
+                                selectedIDs: $selectedAlbumIDs,
+                                onBeginSelection: { albumID in
+                                    selectedArtistIDs.removeAll()
+                                    selectedAlbumIDs = [albumID]
+                                    downloadSelectionMode = true
+                                }
+                            )
+                        case .songs:
+                            RemoteTrackCollectionView(tracks: remote.filteredTracks)
+                        case .favorites:
+                            RemoteTrackCollectionView(tracks: remote.favoriteTracks)
+                        case .recentlyAdded:
+                            RemoteTrackCollectionView(tracks: remote.recentlyAddedTracks)
+                        case .recentlyPlayed:
+                            RemoteTrackCollectionView(tracks: remote.recentlyPlayedTracks)
                         }
-                        .overlay {
-                            if !remote.isLoading && remote.filteredTracks.isEmpty {
-                                ContentUnavailableView(
-                                    "No Remote Music",
-                                    systemImage: "music.note.list",
-                                    description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
-                                )
-                            }
-                        }
-                        .refreshable { await remote.refresh(using: settings) }
-                    } else {
-                        ProgressView("Preparing Streaming…")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .overlay {
+                        if !remote.isLoading && remote.filteredTracks.isEmpty {
+                            ContentUnavailableView(
+                                "No Remote Music",
+                                systemImage: "music.note.list",
+                                description: Text("Refresh the remote library, verify the selected backend, or change the current search.")
+                            )
+                        }
+                    }
+                    .refreshable { await remote.refresh(using: settings) }
                 }
+            }
+            .overlay(alignment: .top) {
+                if !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    RemoteDownloadOverlay()
+                        .padding(.top, 84)
+                }
+            }
         }
         .navigationTitle("Streaming Library")
+        .navigationBarTitleDisplayMode(.large)
         .background {
             ResonanceThemeBackdrop()
         }
@@ -858,6 +863,10 @@ private struct RemoteArtistCollectionView: View {
                 toggleSelection(artist)
             } else {
                 withAnimation(.easeInOut(duration: 0.35)) {
+                    ResonanceDiagnostics.shared.recordDeferred(
+                        "navigation.streamingArtist.selected",
+                        details: ["destination": "remoteArtist"]
+                    )
                     layeredNavigation.remoteArtist = artist
                     layeredNavigation.layer = .artist
                 }
@@ -901,9 +910,9 @@ private struct RemoteArtistCollectionView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
-                ScrollView {
-                    Group {
-                        if settings.albumLayout == .grid {
+                Group {
+                    if settings.albumLayout == .grid {
+                        ScrollView {
                             ResonanceAlphabetGrid(
                                 sections: sections,
                                 columns: columns,
@@ -912,31 +921,44 @@ private struct RemoteArtistCollectionView: View {
                             ) { artist in
                                 artistItem(artist)
                             }
-                        } else {
-                            LazyVStack(alignment: .leading, spacing: 0) {
-                                ForEach(sections, id: \.key) { section in
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(section.key)
-                                            .font(.headline)
-                                            .foregroundStyle(settings.textAccentColor)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.vertical, 7)
-
-                                        ForEach(section.items) { artist in
-                                            artistItem(artist)
-                                                .padding(.vertical, settings.albumLayout == .compact ? 3 : 8)
-                                        }
+                            .padding(.leading)
+                            .padding(.trailing, 40)
+                            .padding(.top, 84)
+                            .padding(.bottom)
+                        }
+                        .resonanceBrowseBottomClearance()
+                    } else {
+                        List {
+                            ForEach(sections, id: \.key) { section in
+                                Section {
+                                    ForEach(section.items) { artist in
+                                        artistItem(artist)
+                                            .listRowInsets(
+                                                EdgeInsets(
+                                                    top: settings.albumLayout == .compact ? 2 : 8,
+                                                    leading: 16,
+                                                    bottom: settings.albumLayout == .compact ? 2 : 8,
+                                                    trailing: 40
+                                                )
+                                            )
+                                            .listRowBackground(Color.clear)
+                                            .listRowSeparator(.hidden)
                                     }
-                                    .id("remote-artist-section-\(section.key)")
+                                } header: {
+                                    Text(section.key)
+                                        .foregroundStyle(settings.textAccentColor)
                                 }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .id("remote-artist-section-\(section.key)")
                             }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .safeAreaPadding(.top, 84)
+                        .resonanceBrowseBottomClearance()
                     }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 36)
-                    .padding(.top, 84)
                 }
-                .resonanceBrowseBottomClearance()
 
                 if sections.count > 1 {
                     VerticalArtistIndex(
@@ -1620,12 +1642,14 @@ struct RemoteArtistDetailView: View {
             ResonanceThemeBackdrop()
         }
         .navigationTitle(artist.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Label("Back", systemImage: "chevron.left")
+                if !layeredNavigation {
+                    Button { dismiss() } label: {
+                        Label("Back", systemImage: "chevron.left")
+                    }
                 }
 
                 ResonanceToolbarIconButton(
@@ -1634,15 +1658,6 @@ struct RemoteArtistDetailView: View {
                 ) {
                     showingLibraryOptions = true
                 }
-
-                Menu {
-                    Button("Download Artist") {
-                        downloads.requestDownload(allTracks, into: library)
-                    }
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: "arrow.down.circle")
-                }
-                .accessibilityLabel("Download artist")
 
                 Menu {
                     NavigationLink {
@@ -1655,6 +1670,41 @@ struct RemoteArtistDetailView: View {
                 }
                 .disabled(settings.streamBackend != .subsonic)
                 .accessibilityLabel("Open playlists")
+            }
+
+            ToolbarItem(placement: .principal) {
+                Button {
+                    if layeredNavigation {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showRoot()
+                        }
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    ResonanceHierarchyNavigationLabel(title: "Streaming Library")
+                }
+                .accessibilityLabel("Streaming Library, move up")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    Menu {
+                        Button("Download Artist") {
+                            downloads.requestDownload(allTracks, into: library)
+                        }
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "arrow.down.circle")
+                    }
+                    .accessibilityLabel("Download artist")
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape"
+                    ) {
+                        layeredNavigationState.showSettings()
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingLibraryOptions) {
@@ -1716,6 +1766,7 @@ private struct RemoteArtistActionButton: View {
 private struct RemoteDownloadHeroMenu: View {
     @EnvironmentObject private var downloads: RemoteDownloadManager
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var settings: AppSettings
 
     let scope: String
     let tracks: [RemoteTrackItem]
@@ -1735,7 +1786,7 @@ private struct RemoteDownloadHeroMenu: View {
                     .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, minHeight: 58)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(settings.textAccentColor)
             .background(
                 Color.teal.opacity(0.13),
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1758,6 +1809,7 @@ struct RemoteAllAlbumsTrackListView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     let artistName: String
@@ -1839,6 +1891,20 @@ struct RemoteAllAlbumsTrackListView: View {
                     }
                 }
             }
+            ToolbarItem(placement: .principal) {
+                Button {
+                    if layeredNavigation {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showArtist()
+                        }
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    ResonanceHierarchyNavigationLabel(title: "Artist")
+                }
+                .accessibilityLabel("Artist, move up")
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             Color.clear
@@ -1861,6 +1927,7 @@ struct RemoteAlbumDetailView: View {
     @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: RemoteDownloadManager
+    @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
     @State private var playlistItems: [RemoteTrackItem] = []
     @State private var showingPlaylistPicker = false
     @State private var showingAlbumOptions = false
@@ -1969,23 +2036,80 @@ struct RemoteAlbumDetailView: View {
             ResonanceThemeBackdrop()
         }
         .navigationTitle(album.title)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                if !layeredNavigation {
-                    Button { dismiss() } label: {
-                        Label("Back", systemImage: "chevron.left")
+                HStack(spacing: 4) {
+                    if !layeredNavigation {
+                        Button { dismiss() } label: {
+                            Label("Back", systemImage: "chevron.left")
+                        }
+                    }
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Streaming album view settings",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingAlbumOptions = true
+                    }
+
+                    Menu {
+                        NavigationLink {
+                            RemotePlaylistCollectionView()
+                        } label: {
+                            Label("Playlists", systemImage: "music.note.list")
+                        }
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .disabled(settings.streamBackend != .subsonic)
+                    .accessibilityLabel("Open playlists")
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Album options",
+                        systemImage: "ellipsis.circle"
+                    ) {
+                        showingAlbumOptions = true
+                    }
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape"
+                    ) {
+                        layeredNavigationState.showSettings()
                     }
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Album options",
-                    systemImage: "ellipsis.circle"
-                ) {
-                    showingAlbumOptions = true
+            ToolbarItem(placement: .principal) {
+                Button {
+                    guard layeredNavigation else {
+                        dismiss()
+                        return
+                    }
+                    guard let artist = remote.artists.first(where: { candidate in
+                        candidate.albums.contains(where: { $0.id == album.id })
+                            || candidate.name.localizedCaseInsensitiveCompare(album.artist) == .orderedSame
+                    }) else {
+                        ResonanceDiagnostics.shared.recordDeferred(
+                            "navigation.albumArtist.missing",
+                            details: ["source": "streaming"]
+                        )
+                        return
+                    }
+                    layeredNavigationState.remoteArtist = artist
+                    layeredNavigationState.localArtist = nil
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        layeredNavigationState.showArtist()
+                    }
+                } label: {
+                    ResonanceHierarchyNavigationLabel(title: "Artist")
                 }
+                .accessibilityLabel("Artist, move up")
             }
         }
         .confirmationDialog(

@@ -88,8 +88,18 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Hex Color Code")
-                        .font(.subheadline.weight(.semibold))
+                    HStack {
+                        Text("Hex Color Code")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        ColorPicker(
+                            "Choose accent color",
+                            selection: accentColorPickerBinding,
+                            supportsOpacity: false
+                        )
+                        .labelsHidden()
+                        .accessibilityLabel("Choose accent color from color wheel")
+                    }
                     RGBHexField(
                         hex: $accentHexDraft,
                         onBeginEditing: { isTextFieldFocused = false }
@@ -559,6 +569,37 @@ struct SettingsView: View {
         settings.applyThemeColorToText = false
     }
 
+    private var accentColorPickerBinding: Binding<Color> {
+        Binding(
+            get: {
+                Color(hex: accentHexDraft)
+                    ?? Color(hex: settings.accentHex)
+                    ?? settings.accentColor
+            },
+            set: { color in
+                guard let hex = hexValue(from: color) else { return }
+                applyAccentHex(hex)
+            }
+        )
+    }
+
+    private func hexValue(from color: Color) -> String? {
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+        return String(
+            format: "%02X%02X%02X",
+            Int((red * 255).rounded()),
+            Int((green * 255).rounded()),
+            Int((blue * 255).rounded())
+        )
+    }
+
     private var applyThemeColorToTextBinding: Binding<Bool> {
         Binding(
             get: { settings.applyThemeColorToText },
@@ -846,8 +887,18 @@ private struct SettingsCategory<Content: View>: View {
                     content()
                 }
             } label: {
-                Text(title)
-                    .font(.headline)
+                HStack {
+                    Text(title)
+                        .font(.system(size: 34, weight: .bold))
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 1.5)

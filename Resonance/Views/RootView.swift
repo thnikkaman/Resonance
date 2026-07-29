@@ -179,7 +179,33 @@ final class ResonanceLayerNavigation: ObservableObject {
   }
 
   func showRoot() {
+    localArtist = nil
+    localAlbum = nil
+    localAllAlbumsArtistName = nil
+    localAllAlbumsTracks = nil
+    remoteArtist = nil
+    remoteAlbum = nil
+    remoteAllAlbumsArtistName = nil
+    remoteAllAlbumsTracks = nil
     layer = .root
+  }
+
+  func showLibraryRoot() {
+    ResonanceDiagnostics.shared.recordDeferred(
+      "navigation.root.switch",
+      details: ["destination": "library"]
+    )
+    root = .library
+    showRoot()
+  }
+
+  func showStreamingRoot() {
+    ResonanceDiagnostics.shared.recordDeferred(
+      "navigation.root.switch",
+      details: ["destination": "streaming"]
+    )
+    root = .streaming
+    showRoot()
   }
 
   func showSettings() {
@@ -253,6 +279,12 @@ private struct ResonanceLayeredNavigationView: View {
           .transition(.move(edge: .bottom))
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
+          .onAppear {
+            ResonanceDiagnostics.shared.recordDeferred(
+              "navigation.remoteArtistDetail.presented",
+              details: ["layer": "artist"]
+            )
+          }
         }
 
         if let artistName = navigation.localAllAlbumsArtistName,
@@ -365,12 +397,16 @@ private struct ResonanceLayeredNavigationView: View {
         prepareCurrentContext()
         navigation.showPlayer()
       }
+      .onChange(of: navigation.root) { _, _ in
+        navigation.showRoot()
+      }
       .task {
         prepareCurrentContext()
       }
         }
-      }
+    }
     .ignoresSafeArea(edges: .bottom)
+    .foregroundStyle(settings.textAccentColor)
     .environmentObject(navigation)
     .environment(\.resonanceLayeredNavigationActive, true)
     .environment(\.resonanceMiniPlayerBottomInset, player.currentTrack != nil ? 76 : 0)
@@ -383,12 +419,12 @@ private struct ResonanceLayeredNavigationView: View {
     NavigationStack {
       if navigation.root == .library {
         LibraryView(
-          openStreaming: { navigation.root = .streaming },
+          openStreaming: navigation.showStreamingRoot,
           openSettings: navigation.showSettings
         )
       } else {
         StreamingLibraryView(
-          openLibrary: { navigation.root = .library },
+          openLibrary: navigation.showLibraryRoot,
           openSettings: navigation.showSettings
         )
       }
@@ -466,9 +502,7 @@ private struct ResonanceLayerHeader: View {
           navigation.showAlbum()
         }
       case .settings:
-        layerButton(title: "Close Settings") {
-          navigation.closeSettings()
-        }
+        EmptyView()
       }
     }
     .font(.headline.weight(.semibold))
@@ -482,12 +516,35 @@ private struct ResonanceLayerHeader: View {
 
   private func layerButton(title: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-      HStack(spacing: 5) {
-        Text(title)
-        Image(systemName: "chevron.up")
-      }
+      ResonanceHierarchyNavigationLabel(title: title)
     }
     .accessibilityLabel("(title), move up")
+  }
+}
+
+struct ResonanceHierarchyNavigationLabel: View {
+  @EnvironmentObject private var settings: AppSettings
+  let title: String
+
+  var body: some View {
+    HStack(spacing: 10) {
+      Text(title)
+      Image(systemName: "arrow.up")
+        .font(.system(size: 16, weight: .light))
+    }
+    .font(.subheadline.weight(.semibold))
+    .padding(.horizontal, 14)
+    .frame(height: 34)
+    .background {
+      ResonanceThemeSurfaceBackdrop()
+        .clipShape(Capsule())
+    }
+    .overlay {
+      Capsule()
+        .stroke(settings.textAccentColor.opacity(0.35), lineWidth: 1)
+    }
+    .foregroundStyle(settings.textAccentColor)
+    .contentShape(Capsule())
   }
 }
 
@@ -565,6 +622,7 @@ struct RootView: View {
                 .environmentObject(tabNavigation)
                 .environmentObject(player)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(x: -8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
@@ -1352,7 +1410,11 @@ struct ResonanceHeroActionButton: View {
 
     private var styledLabel: some View {
         label
-            .foregroundStyle(prominent ? settings.contrastingAccentTextColor : tint)
+            .foregroundStyle(
+                prominent && settings.applyThemeColorToText
+                    ? settings.contrastingAccentTextColor
+                    : settings.textAccentColor
+            )
             .background { surface }
             .overlay { outline }
             .overlay(alignment: .bottom) {
@@ -1393,9 +1455,9 @@ struct ResonanceToolbarIconButton: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+                    .stroke(settings.textAccentColor.opacity(0.3), lineWidth: 1)
             }
-            .foregroundStyle(settings.accentColor)
+            .foregroundStyle(settings.textAccentColor)
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             .help(accessibilityLabel)
@@ -1417,9 +1479,9 @@ struct ResonanceToolbarIconLabel: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+                    .stroke(settings.textAccentColor.opacity(0.3), lineWidth: 1)
             }
-            .foregroundStyle(settings.accentColor)
+            .foregroundStyle(settings.textAccentColor)
     }
 }
 
