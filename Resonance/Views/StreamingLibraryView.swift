@@ -1148,9 +1148,9 @@ private struct RemoteAlbumCollectionView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
-                ScrollView {
-                    Group {
-                        if settings.albumLayout == .grid {
+                Group {
+                    if settings.albumLayout == .grid {
+                        ScrollView {
                             ResonanceAlphabetGrid(
                                 sections: sections,
                                 columns: columns,
@@ -1159,33 +1159,44 @@ private struct RemoteAlbumCollectionView: View {
                             ) { album in
                                 albumItem(album)
                             }
-                        } else {
-                            LazyVStack(alignment: .leading, spacing: 0) {
-                                ForEach(sections, id: \.key) { section in
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(section.key)
-                                            .font(.headline)
-                                            .foregroundStyle(settings.textAccentColor)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.vertical, 7)
-
-                                        ForEach(section.items) { album in
-                                            albumItem(album)
-                                                .padding(.vertical, settings.albumLayout == .compact ? 2 : 8)
-                                            Divider()
-                                        }
+                            .padding(.leading)
+                            .padding(.trailing, 40)
+                            .padding(.top, 84)
+                            .padding(.bottom)
+                        }
+                        .resonanceBrowseBottomClearance()
+                    } else {
+                        List {
+                            ForEach(sections, id: \.key) { section in
+                                Section {
+                                    ForEach(section.items) { album in
+                                        albumItem(album)
+                                            .listRowInsets(
+                                                EdgeInsets(
+                                                    top: settings.albumLayout == .compact ? 2 : 8,
+                                                    leading: 16,
+                                                    bottom: settings.albumLayout == .compact ? 2 : 8,
+                                                    trailing: 40
+                                                )
+                                            )
+                                            .listRowBackground(Color.clear)
+                                            .listRowSeparator(.hidden)
                                     }
-                                    .id("remote-album-section-\(section.key)")
+                                } header: {
+                                    Text(section.key)
+                                        .foregroundStyle(settings.textAccentColor)
                                 }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .id("remote-album-section-\(section.key)")
                             }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .safeAreaPadding(.top, 84)
+                        .resonanceBrowseBottomClearance()
                     }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 36)
-                    .padding(.top, 84)
-                    .padding(.bottom)
                 }
-                .resonanceBrowseBottomClearance()
 
                 if sections.count > 1 {
                     VerticalArtistIndex(
