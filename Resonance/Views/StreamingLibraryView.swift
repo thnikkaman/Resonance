@@ -207,7 +207,6 @@ struct StreamingLibraryView: View {
                 }
         }
         .navigationTitle("Streaming Library")
-        .navigationBarTitleDisplayMode(.large)
         .background {
             ResonanceThemeBackdrop()
         }
