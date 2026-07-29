@@ -215,8 +215,14 @@ private struct ResonanceLayeredNavigationView: View {
   @StateObject private var navigation = ResonanceLayerNavigation()
 
   var body: some View {
-    GeometryReader { proxy in
-      ZStack(alignment: .top) {
+    ZStack {
+      // Extend the active page surface behind the home-indicator area while
+      // keeping the GeometryReader and its controls inside the safe area.
+      ResonanceThemeBackdrop()
+        .ignoresSafeArea()
+
+      GeometryReader { proxy in
+        ZStack(alignment: .top) {
         rootSurface
           .offset(y: offset(for: .root, height: proxy.size.height))
           .zIndex(0)
@@ -356,7 +362,9 @@ private struct ResonanceLayeredNavigationView: View {
       .task {
         prepareCurrentContext()
       }
-    }
+        }
+      }
+    .ignoresSafeArea(edges: .bottom)
     .environmentObject(navigation)
     .environment(\.resonanceLayeredNavigationActive, true)
     .environment(\.resonanceMiniPlayerBottomInset, player.currentTrack != nil ? 76 : 0)
@@ -541,6 +549,7 @@ private extension View {
 
 struct RootView: View {
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var settings: AppSettings
   @StateObject private var tabNavigation = ResonanceTabNavigation()
   @StateObject private var gestureCoordinator = ResonanceGestureCoordinator()
   @StateObject private var miniPlayerNavigation = ResonanceMiniPlayerNavigation()
@@ -559,6 +568,27 @@ struct RootView: View {
             .environmentObject(miniPlayerNavigation)
             .environmentObject(tabNavigation)
             .environmentObject(player)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background {
+                ResonanceThemeBackdrop()
+                    .ignoresSafeArea()
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ZStack {
+                    settings.themeBackgroundGradient
+                    if let imageName = settings.visualTheme.backgroundImageName {
+                        Image(imageName)
+                            .resizable()
+                            .scaledToFill()
+                            .opacity(0.42)
+                    }
+                }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                    .clipped()
+                    .allowsHitTesting(false)
+            }
+            .ignoresSafeArea(edges: .bottom)
     }
 
     var legacyBody: some View {

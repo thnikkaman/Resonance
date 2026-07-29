@@ -1824,3 +1824,19 @@ Manual test checklist: switch among Gallery Light, Nocturne Glass, Color Bloom, 
 themes; inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings; confirm the theme reaches behind
 the system status indicators and every navigation control remains below them. With frame diagnostics enabled, confirm
 the header frame still begins below the status area.
+
+## Experimental build 147 — extend themed surfaces through the home-indicator area
+
+The root app surface now fills the bottom system inset with a bounded active-theme gradient/image strip. This removes
+the black footer visible below Library, Streaming, detail modules, Player, and Settings while leaving navigation and
+content controls above the home-indicator region. The fill is deliberately bounded so it cannot expand a module or
+alter its scroll layout.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and a Debug simulator build for iPhone 17 Pro.
+Build 147 was installed and launched in place on the configured simulator; the captured screenshot showed themed
+coverage through the bottom edge with no black footer and normal module rendering. The physical device was not changed
+or launched.
+
+Manual test checklist: inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings with several themes.
+Confirm the active theme reaches the bottom edge, the home indicator remains unobstructed, navigation controls stay in
+their normal safe-area positions, and scrolling/content layout is unchanged.
