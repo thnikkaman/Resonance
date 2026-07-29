@@ -1722,6 +1722,25 @@ Library/Streaming ↑, and verify the vertical transitions. Test downward swipes
 Library/Streaming switch and gear Settings control; close Settings downward. Confirm existing menus, playback controls,
 track actions, downloads, artwork, and metadata actions remain usable. Keep build 130 installed as the rollback baseline.
 
+## Experimental build 133 — frame diagnostics for layered navigation
+
+Build 133 keeps the layered vertical navigation and adds a persisted Settings → Appearance → **Show frame diagnostics**
+toggle. When enabled, major root, artist, album, Player, Settings, header, and mini-player surfaces receive a 1-device-pixel
+red outline with a small frame label. This makes safe-area sizing, clipping, off-screen layers, and background coverage
+visible during the experimental navigation work. The legacy side-docked mini-player handle is suppressed while layered
+navigation is active, removing the clipped lower-left chevron seen in the simulator.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `133`. The simulator was shut down after inspection. The physical app was not launched. Existing
+no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual test checklist: launch build 133, open Settings, enable **Show frame diagnostics**, and inspect the labeled red
+frames on Library, Streaming, Artist, Album, Player, and Settings. Check that no frame or label is unexpectedly clipped,
+that the background occupies the intended layer, and that the lower-left chevron is gone. Disable the toggle and verify
+the normal surfaces remain unchanged. Do not uninstall first.
+
 ## Experimental build 129 — restore All Albums replacement prompt
 
 The Streaming All Albums track-list screen now renders the shared `RemoteDownloadOverlay`. Download requests from

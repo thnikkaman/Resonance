@@ -201,14 +201,18 @@ private struct ResonanceLayeredNavigationView: View {
           NavigationStack {
             ArtistDetailView(artist: artist)
           }
+          .environment(\.resonanceLayeredNavigationActive, true)
           .layeredSurface { navigation.showRoot() }
+          .resonanceFrameDebug("Artist: Local")
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
         } else if let artist = navigation.remoteArtist {
           NavigationStack {
             RemoteArtistDetailView(artist: artist)
           }
+          .environment(\.resonanceLayeredNavigationActive, true)
           .layeredSurface { navigation.showRoot() }
+          .resonanceFrameDebug("Artist: Streaming")
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
         }
@@ -217,14 +221,18 @@ private struct ResonanceLayeredNavigationView: View {
           NavigationStack {
             AlbumDetailView(album: album)
           }
+          .environment(\.resonanceLayeredNavigationActive, true)
           .layeredSurface { navigation.showArtist() }
+          .resonanceFrameDebug("Album: Local")
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(2)
         } else if let album = navigation.remoteAlbum {
           NavigationStack {
             RemoteAlbumDetailView(album: album)
           }
+          .environment(\.resonanceLayeredNavigationActive, true)
           .layeredSurface { navigation.showArtist() }
+          .resonanceFrameDebug("Album: Streaming")
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(2)
         }
@@ -232,14 +240,18 @@ private struct ResonanceLayeredNavigationView: View {
         NavigationStack {
           NowPlayingView(openLibrary: navigation.showRoot)
         }
+        .environment(\.resonanceLayeredNavigationActive, true)
         .layeredSurface { navigation.showAlbum() }
+        .resonanceFrameDebug("Player")
         .offset(y: offset(for: .player, height: proxy.size.height))
         .zIndex(3)
 
         NavigationStack {
           SettingsView(openLibrary: navigation.showRoot)
         }
+        .environment(\.resonanceLayeredNavigationActive, true)
         .layeredSurface { navigation.closeSettings() }
+        .resonanceFrameDebug("Settings")
         .offset(y: navigation.layer == .settings ? 0 : proxy.size.height)
         .zIndex(10)
       }
@@ -261,6 +273,7 @@ private struct ResonanceLayeredNavigationView: View {
           )
           .padding(.horizontal, 8)
           .padding(.bottom, 8)
+          .resonanceFrameDebug("Mini Player")
         }
       }
       .safeAreaPadding(.bottom, player.currentTrack != nil && navigation.layer != .player ? 76 : 0)
@@ -291,7 +304,9 @@ private struct ResonanceLayeredNavigationView: View {
         )
       }
     }
+    .environment(\.resonanceLayeredNavigationActive, true)
     .layeredSurface()
+    .resonanceFrameDebug(navigation.root == .library ? "Root: Library" : "Root: Streaming")
   }
 
   private func offset(for layer: ResonanceLayer, height: CGFloat) -> CGFloat {
@@ -337,6 +352,7 @@ private struct ResonanceLayeredNavigationView: View {
 
 private struct ResonanceLayerHeader: View {
   @ObservedObject var navigation: ResonanceLayerNavigation
+  @EnvironmentObject private var settings: AppSettings
 
   var body: some View {
     Group {
@@ -379,6 +395,7 @@ private struct ResonanceLayerHeader: View {
     .padding(.bottom, 8)
     .background(.ultraThinMaterial)
     .contentShape(Rectangle())
+    .resonanceFrameDebug("Layer Header")
   }
 
   private func layerButton(title: String, action: @escaping () -> Void) -> some View {
@@ -392,7 +409,35 @@ private struct ResonanceLayerHeader: View {
   }
 }
 
+private struct ResonanceFrameDiagnosticsModifier: ViewModifier {
+  @EnvironmentObject private var settings: AppSettings
+  let label: String
+
+  func body(content: Content) -> some View {
+    content.overlay {
+      if settings.showFrameDiagnostics {
+        Rectangle()
+          .stroke(Color.red, lineWidth: 1 / UIScreen.main.scale)
+          .overlay(alignment: .topLeading) {
+            Text(label)
+              .font(.system(size: 9, weight: .semibold, design: .monospaced))
+              .foregroundStyle(.red)
+              .padding(.horizontal, 3)
+              .padding(.vertical, 1)
+              .background(Color.black.opacity(0.78))
+              .allowsHitTesting(false)
+          }
+          .allowsHitTesting(false)
+      }
+    }
+  }
+}
+
 private extension View {
+  func resonanceFrameDebug(_ label: String) -> some View {
+    modifier(ResonanceFrameDiagnosticsModifier(label: label))
+  }
+
   func layeredSurface() -> some View {
     self
       .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -820,7 +865,7 @@ struct ResonanceDetailTabNavigation: ViewModifier {
             // follows the finger while the navigation bar remains docked.
             .resonanceTopDownDismiss { dismiss() }
             .overlay(alignment: .leading) {
-                if miniPlayerNavigation.dock == .leading {
+                if !layeredNavigation, miniPlayerNavigation.dock == .leading {
                     MiniPlayerEdgeHandle(isVisible: true, edge: .leading) {
                         tabNavigation.select(.playing)
                     } onUndock: {
@@ -832,7 +877,7 @@ struct ResonanceDetailTabNavigation: ViewModifier {
                 }
             }
             .overlay(alignment: .trailing) {
-                if miniPlayerNavigation.dock == .trailing {
+                if !layeredNavigation, miniPlayerNavigation.dock == .trailing {
                     MiniPlayerEdgeHandle(isVisible: true, edge: .trailing) {
                         tabNavigation.select(.playing)
                     } onUndock: {
@@ -1332,6 +1377,7 @@ private struct MiniPlayerOverlay: View {
 private struct MiniPlayerEdgeHandle: View {
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var player: PlayerController
+  @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
   @GestureState private var dragTranslation = CGSize.zero
   let isVisible: Bool
   let edge: MiniPlayerDock
@@ -1340,7 +1386,7 @@ private struct MiniPlayerEdgeHandle: View {
   let onDock: (MiniPlayerDock) -> Void
 
   var body: some View {
-    if isVisible, player.currentTrack != nil {
+    if isVisible, player.currentTrack != nil, !layeredNavigation {
       Button(action: openNowPlaying) {
         HStack(spacing: 3) {
           if let track = player.currentTrack {
