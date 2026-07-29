@@ -152,7 +152,9 @@ final class ResonanceLayerNavigation: ObservableObject {
 
   func showAlbum() {
     guard localAlbum != nil || remoteAlbum != nil else { return }
-    layer = .album
+    withAnimation(.easeInOut(duration: 0.35)) {
+      layer = .album
+    }
   }
 
   func showLocalAllAlbums(artistName: String, tracks: [Track]) {
