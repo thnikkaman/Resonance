@@ -224,16 +224,9 @@ struct StreamingLibraryView: View {
                 HStack(spacing: 4) {
                     ResonanceToolbarIconButton(
                         accessibilityLabel: "Open local library",
-                        systemImage: "chevron.left",
+                        systemImage: "arrow.left.circle",
                         action: openLibrary
                     )
-
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Streaming library view and sort options",
-                        systemImage: "slider.horizontal.3"
-                    ) {
-                        showingOptions = true
-                    }
 
                     Menu {
                         NavigationLink {
@@ -252,6 +245,16 @@ struct StreamingLibraryView: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
+                    StreamingDownloadActionsMenu(
+                        artistTracks: selectedArtistTracks,
+                        albumTracks: selectedAlbumTracks,
+                        artistCount: selectedArtistCount,
+                        albumCount: selectedAlbumCount,
+                        selectionMode: downloadSelectionMode,
+                        onClearSelection: clearDownloadSelection,
+                        onShowBrowseOptions: { showingOptions = true }
+                    )
+
                     ResonanceToolbarIconButton(
                         accessibilityLabel: "Refresh streaming library",
                         systemImage: "arrow.clockwise"
