@@ -220,45 +220,52 @@ struct StreamingLibraryView: View {
             if ids.isEmpty && selectedArtistIDs.isEmpty { downloadSelectionMode = false }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Open local library",
-                    systemImage: "chevron.left",
-                    action: openLibrary
-                )
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open local library",
+                        systemImage: "chevron.left",
+                        action: openLibrary
+                    )
 
-                StreamingDownloadActionsMenu(
-                    artistTracks: selectedArtistTracks,
-                    albumTracks: selectedAlbumTracks,
-                    artistCount: selectedArtistCount,
-                    albumCount: selectedAlbumCount,
-                    selectionMode: downloadSelectionMode,
-                    onClearSelection: clearDownloadSelection,
-                    onShowBrowseOptions: { showingOptions = true }
-                )
-
-                Menu {
-                    NavigationLink {
-                        RemotePlaylistCollectionView()
-                    } label: {
-                        Label("Playlists", systemImage: "music.note.list")
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Streaming library view and sort options",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingOptions = true
                     }
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+
+                    Menu {
+                        NavigationLink {
+                            RemotePlaylistCollectionView()
+                        } label: {
+                            Label("Playlists", systemImage: "music.note.list")
+                        }
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .disabled(settings.streamBackend != .subsonic)
+                    .help("Open playlists")
+                    .accessibilityLabel("Open playlists")
                 }
-                .disabled(settings.streamBackend != .subsonic)
-                .help("Open playlists")
-                .accessibilityLabel("Open playlists")
             }
 
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Refresh streaming library",
-                    systemImage: "arrow.clockwise"
-                ) {
-                    Task { await remote.refresh(using: settings) }
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Refresh streaming library",
+                        systemImage: "arrow.clockwise"
+                    ) {
+                        Task { await remote.refresh(using: settings) }
+                    }
+                    .disabled(remote.isLoading || settings.streamHost.isEmpty)
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape",
+                        action: openSettings
+                    )
                 }
-                .disabled(remote.isLoading || settings.streamHost.isEmpty)
             }
         }
         .sheet(isPresented: $showingOptions) {

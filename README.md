@@ -1,6 +1,6 @@
 # Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
-## Current stable beta — 0.3.7.6 (build 186)
+## Current stable beta — 0.3.7.6 (build 187)
 
 The current stable beta is the current navigation-polish source. It adds layered upward navigation for Library → Artist
 → Album → Now Playing, matching reverse reveal animations, centered Artist/Album/Library headers, compact toolbar
