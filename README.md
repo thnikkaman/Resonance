@@ -1,5 +1,14 @@
 # Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
+## Current stable beta — 0.3.7.5 (build 150)
+
+The current stable beta is the recovered simulator artifact with the Library header layout matching the approved
+reference image: Streaming Library, Library Options, and Playlists are grouped at the upper left, with refresh,
+add, and Settings at the upper right. The release identifier was advanced from 0.3.7.4/build 149 without changing
+the recovered app behavior.
+
+Simulator artifact: `.build/stable-beta-0.3.7.5/Build/Products/Debug-iphonesimulator/Resonance.app`
+
 ## Experimental build 110 — metadata-save regression repair
 
 This experimental build keeps metadata saves from triggering a forced rescan of the entire local library. After a
