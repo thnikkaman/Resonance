@@ -860,8 +860,10 @@ private struct RemoteArtistCollectionView: View {
             } else if selectionMode {
                 toggleSelection(artist)
             } else {
-                layeredNavigation.remoteArtist = artist
-                layeredNavigation.layer = .artist
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    layeredNavigation.remoteArtist = artist
+                    layeredNavigation.layer = .artist
+                }
             }
         } label: {
             ZStack(alignment: .topTrailing) {
