@@ -1182,7 +1182,8 @@ private struct RemoteAlbumCollectionView: View {
                     }
                     .padding(.leading, 16)
                     .padding(.trailing, 36)
-                    .padding(.vertical)
+                    .padding(.top, 84)
+                    .padding(.bottom)
                 }
                 .resonanceBrowseBottomClearance()
 
