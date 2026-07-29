@@ -182,11 +182,15 @@ final class ResonanceLayerNavigation: ObservableObject {
 
   func showSettings() {
     layerBeforeSettings = layer
-    layer = .settings
+    withAnimation(.easeInOut(duration: 0.28)) {
+      layer = .settings
+    }
   }
 
   func closeSettings() {
-    layer = layerBeforeSettings
+    withAnimation(.easeInOut(duration: 0.28)) {
+      layer = layerBeforeSettings
+    }
   }
 }
 
@@ -302,20 +306,21 @@ private struct ResonanceLayeredNavigationView: View {
         .offset(y: offset(for: .player, height: proxy.size.height))
         .zIndex(4)
 
-        NavigationStack {
-          SettingsView(openLibrary: navigation.showRoot)
+        if navigation.layer == .settings {
+          NavigationStack {
+            SettingsView(openLibrary: navigation.showRoot)
+          }
+          .environment(\.resonanceLayeredNavigationActive, true)
+          .toolbarBackground(.hidden, for: .navigationBar)
+          .background(Color.clear)
+          .layeredSurface { navigation.closeSettings() }
+          .resonanceFrameDebug("Settings")
+          .transition(.move(edge: .bottom))
+          .zIndex(10)
         }
-        .environment(\.resonanceLayeredNavigationActive, true)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .background(Color.clear)
-        .layeredSurface { navigation.closeSettings() }
-        .resonanceFrameDebug("Settings")
-        // A one-pixel offset would leave the diagnostic border sitting on the
-        // bottom edge. Move the complete inactive surface beyond the viewport.
-        .offset(y: navigation.layer == .settings ? 0 : proxy.size.height + 2)
-        .zIndex(10)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .clipped()
       .overlay(alignment: .top) {
         ResonanceLayerHeader(navigation: navigation)
       }
@@ -486,7 +491,7 @@ private struct ResonanceFrameDiagnosticsModifier: ViewModifier {
       if settings.showFrameDiagnostics {
         Rectangle()
           .stroke(Color.red, lineWidth: 1 / UIScreen.main.scale)
-          .overlay(alignment: .topLeading) {
+          .overlay {
             Text(label)
               .font(.system(size: 9, weight: .semibold, design: .monospaced))
               .foregroundStyle(.red)

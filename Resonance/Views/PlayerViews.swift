@@ -260,6 +260,9 @@ struct NowPlayingView: View {
     .padding(.top, 120)
     .padding(.bottom, 8)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background {
+      ResonanceThemeBackdrop()
+    }
     .navigationTitle("Now Playing")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

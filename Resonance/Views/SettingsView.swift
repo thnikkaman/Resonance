@@ -485,7 +485,7 @@ struct SettingsView: View {
             Color.clear.frame(height: 112)
         }
             .background {
-                Color.clear
+                ResonanceThemeBackdrop()
             }
         .scrollDismissesKeyboard(.interactively)
         .simultaneousGesture(

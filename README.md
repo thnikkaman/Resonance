@@ -1758,6 +1758,22 @@ confirm the Library and Streaming roots show their active gradient/image backgro
 Player, and Settings retain the same background continuity. Keep frame diagnostics available for any remaining opaque or
 clipped surface investigation.
 
+## Experimental build 138 — centered frame diagnostics
+
+The frame-diagnostics labels are now centered within their red outlined frames. Build 138 also includes the layered-stack
+viewport clipping that prevents translated Player, Settings, and other inactive navigation surfaces from leaking their
+toolbars or diagnostic labels into the bottom of the visible page. Settings is omitted from the hierarchy while inactive,
+and Player and Settings own the active theme backdrop just like Library, Streaming, Artist, Album, and All Albums.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, simulator build/install,
+and a signed arm64 Release build with strict deep code-signature verification. Build 138 was installed in place on
+`SaiyanDenawa`; `devicectl` verified version `0.3.7.4`, build `138`. The physical app was not launched. Existing
+no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual test checklist: enable frame diagnostics and confirm labels are centered in the Library, Artist, Album, All Albums,
+Player, Settings, header, and mini-player frames. Confirm no inactive layer or black strip appears at the bottom. Start
+playback and verify Now Playing uses the active theme background and controls. Switch themes and repeat the check.
+
 ## Experimental build 133 — frame diagnostics for layered navigation
 
 Build 133 keeps the layered vertical navigation and adds a persisted Settings → Appearance → **Show frame diagnostics**
