@@ -2,6 +2,23 @@
 
 ## Current stable beta — 0.3.7.6 (build 188)
 
+### Authoritative build-188 continuation baseline
+
+- Source repository: `thnikkaman/Resonance`
+- Source branch: `agent/alpha-3.7.4-source`
+- Source commit: `fe79fb02f641340f142ad21211746de69833ad50`
+- Build tag: `Resonance-Beta-v1.0.2-build188`
+- Version/build: `0.3.7.6` / `188`
+- Bundle identifier: `com.example.ResonancePrototype`
+- Verified source worktree used for the simulator build: `/Users/brian/Resonance/Resonance-build-188`
+- Physical-device artifact: `.build/stable-beta-0.3.7.6-188/Build/Products/Release-iphoneos/Resonance.app`
+- Simulator artifact derived from the same commit: `.build/simulator-build-188/Build/Products/Debug-iphonesimulator/Resonance.app`
+- Generated build products, logs, diagnostics, and private configuration are intentionally excluded from Git.
+
+This commit is the source baseline for continuation. Do not substitute the older experimental navigation commits or
+later uncommitted toolbar experiments. Before updating this handoff again, first update and verify the source checkout
+against the current working build, then record the new immutable commit, version, build, and artifact provenance here.
+
 The current stable beta is the current navigation-polish source. It adds layered upward navigation for Library → Artist
 → Album → Now Playing, matching reverse reveal animations, centered Artist/Album/Library headers, compact toolbar
 controls, linked Settings and playlist actions, and continuous themed Library/Streaming backgrounds through the bottom
