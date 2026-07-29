@@ -1,13 +1,16 @@
 # Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
 
-## Current stable beta — 0.3.7.6 (build 187)
+## Current stable beta — 0.3.7.6 (build 188)
 
 The current stable beta is the current navigation-polish source. It adds layered upward navigation for Library → Artist
 → Album → Now Playing, matching reverse reveal animations, centered Artist/Album/Library headers, compact toolbar
 controls, linked Settings and playlist actions, and continuous themed Library/Streaming backgrounds through the bottom
 safe area. Browse content can extend behind the mini-player without an artificial bottom clearance block.
 
-Latest simulator source build: `.build/library-artwork-miniplayer-186/Build/Products/Debug-iphonesimulator/Resonance.app`
+The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
+refresh, and Settings. The local file-browser/import control is intentionally omitted.
+
+Latest device source build: `.build/stable-beta-0.3.7.6-188/Build/Products/Release-iphoneos/Resonance.app`
 
 ## Experimental build 110 — metadata-save regression repair
 
