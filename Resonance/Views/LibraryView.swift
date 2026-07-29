@@ -7,6 +7,11 @@ struct LibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var importing = false
     @State private var showingLibraryOptions = false
+    let openStreaming: () -> Void
+
+    init(openStreaming: @escaping () -> Void = {}) {
+        self.openStreaming = openStreaming
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -55,6 +60,12 @@ struct LibraryView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open Streaming library",
+                    systemImage: "arrow.right.circle",
+                    action: openStreaming
+                )
+
                 ResonanceToolbarIconButton(
                     accessibilityLabel: library.grouping == .albums
                         ? "Album view settings"

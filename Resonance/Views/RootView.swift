@@ -378,7 +378,7 @@ private struct ResonanceLayeredNavigationView: View {
   private var rootSurface: some View {
     NavigationStack {
       if navigation.root == .library {
-        LibraryView()
+        LibraryView(openStreaming: { navigation.root = .streaming })
       } else {
         StreamingLibraryView(
           openLibrary: { navigation.root = .library },
@@ -725,7 +725,7 @@ struct RootView: View {
                     )
                 }
                 tabPage(.library, width: proxy.size.width) {
-                    LibraryView()
+                    LibraryView(openStreaming: { tabNavigation.select(.streaming) })
                 }
                 tabPage(.streaming, width: proxy.size.width) {
                     StreamingLibraryView(
