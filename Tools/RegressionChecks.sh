@@ -38,10 +38,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 152;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 189;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 0.3.7.5;') == 2
+assert pbx.count('MARKETING_VERSION = 0.3.7.7;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -634,5 +634,5 @@ assert mixed_fixture_keys == {'split album|2024'}
 
 
 
-print('Resonance Beta v1.0.6 regression checks passed.')
+print('Resonance Beta v1.0.7 regression checks passed.')
 PY
