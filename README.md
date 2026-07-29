@@ -1741,6 +1741,23 @@ the `Artist ↑` header appears and returns to the artist. Repeat for normal alb
 diagnostics and verify Settings has no border or label at the bottom while hidden. Switch through transparent-theme and
 image-theme palettes and confirm the theme background remains visible behind every layered module and header.
 
+## Experimental build 135 — restore root theme backgrounds
+
+Library and Streaming now render their own `ResonanceThemeBackdrop()` behind the browse content. This prevents the
+`NavigationStack`/system container from presenting an opaque black root surface over the active theme, while the existing
+hidden list and scroll backgrounds allow the gradient or theme artwork to remain visible through the collections.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed strict
+deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`,
+build `135`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip warnings
+remained non-blocking.
+
+Manual test checklist: switch among Gallery Light, Nocturne Glass, Color Bloom, Electronic, Psychedelic, and other themes;
+confirm the Library and Streaming roots show their active gradient/image background, then verify Artist, All Albums, Album,
+Player, and Settings retain the same background continuity. Keep frame diagnostics available for any remaining opaque or
+clipped surface investigation.
+
 ## Experimental build 133 — frame diagnostics for layered navigation
 
 Build 133 keeps the layered vertical navigation and adds a persisted Settings → Appearance → **Show frame diagnostics**

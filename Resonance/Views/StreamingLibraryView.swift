@@ -211,7 +211,7 @@ struct StreamingLibraryView: View {
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
         .background {
-            Color.clear
+            ResonanceThemeBackdrop()
         }
         .onChange(of: selectedArtistIDs) { _, ids in
             if ids.isEmpty && selectedAlbumIDs.isEmpty { downloadSelectionMode = false }
