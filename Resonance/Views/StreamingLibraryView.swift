@@ -125,7 +125,7 @@ struct StreamingLibraryView: View {
     }
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             if settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 ContentUnavailableView {
                     Label("No Remote Server", systemImage: "externaldrive.badge.wifi")
@@ -136,7 +136,6 @@ struct StreamingLibraryView: View {
                         .buttonStyle(.borderedProminent)
                 }
             } else {
-                VStack(spacing: 0) {
                     RemoteDownloadOverlay()
                         .padding(.top, 84)
                     if remote.hasConnectionIssue {
@@ -206,7 +205,6 @@ struct StreamingLibraryView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
-            }
         }
         .navigationTitle("Streaming Library")
         .navigationBarTitleDisplayMode(.large)
