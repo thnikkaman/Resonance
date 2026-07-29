@@ -12,6 +12,12 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 
 Latest device source build: `.build/stable-beta-0.3.7.6-188/Build/Products/Release-iphoneos/Resonance.app`
 
+Authoritative continuation source: commit `64a06c8` on `agent/alpha-3.7.4-source`,
+checked out at `/Users/brian/Resonance/Resonance-Alpha-3.7.4`. This preserves the current
+layered navigation, animations, Streaming toolbar/options, and adds only the matching
+bottom-up animation when selecting a Streaming artist. The simulator artifact for this
+source is `.build/simulator-streaming-artist-animation/Build/Products/Debug-iphonesimulator/Resonance.app`.
+
 ## Experimental build 110 — metadata-save regression repair
 
 This experimental build keeps metadata saves from triggering a forced rescan of the entire local library. After a
