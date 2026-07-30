@@ -1858,20 +1858,25 @@ Manual test checklist: inspect Library, Streaming, Artist, All Albums, Album, Pl
 Confirm the active theme reaches the bottom edge, the home indicator remains unobstructed, navigation controls stay in
 their normal safe-area positions, and scrolling/content layout is unchanged.
 
-## Paused audit state — 2026-07-30
+## Experimental build 211 — complete local browse-cache audit — 2026-07-30
 
-The current working source is the in-place-tested Resonance Beta 1.0.6 / build 210 line. The recent crash and artwork
-recovery work is preserved in the source: background download queues are single-file and duplicate-safe, display-cache
-artwork is stored in per-track sidecars and restored on launch, and database updates preserve existing artwork when a
-cache-only track has no image loaded. A one-time embedded-artwork recovery scan restores artwork from existing local
-files after the earlier cache migration regression.
+The cache-audit source preserves embedded artwork during cache-only database refreshes, restores per-track display-cache
+sidecars on launch, performs the one-time embedded-artwork recovery scan, serializes background downloads one file at a
+time, and caches local filtered tracks, artists, album artists, and albums by search/sort/surface. Track, track-metadata-
+override, and artist-override changes invalidate the browse caches. The audit confirmed that explicit inventory scans,
+metadata rereads, database replacement/upsert, recent/favorite derivation, and local navigation consume the intended
+authoritative state without adding another automatic full Documents scan.
 
-The next audit is intentionally paused before installation. Local browse-derived collections are now cached by search,
-sort, and browse surface; track, track-metadata-override, and artist-override changes invalidate those caches. The audit
-still needs to review remaining local scan, metadata, database, artwork, and view recomputation paths, especially the
-full inventory pass used by explicit refresh and the remaining filtered/recent collection calculations.
+`Tools/RegressionChecks.sh` was corrected to track the current Beta 1.0.6 metadata and the display-snapshot-aware remote
+catalog-check guard. Regression checks, `git diff --check`, Swift 6 syntax parsing, and `Tools/PreflightBuild.sh` simulator
+and generic-device builds passed. The known AppIntents metadata-skip warning remained non-blocking.
 
-Validation reached `git diff --check`, Swift 6 syntax parsing, and the configured `Tools/PreflightBuild.sh` simulator and
-generic-device builds. The known non-blocking AppIntents metadata-skip warning remains. No new physical-device build or
-runtime test was performed for the paused browse-cache audit. Resume by reviewing the committed diff, then finish the
-scan/recomputation audit before making further behavior changes or installing another phone build.
+The signed Release app was built from source commit `dad0390` with `CURRENT_PROJECT_VERSION=211`, passed strict deep
+code-signature verification, and installed in place on SaiyanDenawa as version 1.0.6/build 211. The previous app data was
+preserved, and the physical app was not launched by Codex. The signed build emitted only the known harmless AppIntents
+metadata-skip warning.
+
+Manual continuation: launch build 211 on SaiyanDenawa. Verify cached local Library presentation and explicit scan behavior;
+confirm artwork survives relaunch and cache refresh; exercise local artist/album/song/favorites/recent views; test FLAC
+and MP3 metadata/artwork saves and unsupported-format handling; inspect mixed-artist browse grouping; and confirm local
+and remote playback, Streaming responsiveness, downloads, navigation, and themes remain unchanged. Do not uninstall first.
