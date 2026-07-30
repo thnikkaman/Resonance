@@ -38,10 +38,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 189;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 210;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 0.3.7.7;') == 2
+assert pbx.count('MARKETING_VERSION = 1.0.6;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -309,7 +309,7 @@ assert 'markPlayed(trackID:' in root_view
 assert 'ErrorReportingCoordinatorView' in root_view
 assert 'collectDocumentInventory' in library_store
 assert 'Task.detached(priority: .utility)' in library_store
-assert 'if !forceCheck, !tracks.isEmpty { return }' in remote
+assert 'if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive { return }' in remote
 assert 'scheduleNowPlayingArtworkPreparation' in player
 assert 'prepareNowPlayingArtwork(data: data)' in player
 artwork = (root / 'Resonance/Views/ArtworkView.swift').read_text()
