@@ -45,18 +45,41 @@ actor LibraryDatabase {
 
     func replaceAll(with tracks: [Track]) {
         guard let db else { return }
-        sqlite3_exec(db, "BEGIN; DELETE FROM tracks;", nil, nil, nil)
+        sqlite3_exec(db, "BEGIN; CREATE TEMP TABLE IF NOT EXISTS resonance_incoming_track_ids (id TEXT PRIMARY KEY); DELETE FROM resonance_incoming_track_ids;", nil, nil, nil)
         let sql = """
-        INSERT OR REPLACE INTO tracks
+        INSERT INTO tracks
         (id,title,artist,album_artist,album_name,track_number,disc_number,release_year,duration,file_url,artwork,artwork_embedded,date_added)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET
+          title=excluded.title,
+          artist=excluded.artist,
+          album_artist=excluded.album_artist,
+          album_name=excluded.album_name,
+          track_number=excluded.track_number,
+          disc_number=excluded.disc_number,
+          release_year=excluded.release_year,
+          duration=excluded.duration,
+          file_url=excluded.file_url,
+          artwork=COALESCE(excluded.artwork, tracks.artwork),
+          artwork_embedded=CASE WHEN excluded.artwork IS NULL THEN tracks.artwork_embedded ELSE excluded.artwork_embedded END,
+          date_added=excluded.date_added;
         """
         var statement: OpaquePointer?
+        var idStatement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
+            sqlite3_exec(db, "ROLLBACK; DROP TABLE IF EXISTS resonance_incoming_track_ids;", nil, nil, nil)
             return
         }
-        defer { sqlite3_finalize(statement); sqlite3_exec(db, "COMMIT;", nil, nil, nil) }
+        guard sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO resonance_incoming_track_ids (id) VALUES (?);", -1, &idStatement, nil) == SQLITE_OK else {
+            sqlite3_finalize(statement)
+            sqlite3_exec(db, "ROLLBACK; DROP TABLE IF EXISTS resonance_incoming_track_ids;", nil, nil, nil)
+            return
+        }
+        defer {
+            sqlite3_finalize(statement)
+            sqlite3_finalize(idStatement)
+            sqlite3_exec(db, "DELETE FROM tracks WHERE id NOT IN (SELECT id FROM resonance_incoming_track_ids); DROP TABLE IF EXISTS resonance_incoming_track_ids; COMMIT;", nil, nil, nil)
+        }
         for track in tracks {
             sqlite3_reset(statement)
             sqlite3_clear_bindings(statement)
@@ -78,15 +101,33 @@ actor LibraryDatabase {
             sqlite3_bind_int(statement, 12, track.artworkIsEmbedded ? 1 : 0)
             sqlite3_bind_double(statement, 13, track.dateAdded.timeIntervalSince1970)
             sqlite3_step(statement)
+
+            sqlite3_reset(idStatement)
+            sqlite3_clear_bindings(idStatement)
+            bind(track.id.uuidString, 1, idStatement)
+            sqlite3_step(idStatement)
         }
     }
 
     func upsert(_ track: Track) {
         guard let db else { return }
         let sql = """
-        INSERT OR REPLACE INTO tracks
+        INSERT INTO tracks
         (id,title,artist,album_artist,album_name,track_number,disc_number,release_year,duration,file_url,artwork,artwork_embedded,date_added)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET
+          title=excluded.title,
+          artist=excluded.artist,
+          album_artist=excluded.album_artist,
+          album_name=excluded.album_name,
+          track_number=excluded.track_number,
+          disc_number=excluded.disc_number,
+          release_year=excluded.release_year,
+          duration=excluded.duration,
+          file_url=excluded.file_url,
+          artwork=COALESCE(excluded.artwork, tracks.artwork),
+          artwork_embedded=CASE WHEN excluded.artwork IS NULL THEN tracks.artwork_embedded ELSE excluded.artwork_embedded END,
+          date_added=excluded.date_added;
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }

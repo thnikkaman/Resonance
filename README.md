@@ -1857,3 +1857,21 @@ or launched.
 Manual test checklist: inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings with several themes.
 Confirm the active theme reaches the bottom edge, the home indicator remains unobstructed, navigation controls stay in
 their normal safe-area positions, and scrolling/content layout is unchanged.
+
+## Paused audit state — 2026-07-30
+
+The current working source is the in-place-tested Resonance Beta 1.0.6 / build 210 line. The recent crash and artwork
+recovery work is preserved in the source: background download queues are single-file and duplicate-safe, display-cache
+artwork is stored in per-track sidecars and restored on launch, and database updates preserve existing artwork when a
+cache-only track has no image loaded. A one-time embedded-artwork recovery scan restores artwork from existing local
+files after the earlier cache migration regression.
+
+The next audit is intentionally paused before installation. Local browse-derived collections are now cached by search,
+sort, and browse surface; track, track-metadata-override, and artist-override changes invalidate those caches. The audit
+still needs to review remaining local scan, metadata, database, artwork, and view recomputation paths, especially the
+full inventory pass used by explicit refresh and the remaining filtered/recent collection calculations.
+
+Validation reached `git diff --check`, Swift 6 syntax parsing, and the configured `Tools/PreflightBuild.sh` simulator and
+generic-device builds. The known non-blocking AppIntents metadata-skip warning remains. No new physical-device build or
+runtime test was performed for the paused browse-cache audit. Resume by reviewing the committed diff, then finish the
+scan/recomputation audit before making further behavior changes or installing another phone build.

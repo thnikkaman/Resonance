@@ -6,13 +6,14 @@ import Foundation
 /// server URLs, credentials, or audio data.
 final class ResonanceDiagnostics: @unchecked Sendable {
   static let shared = ResonanceDiagnostics()
+  private static let debuggingEnabledKey = "resonance.diagnostics.debuggingEnabled"
 
   private let queue = DispatchQueue(
     label: "com.example.ResonancePrototype.diagnostics",
     qos: .utility
   )
   private let fileURL: URL
-  private let maximumBytes = 1_048_576
+  private let maximumBytes = 100 * 1_048_576
 
   private init() {
     let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
@@ -23,6 +24,30 @@ final class ResonanceDiagnostics: @unchecked Sendable {
     )
     fileURL = documents.appendingPathComponent("Resonance-Diagnostics.log")
     record("diagnostics.ready", details: ["location": "Documents/Resonance-Diagnostics.log"])
+  }
+
+  var debuggingEnabled: Bool {
+    UserDefaults.standard.bool(forKey: Self.debuggingEnabledKey)
+  }
+
+  func setDebuggingEnabled(_ enabled: Bool) {
+    UserDefaults.standard.set(enabled, forKey: Self.debuggingEnabledKey)
+    record("diagnostics.debuggingMode", details: ["enabled": String(enabled)])
+  }
+
+  func fileSizeBytes() -> Int64 {
+    queue.sync {
+      guard let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+        let size = attributes[.size] as? NSNumber
+      else { return 0 }
+      return size.int64Value
+    }
+  }
+
+  func deleteFile() {
+    queue.sync {
+      try? FileManager.default.removeItem(at: fileURL)
+    }
   }
 
   func record(_ event: String, details: [String: String] = [:]) {
@@ -40,6 +65,7 @@ final class ResonanceDiagnostics: @unchecked Sendable {
   /// filesystem write. These events are useful for performance diagnosis but
   /// are not crash-boundary markers.
   func recordDeferred(_ event: String, details: [String: String] = [:]) {
+    guard debuggingEnabled else { return }
     let line = makeLine(event, details: details)
     queue.async { [weak self] in
       self?.append(line)

@@ -594,7 +594,7 @@ final class RemoteDownloadManager: ObservableObject {
             )
             completedCount = max(0, completedCount - 1)
             addPersistedTrack(id)
-            enqueueBackgroundTrack(track, replacingExisting: false)
+            finishBackgroundBatchIfNeeded()
             return
         }
         requeueRequests[id] = track
@@ -663,6 +663,7 @@ final class RemoteDownloadManager: ObservableObject {
         replacingExisting: Bool
     ) async {
         isDownloading = true
+        library.beginDisplaySnapshotDeferral()
         completedCount = 0
         totalCount = tracks.count
         currentCompletedBytes = 0
@@ -690,6 +691,7 @@ final class RemoteDownloadManager: ObservableObject {
             requeueRequests = [:]
             activeTracksByID = [:]
             downloadTask = nil
+            library.endDisplaySnapshotDeferral()
         }
 
         var pendingTracks = tracks
@@ -841,11 +843,10 @@ final class RemoteDownloadManager: ObservableObject {
         into library: LibraryStore,
         replacingExisting: Bool
     ) {
-        prepareBackgroundBatch(tracks, into: library, replacingExisting: replacingExisting)
+        let uniqueTracks = Self.uniqueTracks(tracks)
+        prepareBackgroundBatch(uniqueTracks, into: library, replacingExisting: replacingExisting)
         lastMessage = "Starting background download…"
-        for track in tracks {
-            enqueueBackgroundTrack(track, replacingExisting: replacingExisting)
-        }
+        enqueueNextBackgroundTrackIfNeeded()
         finishBackgroundBatchIfNeeded()
     }
 
@@ -855,6 +856,7 @@ final class RemoteDownloadManager: ObservableObject {
         replacingExisting: Bool
     ) {
         isDownloading = true
+        library.beginDisplaySnapshotDeferral()
         completedCount = 0
         totalCount = tracks.count
         currentCompletedBytes = 0
@@ -909,12 +911,37 @@ final class RemoteDownloadManager: ObservableObject {
         backgroundReplacingExisting[track.id] = replacingExisting
     }
 
+    /// Background URLSession can otherwise start every submitted download at once. Keep
+    /// exactly one task (or one finalization) active and advance only after it completes.
+    private func enqueueNextBackgroundTrackIfNeeded() {
+        guard isDownloading,
+              backgroundTaskIdentifiers.isEmpty,
+              backgroundFinalizing.isEmpty else { return }
+
+        while let next = downloadQueue.first(where: { $0.state == .queued }),
+              let track = activeTracksByID[next.id] {
+            let replacingExisting = backgroundReplacingExisting[track.id] ?? false
+            enqueueBackgroundTrack(track, replacingExisting: replacingExisting)
+            if backgroundTaskIdentifiers[track.id] != nil { return }
+        }
+
+        if completedCount >= totalCount {
+            finishBackgroundBatchIfNeeded()
+        }
+    }
+
     private func resumeBackgroundDownloads(from remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
         let savedIDs = persistedQueueIDs()
         let records = backgroundSession.records()
-        let orderedIDs = savedIDs + records.map(\.trackID).filter { !savedIDs.contains($0) }
+        var orderedIDs: [UUID] = []
+        var seenIDs = Set<UUID>()
+        for id in savedIDs + records.map(\.trackID) where seenIDs.insert(id).inserted {
+            orderedIDs.append(id)
+        }
         guard !orderedIDs.isEmpty else { return }
-        let byID = Dictionary(uniqueKeysWithValues: remoteTracks.map { ($0.id, $0) })
+        let byID = remoteTracks.reduce(into: [UUID: RemoteTrackItem]()) { result, track in
+            result[track.id] = track
+        }
         let matchedTracks = orderedIDs.compactMap { byID[$0] }
         guard !matchedTracks.isEmpty else { return }
         let recordIDs = Set(records.map(\.trackID))
@@ -949,41 +976,61 @@ final class RemoteDownloadManager: ObservableObject {
         records: [RemoteBackgroundDownloadRecord],
         activeTaskIdentifiers: Set<Int>
     ) {
-        let tracksByID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+        let tracksByID = candidates.reduce(into: [UUID: RemoteTrackItem]()) { result, track in
+            result[track.id] = track
+        }
         var recordsByTrackID: [UUID: RemoteBackgroundDownloadRecord] = [:]
         for record in records where tracksByID[record.trackID] != nil {
             recordsByTrackID[record.trackID] = record
         }
 
+        // Older builds may have persisted several URLSession tasks for this batch.
+        // Retain the first recoverable task and discard the rest so resume also becomes
+        // single-file, rather than merely making newly started batches single-file.
+        var retainedRecord: (track: RemoteTrackItem, record: RemoteBackgroundDownloadRecord)?
         for track in candidates {
-            if let record = recordsByTrackID[track.id] {
-                backgroundReplacingExisting[track.id] = record.replacingExisting
-                backgroundTrackIDsByTask[record.taskIdentifier] = track.id
-                backgroundTaskIdentifiers[track.id] = record.taskIdentifier
-                if let inboxFileName = record.inboxFileName {
-                    beginFinalizingBackgroundTrack(
-                        track,
-                        taskIdentifier: record.taskIdentifier,
-                        inboxURL: backgroundSession.urlForInboxFile(named: inboxFileName)
-                    )
-                } else if activeTaskIdentifiers.contains(record.taskIdentifier) {
-                    setProgress(
-                        RemoteDownloadProgress(
-                            id: track.id,
-                            title: track.title,
-                            completed: 0,
-                            total: Int(min(Int64(Int.max), max(0, track.fileSizeBytes))),
-                            state: .downloading
-                        )
-                    )
-                } else {
-                    backgroundSession.acknowledge(taskIdentifier: record.taskIdentifier)
-                    backgroundTrackIDsByTask.removeValue(forKey: record.taskIdentifier)
-                    enqueueBackgroundTrack(track, replacingExisting: record.replacingExisting)
-                }
+            guard let record = recordsByTrackID[track.id] else { continue }
+            if retainedRecord == nil {
+                retainedRecord = (track, record)
             } else {
-                enqueueBackgroundTrack(track, replacingExisting: false)
+                backgroundSession.cancel(taskIdentifier: record.taskIdentifier)
+                backgroundSession.acknowledge(taskIdentifier: record.taskIdentifier)
+                if let inboxFileName = record.inboxFileName {
+                    backgroundSession.removeInboxFile(named: inboxFileName)
+                }
             }
+        }
+
+        if let retainedRecord {
+            let track = retainedRecord.track
+            let record = retainedRecord.record
+            backgroundReplacingExisting[track.id] = record.replacingExisting
+            backgroundTrackIDsByTask[record.taskIdentifier] = track.id
+            backgroundTaskIdentifiers[track.id] = record.taskIdentifier
+            if let inboxFileName = record.inboxFileName {
+                beginFinalizingBackgroundTrack(
+                    track,
+                    taskIdentifier: record.taskIdentifier,
+                    inboxURL: backgroundSession.urlForInboxFile(named: inboxFileName)
+                )
+            } else if activeTaskIdentifiers.contains(record.taskIdentifier) {
+                setProgress(
+                    RemoteDownloadProgress(
+                        id: track.id,
+                        title: track.title,
+                        completed: 0,
+                        total: Int(min(Int64(Int.max), max(0, track.fileSizeBytes))),
+                        state: .downloading
+                    )
+                )
+            } else {
+                backgroundSession.acknowledge(taskIdentifier: record.taskIdentifier)
+                backgroundTrackIDsByTask.removeValue(forKey: record.taskIdentifier)
+                backgroundTaskIdentifiers.removeValue(forKey: track.id)
+                enqueueNextBackgroundTrackIfNeeded()
+            }
+        } else {
+            enqueueNextBackgroundTrackIfNeeded()
         }
         lastMessage = "Downloading in the background…"
         finishBackgroundBatchIfNeeded()
@@ -991,7 +1038,7 @@ final class RemoteDownloadManager: ObservableObject {
 
     private func handleBackgroundProgress(_ event: RemoteBackgroundNotification) {
         guard activeTracksByID[event.trackID] != nil else { return }
-        if let currentTask = backgroundTaskIdentifiers[event.trackID], currentTask != event.taskIdentifier { return }
+        guard backgroundTaskIdentifiers[event.trackID] == event.taskIdentifier else { return }
         currentTitle = activeTracksByID[event.trackID]?.title ?? ""
         currentCompletedBytes = event.completed
         currentTotalBytes = event.total
@@ -1110,7 +1157,7 @@ final class RemoteDownloadManager: ObservableObject {
     }
 
     private func handleBackgroundFailure(_ event: RemoteBackgroundNotification) {
-        if let currentTask = backgroundTaskIdentifiers[event.trackID], currentTask != event.taskIdentifier {
+        guard let currentTask = backgroundTaskIdentifiers[event.trackID], currentTask == event.taskIdentifier else {
             backgroundSession.acknowledge(taskIdentifier: event.taskIdentifier)
             backgroundTrackIDsByTask.removeValue(forKey: event.taskIdentifier)
             return
@@ -1143,7 +1190,11 @@ final class RemoteDownloadManager: ObservableObject {
     }
 
     private func finishBackgroundBatchIfNeeded() {
-        guard isDownloading, completedCount >= totalCount else { return }
+        guard isDownloading else { return }
+        if completedCount < totalCount {
+            enqueueNextBackgroundTrackIfNeeded()
+            return
+        }
         let failed = itemProgress.values.filter { $0.state == .failed }.count
         let cancelled = itemProgress.values.filter { $0.state == .cancelled }.count
         let succeeded = max(0, totalCount - failed - cancelled)
@@ -1169,6 +1220,7 @@ final class RemoteDownloadManager: ObservableObject {
         downloadTask = nil
         requeueRequests = [:]
         activeTracksByID = [:]
+        pendingLibrary?.endDisplaySnapshotDeferral()
         pendingLibrary = nil
         backgroundTaskIdentifiers.removeAll()
         backgroundReplacingExisting.removeAll()
@@ -1181,12 +1233,21 @@ final class RemoteDownloadManager: ObservableObject {
     }
 
     private func persistedQueueIDs() -> [UUID] {
-        (UserDefaults.standard.array(forKey: Self.persistedQueueIDsKey) as? [String] ?? [])
+        var seen = Set<UUID>()
+        return (UserDefaults.standard.array(forKey: Self.persistedQueueIDsKey) as? [String] ?? [])
             .compactMap(UUID.init(uuidString:))
+            .filter { seen.insert($0).inserted }
+    }
+
+    private static func uniqueTracks(_ tracks: [RemoteTrackItem]) -> [RemoteTrackItem] {
+        var seen = Set<UUID>()
+        return tracks.filter { seen.insert($0.id).inserted }
     }
 
     private func persistQueue(_ ids: [UUID]) {
-        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.persistedQueueIDsKey)
+        var seen = Set<UUID>()
+        let uniqueIDs = ids.filter { seen.insert($0).inserted }
+        UserDefaults.standard.set(uniqueIDs.map(\.uuidString), forKey: Self.persistedQueueIDsKey)
     }
 
     private func addPersistedTrack(_ id: UUID) {

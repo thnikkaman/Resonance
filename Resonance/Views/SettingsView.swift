@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var accentHexDraft = ""
     @State private var showingServerQRCodeScanner = false
     @State private var serverQRCodeError: String?
+    @State private var diagnosticsFileSize: Int64 = ResonanceDiagnostics.shared.fileSizeBytes()
+    @State private var showingDiagnosticsDeleteConfirmation = false
     @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
     private let palette = ["A855F7", "3B82F6", "14B8A6", "22C55E", "EAB308", "F97316", "EF4444"]
 
@@ -384,6 +386,50 @@ struct SettingsView: View {
                 key: "reported-errors",
                 isExpanded: $settings.settingsReportedErrorsExpanded
             ) {
+                Toggle(
+                    "Debugging Mode",
+                    isOn: Binding(
+                        get: { ResonanceDiagnostics.shared.debuggingEnabled },
+                        set: { enabled in
+                            ResonanceDiagnostics.shared.setDebuggingEnabled(enabled)
+                            diagnosticsFileSize = ResonanceDiagnostics.shared.fileSizeBytes()
+                        }
+                    )
+                )
+                Text("Keeps detailed privacy-safe playback, catalog, download, and UI diagnostics for troubleshooting. Critical boundary events remain available when it is off.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Diagnostics file")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Documents/Resonance-Diagnostics.log")
+                        .font(.caption2.monospaced())
+                        .textSelection(.enabled)
+                    Text(diagnosticsFileSize > 0
+                         ? "\(ByteCountFormatter.string(fromByteCount: diagnosticsFileSize, countStyle: .file)) used • maximum 100 MB"
+                         : "No diagnostics file currently stored • maximum 100 MB")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button(role: .destructive) {
+                    showingDiagnosticsDeleteConfirmation = true
+                } label: {
+                    Label("Delete Diagnostics File", systemImage: "trash")
+                }
+                .confirmationDialog(
+                    "Delete the diagnostics file?",
+                    isPresented: $showingDiagnosticsDeleteConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("Delete Diagnostics File", role: .destructive) {
+                        ResonanceDiagnostics.shared.deleteFile()
+                        diagnosticsFileSize = 0
+                    }
+                    Button("Cancel", role: .cancel) { }
+                }
+
                 if errorLog.entries.isEmpty {
                     Label("No errors have been reported", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -434,6 +480,9 @@ struct SettingsView: View {
                         .accessibilityLabel("Delete reported errors")
                     }
                 }
+            }
+            .onAppear {
+                diagnosticsFileSize = ResonanceDiagnostics.shared.fileSizeBytes()
             }
 
             SettingsCategory(
