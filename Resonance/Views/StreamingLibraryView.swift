@@ -71,8 +71,11 @@ private extension View {
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
-    @EnvironmentObject private var downloads: RemoteDownloadManager
-    @EnvironmentObject private var library: LibraryStore
+    // Download progress is intentionally observed only by the toolbar action
+    // menu and RemoteDownloadOverlay. Keeping these objects off the catalog
+    // root prevents every completed track or progress publication from
+    // rebuilding the full Streaming hierarchy, including when it is hidden
+    // behind the Library root.
     @State private var showingOptions = false
     @State private var browseReady = false
     @State private var downloadSelectionMode = false
@@ -289,9 +292,6 @@ struct StreamingLibraryView: View {
             RemoteLibraryOptionsSheet()
                 .presentationDetents([.medium, .large])
         }
-        .task {
-            await remote.activateCachedCatalogAndCheckForChanges(using: settings)
-        }
         .task(id: browseSnapshotKey) {
             switch remote.grouping {
             case .artists:
@@ -308,6 +308,9 @@ struct StreamingLibraryView: View {
         .task(id: serverConfigurationKey) {
             browseReady = false
             await remote.activateCachedCatalogAndCheckForChanges(using: settings)
+            await remote.prewarmBrowseCache(
+                groupCompilationArtists: settings.groupCompilationArtists
+            )
             await Task.yield()
             guard !Task.isCancelled else { return }
             browseReady = true

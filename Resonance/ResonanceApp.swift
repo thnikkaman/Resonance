@@ -41,6 +41,9 @@ struct ResonanceApp: App {
                     async let remoteActivation: Void = remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
                     await localActivation
                     await remoteActivation
+                    await remoteLibrary.prewarmBrowseCache(
+                        groupCompilationArtists: settings.groupCompilationArtists
+                    )
                     remoteDownloads.resumePersistedDownloads(from: remoteLibrary.tracks, into: library)
                     ResonanceDiagnostics.shared.record("scene.active.refresh.end")
                 }

@@ -453,25 +453,21 @@ private struct ResonanceLayeredNavigationView: View {
   @ViewBuilder
   private var rootSurface: some View {
     ZStack {
-      NavigationStack {
-        LibraryView(
-          openStreaming: navigation.showStreamingRoot,
-          openSettings: navigation.showSettings
-        )
+      if navigation.root == .library {
+        NavigationStack {
+          LibraryView(
+            openStreaming: navigation.showStreamingRoot,
+            openSettings: navigation.showSettings
+          )
+        }
+      } else {
+        NavigationStack {
+          StreamingLibraryView(
+            openLibrary: navigation.showLibraryRoot,
+            openSettings: navigation.showSettings
+          )
+        }
       }
-      .opacity(navigation.root == .library ? 1 : 0)
-      .allowsHitTesting(navigation.root == .library)
-      .accessibilityHidden(navigation.root != .library)
-
-      NavigationStack {
-        StreamingLibraryView(
-          openLibrary: navigation.showLibraryRoot,
-          openSettings: navigation.showSettings
-        )
-      }
-      .opacity(navigation.root == .streaming ? 1 : 0)
-      .allowsHitTesting(navigation.root == .streaming)
-      .accessibilityHidden(navigation.root != .streaming)
     }
     .environment(\.resonanceLayeredNavigationActive, true)
     .toolbarBackground(.hidden, for: .navigationBar)
@@ -714,7 +710,10 @@ struct RootView: View {
                 .environmentObject(gestureCoordinator)
                 .environmentObject(miniPlayerNavigation)
                 .environmentObject(tabNavigation)
-                .environmentObject(player)
+                // PlayerController is already injected by ResonanceApp. Do
+                // not read and reinject it here: RootView also owns both
+                // browse modules, and reading the controller at this level
+                // would make the whole navigation tree a playback observer.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .offset(x: -8)
         }

@@ -322,36 +322,36 @@ final class RemoteLibraryStore: ObservableObject {
     private var activeServerIdentity: String?
     private var lastAutomaticCatalogCheck: Date?
     private var playbackPreparationGeneration = 0
-    private static let cachedTracksURL: URL = {
+    private nonisolated static let cachedTracksURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("remote-library-cache.json")
     }()
-    private static let cachedSubsonicCatalogURL: URL = {
+    private nonisolated static let cachedSubsonicCatalogURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("remote-subsonic-catalog.json")
     }()
-    private static let cachedDisplaySnapshotURL: URL = {
+    private nonisolated static let cachedDisplaySnapshotURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("remote-library-display-cache.json")
     }()
 
-    private struct BrowseCacheKey: Equatable {
+    private struct BrowseCacheKey: Equatable, Sendable {
         let trackRevision: Int
         let sortDirection: String
         let groupCompilationArtists: Bool
     }
 
-    private enum BrowseNeed: Equatable {
+    private enum BrowseNeed: Equatable, Sendable {
         case filtered
         case albums
         case artists
         case albumArtists
     }
 
-    private struct BrowseCache {
+    private struct BrowseCache: Sendable {
         let key: BrowseCacheKey
         let filteredTracks: [RemoteTrackItem]
         var albums: [RemoteAlbum]?
@@ -370,13 +370,67 @@ final class RemoteLibraryStore: ObservableObject {
 
     private var trackRevision = 0
     private var browseCache: BrowseCache?
+    private var didLoadCachedStartupState = false
 
-    init() {
+    private struct CachedStartupState: Sendable {
+        let subsonicCatalog: CachedRemoteCatalog?
+        let subsonicDisplaySnapshot: CachedRemoteDisplaySnapshot?
+        let manifestCatalog: CachedManifestCatalog?
+        let legacyTracks: [RemoteTrackItem]?
+    }
+
+    init() {}
+
+    private nonisolated static func loadCachedStartupState() -> CachedStartupState {
         if let data = try? Data(contentsOf: Self.cachedSubsonicCatalogURL),
            let cached = try? JSONDecoder().decode(CachedRemoteCatalog.self, from: data) {
+            let display: CachedRemoteDisplaySnapshot?
+            if let displayData = try? Data(contentsOf: Self.cachedDisplaySnapshotURL) {
+                display = try? JSONDecoder().decode(CachedRemoteDisplaySnapshot.self, from: displayData)
+            } else {
+                display = nil
+            }
+            return CachedStartupState(
+                subsonicCatalog: cached,
+                subsonicDisplaySnapshot: display,
+                manifestCatalog: nil,
+                legacyTracks: nil
+            )
+        } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
+                  let cached = try? JSONDecoder().decode(CachedManifestCatalog.self, from: data) {
+            return CachedStartupState(
+                subsonicCatalog: nil,
+                subsonicDisplaySnapshot: nil,
+                manifestCatalog: cached,
+                legacyTracks: nil
+            )
+        } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
+                  let cached = try? JSONDecoder().decode([RemoteTrackItem].self, from: data) {
+            return CachedStartupState(
+                subsonicCatalog: nil,
+                subsonicDisplaySnapshot: nil,
+                manifestCatalog: nil,
+                legacyTracks: cached
+            )
+        }
+        return CachedStartupState(
+            subsonicCatalog: nil,
+            subsonicDisplaySnapshot: nil,
+            manifestCatalog: nil,
+            legacyTracks: nil
+        )
+    }
+
+    private func loadCachedStartupStateIfNeeded() async {
+        guard !didLoadCachedStartupState else { return }
+        didLoadCachedStartupState = true
+        let state = await Task.detached(priority: .utility) {
+            Self.loadCachedStartupState()
+        }.value
+
+        if let cached = state.subsonicCatalog {
             pendingSubsonicCache = cached
-            if let displayData = try? Data(contentsOf: Self.cachedDisplaySnapshotURL),
-               let display = try? JSONDecoder().decode(CachedRemoteDisplaySnapshot.self, from: displayData) {
+            if let display = state.subsonicDisplaySnapshot {
                 tracks = display.tracks.map(Self.displayTrack(from:))
                 isDisplaySnapshotActive = true
             }
@@ -384,14 +438,12 @@ final class RemoteLibraryStore: ObservableObject {
             lastRefresh = cached.savedAt
             connectionStatus = tracks.isEmpty ? "Cached Navidrome catalog ready" : "Cached Navidrome library ready"
             catalogSyncStatus = "Cached catalog: \(cached.tracks.count) tracks"
-        } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
-                  let cached = try? JSONDecoder().decode(CachedManifestCatalog.self, from: data) {
+        } else if let cached = state.manifestCatalog {
             tracks = cached.tracks
             cachedManifestIdentity = cached.serverIdentity
             connectionStatus = cached.tracks.isEmpty ? "Not connected" : "Cached manifest library available"
             catalogSyncStatus = cached.tracks.isEmpty ? "No cached remote catalog" : "Cached manifest: \(cached.tracks.count) tracks"
-        } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
-                  let cached = try? JSONDecoder().decode([RemoteTrackItem].self, from: data) {
+        } else if let cached = state.legacyTracks {
             // Legacy manifest caches have no server identity and must be
             // discarded the first time the active server is verified.
             tracks = cached
@@ -413,6 +465,26 @@ final class RemoteLibraryStore: ObservableObject {
 
     func albumArtists(groupCompilationArtists: Bool) -> [RemoteArtist] {
         browseData(groupCompilationArtists: groupCompilationArtists, need: .albumArtists).albumArtists ?? []
+    }
+
+    func prewarmBrowseCache(groupCompilationArtists: Bool) async {
+        let revision = trackRevision
+        let direction = sortDirection.rawValue
+        let input = tracks
+        guard !input.isEmpty else { return }
+
+        let cache = await Task.detached(priority: .utility) {
+            Self.makeBrowseCache(
+                tracks: input,
+                trackRevision: revision,
+                sortDirectionRawValue: direction,
+                groupCompilationArtists: groupCompilationArtists
+            )
+        }.value
+
+        guard trackRevision == revision,
+              sortDirection.rawValue == direction else { return }
+        browseCache = cache
     }
 
     private func browseData(
@@ -450,13 +522,76 @@ final class RemoteLibraryStore: ObservableObject {
         return cache
     }
 
+    private nonisolated static func makeBrowseCache(
+        tracks: [RemoteTrackItem],
+        trackRevision: Int,
+        sortDirectionRawValue: String,
+        groupCompilationArtists: Bool
+    ) -> BrowseCache {
+        let sorted = tracks.sorted {
+            ($0.artist, $0.album, $0.discNumber, $0.trackNumber, $0.title) <
+            ($1.artist, $1.album, $1.discNumber, $1.trackNumber, $1.title)
+        }
+        let filtered = sortDirectionRawValue == SortDirection.ascending.rawValue
+            ? sorted
+            : Array(sorted.reversed())
+        var cache = BrowseCache(
+            key: BrowseCacheKey(
+                trackRevision: trackRevision,
+                sortDirection: sortDirectionRawValue,
+                groupCompilationArtists: groupCompilationArtists
+            ),
+            filteredTracks: filtered,
+            albums: nil,
+            artists: nil,
+            albumArtists: nil
+        )
+        populate(
+            &cache,
+            tracks: tracks,
+            sortDirectionRawValue: sortDirectionRawValue,
+            need: .albums
+        )
+        populate(
+            &cache,
+            tracks: tracks,
+            sortDirectionRawValue: sortDirectionRawValue,
+            need: .artists
+        )
+        populate(
+            &cache,
+            tracks: tracks,
+            sortDirectionRawValue: sortDirectionRawValue,
+            need: .albumArtists
+        )
+        return cache
+    }
+
     private func populate(_ cache: inout BrowseCache, need: BrowseNeed) {
+        Self.populate(
+            &cache,
+            tracks: tracks,
+            sortDirectionRawValue: sortDirection.rawValue,
+            need: need
+        )
+    }
+
+    private nonisolated static func populate(
+        _ cache: inout BrowseCache,
+        tracks: [RemoteTrackItem],
+        sortDirectionRawValue: String,
+        need: BrowseNeed
+    ) {
         guard !cache.contains(need) else { return }
         switch need {
         case .filtered:
             break
         case .albums:
-            cache.albums = makeAlbums(from: cache.filteredTracks)
+            cache.albums = makeAlbums(
+                from: cache.filteredTracks,
+                tracks: tracks,
+                sortDirectionRawValue: sortDirectionRawValue
+            )
         case .artists, .albumArtists:
             let mixedArtistAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
             let explicitCompilationAlbumKeys = cache.key.groupCompilationArtists
@@ -466,7 +601,8 @@ final class RemoteLibraryStore: ObservableObject {
             let artists = remoteArtists(
                 usingAlbumArtist: need == .albumArtists,
                 from: cache.filteredTracks,
-                variousAlbumKeys: variousAlbumKeys
+                variousAlbumKeys: variousAlbumKeys,
+                sortDirectionRawValue: sortDirectionRawValue
             )
             if need == .artists {
                 cache.artists = artists
@@ -476,7 +612,11 @@ final class RemoteLibraryStore: ObservableObject {
         }
     }
 
-    private func makeAlbums(from filteredTracks: [RemoteTrackItem]) -> [RemoteAlbum] {
+    private nonisolated static func makeAlbums(
+        from filteredTracks: [RemoteTrackItem],
+        tracks: [RemoteTrackItem],
+        sortDirectionRawValue: String
+    ) -> [RemoteAlbum] {
         let variousAlbumKeys = Self.multiArtistAlbumKeys(in: tracks)
         let grouped = Dictionary(grouping: filteredTracks) { track in
             if variousAlbumKeys.contains(Self.compilationAlbumIdentity(track)) {
@@ -497,7 +637,9 @@ final class RemoteLibraryStore: ObservableObject {
             return RemoteAlbum(id: key, title: albumName, artist: artistName, tracks: sorted)
         }
         .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        return sortDirection == .ascending ? result : Array(result.reversed())
+        return sortDirectionRawValue == SortDirection.ascending.rawValue
+            ? result
+            : Array(result.reversed())
     }
 
     var filteredPlaylists: [RemotePlaylist] {
@@ -527,10 +669,11 @@ final class RemoteLibraryStore: ObservableObject {
             .sorted { ($0.lastPlayed ?? .distantPast) > ($1.lastPlayed ?? .distantPast) }
     }
 
-    private func remoteArtists(
+    private nonisolated static func remoteArtists(
         usingAlbumArtist: Bool,
         from filteredTracks: [RemoteTrackItem],
-        variousAlbumKeys: Set<String>
+        variousAlbumKeys: Set<String>,
+        sortDirectionRawValue: String
     ) -> [RemoteArtist] {
         let sourceTracks = Self.uniqueTracks(filteredTracks)
         var grouped = Dictionary(grouping: sourceTracks) { track in
@@ -617,7 +760,9 @@ final class RemoteLibraryStore: ObservableObject {
                 return RemoteArtist(id: "merged|\(usingAlbumArtist ? "album" : "track")|\(key)", name: name, albums: albums)
             }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return sortDirection == .ascending ? merged : Array(merged.reversed())
+        return sortDirectionRawValue == SortDirection.ascending.rawValue
+            ? merged
+            : Array(merged.reversed())
     }
 
     nonisolated private static func compilationAlbumIdentity(_ track: RemoteTrackItem) -> String {
@@ -739,6 +884,7 @@ final class RemoteLibraryStore: ObservableObject {
 
     func activateCachedCatalogAndCheckForChanges(using settings: AppSettings, forceCheck: Bool = false) async {
         guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        await loadCachedStartupStateIfNeeded()
         prepareForServerIdentity(using: settings)
 
         // Once a cached catalog is visible, automatic scene/view appearances do

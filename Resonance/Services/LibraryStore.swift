@@ -99,6 +99,7 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var lastSharedFolderScan: Date?
     @Published private(set) var sharedFolderTrackCount = 0
     @Published private(set) var sharedFolderIsReady = false
+    @Published private(set) var isBootstrapping = true
     @Published private(set) var scanStatus = "Waiting for first scan"
     @Published private(set) var favoriteTrackIDs: Set<UUID> = []
     @Published private(set) var recentPlayDates: [UUID: Date] = [:]
@@ -123,20 +124,20 @@ final class LibraryStore: ObservableObject {
     private var cachedArtists: [String: [Artist]] = [:]
     private var cachedAlbums: [String: [Album]] = [:]
 
-    private static let displaySnapshotURL: URL = {
+    private nonisolated static let displaySnapshotURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("library-display-cache.json")
     }()
 
-    private static let displayArtworkDirectoryURL: URL = {
+    private nonisolated static let displayArtworkDirectoryURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let directory = base.appendingPathComponent("LibraryDisplayArtwork", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }()
 
-    private static let maximumLegacyDisplaySnapshotBytes: Int64 = 25 * 1_048_576
+    private nonisolated static let maximumLegacyDisplaySnapshotBytes: Int64 = 25 * 1_048_576
     private static let artworkRecoveryCompletedKey = "resonance.localArtworkRecovery.v1"
 
     private enum PersistenceKey {
@@ -153,7 +154,6 @@ final class LibraryStore: ObservableObject {
         metadataOverrides = Self.loadMetadataOverrides()
         artistMetadataOverrides = Self.loadArtistMetadataOverrides()
         ignoredLocalPaths = Self.loadIgnoredLocalPaths()
-        tracks = Self.loadDisplaySnapshot().map(applyMetadataOverride)
     }
 
     var filteredTracks: [Track] {
@@ -238,7 +238,18 @@ final class LibraryStore: ObservableObject {
     func bootstrap() async {
         guard !didBootstrap else { return }
         didBootstrap = true
+        defer { isBootstrapping = false }
         ensureSharedMusicFolder()
+
+        // The display cache can include tens of megabytes of artwork sidecars.
+        // Decode it off the main actor so the first SwiftUI frame can present
+        // the startup shell before cached Library content is hydrated.
+        let cachedTracks = await Task.detached(priority: .utility) {
+            Self.loadDisplaySnapshot()
+        }.value
+        if tracks.isEmpty, !cachedTracks.isEmpty {
+            tracks = cachedTracks.map(applyMetadataOverride)
+        }
 
         if !tracks.isEmpty {
             let cachedTracks = tracks
@@ -1090,7 +1101,7 @@ final class LibraryStore: ObservableObject {
         return documentsURL.appendingPathComponent(relativePath)
     }
 
-    private static func loadDisplaySnapshot() -> [Track] {
+    private nonisolated static func loadDisplaySnapshot() -> [Track] {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: displaySnapshotURL.path),
               let byteCount = attributes[.size] as? NSNumber,
               byteCount.int64Value <= maximumLegacyDisplaySnapshotBytes,

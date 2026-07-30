@@ -12,6 +12,11 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 
 Release source build: `1.0.6` (build `210`)
 
+Latest device validation build: `1.0.6` (build `214`). The first Streaming transition now precomputes the cached
+artist, album-artist, and album browse projections off the main actor while the app shell is active. Results are
+published only when the remote catalog revision and sort state still match, preserving cached browse ordering and
+stale-result safety. Build 214 was installed in place on SaiyanDenawa; the physical app was not launched by Codex.
+
 Authoritative continuation source: the `Resonance-Beta-v1.0.6` tag on `agent/alpha-3.7.4-source`,
 checked out at `/Users/brian/Resonance/Resonance-Alpha-3.7.4`. This preserves the current
 layered navigation, animations, Streaming toolbar/options, and synchronized custom accent-color controls. The
@@ -121,6 +126,7 @@ while the connection panel expands, collapses, and the catalog scrolls.
 
 - High-frequency playback progress updates are isolated to the mini-player and Now Playing views instead of invalidating the root tab tree.
 - Remote catalog filtering, album grouping, and artist grouping are cached by track revision, search text, and sort direction.
+- Cached artist, album-artist, and album browse projections are precomputed off the main actor after remote activation, so the first Streaming transition does not synchronously group the full cached catalog.
 - Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
 - A cached Subsonic catalog is activated immediately and automatic server checks are deferred until **Check for Remote Changes** is selected in Settings. This keeps the cached browse surface responsive while the server is unavailable or slow.
 - Album-artist values are canonicalized per artist/album when Subsonic exposes display composites such as `Tool • Unknown Artist`; the most common clean track-artist spelling is retained.
