@@ -2158,22 +2158,38 @@ struct RemoteAlbumDetailView: View {
         }
         .task(id: "\(album.id)|\(album.artworkURL?.absoluteString ?? "")|\(album.artworkBase64 != nil)") {
             let hasProvidedArtwork = RemoteArtworkContext(album).hasProvidedArtwork
-            let automaticArtwork = await StreamingArtworkCache.shared.artwork(
+            var serverArtworkByTrackID: [UUID: Data] = [:]
+            await withTaskGroup(of: (UUID, Data?).self) { group in
+                for track in album.tracks {
+                    group.addTask {
+                        (track.id, await remote.artworkData(for: track))
+                    }
+                }
+                for await (trackID, data) in group {
+                    if let data, !data.isEmpty {
+                        serverArtworkByTrackID[trackID] = data
+                    }
+                }
+            }
+            guard !Task.isCancelled else { return }
+            if !serverArtworkByTrackID.isEmpty {
+                downloads.rememberArtwork(serverArtworkByTrackID, for: album.tracks)
+                if let firstTrack = album.tracks.first,
+                   let existingArtwork = serverArtworkByTrackID[firstTrack.id]
+                    ?? serverArtworkByTrackID.values.first {
+                    resolvedArtworkData = existingArtwork
+                    isAutomaticallySelectedArtwork = false
+                }
+            } else if let automaticArtwork = await StreamingArtworkCache.shared.artwork(
                 artist: album.artist,
                 album: album.title,
                 trackQueries: streamingArtworkQueries(album.tracks)
-            )
-            guard !Task.isCancelled else { return }
-            if let automaticArtwork {
+            ) {
                 resolvedArtworkData = automaticArtwork
                 isAutomaticallySelectedArtwork = !hasProvidedArtwork
                 if !hasProvidedArtwork {
                     downloads.rememberArtwork(automaticArtwork, for: album.tracks)
                 }
-            } else if let firstTrack = album.tracks.first,
-                      let existingArtwork = await remote.artworkData(for: firstTrack) {
-                resolvedArtworkData = existingArtwork
-                isAutomaticallySelectedArtwork = false
             }
         }
     }
@@ -2904,7 +2920,30 @@ private struct RemoteArtwork: View {
                 )
             }
         } else {
-            if context.preferOnlineSearch {
+            // Prefer artwork supplied by the streaming server. This keeps
+            // track-specific covers intact; online search is only a fallback
+            // when the server has no usable image for this item.
+            for source in context.sources {
+                let candidateData = await RemoteArtworkLoader.shared.data(
+                    data: nil,
+                    url: source.url,
+                    base64: source.base64,
+                    sourceKey: source.cacheKey
+                )
+                let candidateImage = await RemoteArtworkLoader.shared.image(
+                    data: candidateData,
+                    url: nil,
+                    base64: nil,
+                    sourceKey: source.cacheKey,
+                    maxPixelSize: pixels
+                )
+                if let candidateImage {
+                    loaded = candidateImage
+                    break
+                }
+            }
+
+            if loaded == nil, context.preferOnlineSearch {
                 let automaticData = await StreamingArtworkCache.shared.artwork(
                     artist: context.fallbackArtist ?? "",
                     album: context.fallbackAlbum,
@@ -2925,26 +2964,6 @@ private struct RemoteArtwork: View {
                         return
                     }
                     automaticallySelectedData = nil
-                }
-            }
-
-            for source in context.sources {
-                let candidateData = await RemoteArtworkLoader.shared.data(
-                    data: nil,
-                    url: source.url,
-                    base64: source.base64,
-                    sourceKey: source.cacheKey
-                )
-                let candidateImage = await RemoteArtworkLoader.shared.image(
-                    data: candidateData,
-                    url: nil,
-                    base64: nil,
-                    sourceKey: source.cacheKey,
-                    maxPixelSize: pixels
-                )
-                if let candidateImage {
-                    loaded = candidateImage
-                    break
                 }
             }
         }

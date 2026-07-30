@@ -1549,7 +1549,13 @@ struct TrackCollectionView: View {
                                     ArtworkView(
                                         data: track.artworkData,
                                         embedded: track.artworkIsEmbedded,
-                                        size: settings.libraryThumbnailSize.gridArtworkPoints
+                                        size: settings.libraryThumbnailSize.gridArtworkPoints,
+                                        fallbackTrack: StreamingArtworkTrackQuery(
+                                            artist: track.artist,
+                                            albumArtist: track.albumArtist,
+                                            album: track.album,
+                                            title: track.title
+                                        )
                                     )
                                     HStack(spacing: 5) {
                                         PlayingTrackVisualizer(track: track)

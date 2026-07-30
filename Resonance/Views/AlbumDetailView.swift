@@ -410,7 +410,13 @@ struct TrackListRow: View {
                 ArtworkView(
                     data: library.artworkData(for: track),
                     embedded: library.artworkIsEmbedded(for: track),
-                    size: large ? max(70, settings.libraryThumbnailSize.points * 1.8) : settings.libraryThumbnailSize.points
+                    size: large ? max(70, settings.libraryThumbnailSize.points * 1.8) : settings.libraryThumbnailSize.points,
+                    fallbackTrack: StreamingArtworkTrackQuery(
+                        artist: track.artist,
+                        albumArtist: track.albumArtist,
+                        album: track.album,
+                        title: track.title
+                    )
                 )
             }
 

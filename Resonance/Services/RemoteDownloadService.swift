@@ -378,6 +378,7 @@ final class RemoteDownloadManager: ObservableObject {
     private var pendingTracks: [RemoteTrackItem] = []
     private var pendingNewTracks: [RemoteTrackItem] = []
     private var artworkByAlbumKey: [String: Data] = [:]
+    private var artworkByTrackID: [UUID: Data] = [:]
     private weak var pendingLibrary: LibraryStore?
     private let backgroundSession = RemoteBackgroundDownloadSession.shared
     private var backgroundObservers: [NSObjectProtocol] = []
@@ -425,6 +426,16 @@ final class RemoteDownloadManager: ObservableObject {
     func rememberArtwork(_ data: Data, for tracks: [RemoteTrackItem]) {
         for albumKey in Set(tracks.map(\.albumKey)) {
             artworkByAlbumKey[albumKey] = data
+        }
+    }
+
+    func rememberArtwork(_ dataByTrackID: [UUID: Data], for tracks: [RemoteTrackItem]) {
+        for track in tracks {
+            guard let data = dataByTrackID[track.id], !data.isEmpty else { continue }
+            artworkByTrackID[track.id] = data
+        }
+        if let first = dataByTrackID.values.first, !first.isEmpty {
+            rememberArtwork(first, for: tracks)
         }
     }
 
@@ -756,8 +767,17 @@ final class RemoteDownloadManager: ObservableObject {
                 activeTrackID = nil
                 completedCount += 1
                 removeProgress(track.id)
+                let artworkData = artworkByTrackID[track.id] ?? artworkByAlbumKey[track.albumKey]
+                var embeddedArtwork = false
+                if let artworkData {
+                    embeddedArtwork = await library.writeArtworkToFile(
+                        at: result.destination,
+                        from: track.asTrack(artworkData: nil),
+                        data: artworkData
+                    )
+                }
                 await library.refreshDownloadedTrack(at: result.destination)
-                if let artworkData = artworkByAlbumKey[track.albumKey] {
+                if let artworkData, !embeddedArtwork {
                     library.applyArtworkToApp(for: track.id, data: artworkData)
                 }
                 removePersistedTrack(track.id)
@@ -1053,8 +1073,17 @@ final class RemoteDownloadManager: ObservableObject {
             }
             backgroundSession.acknowledge(taskIdentifier: taskIdentifier)
             backgroundSession.removeInboxFile(named: inboxURL.lastPathComponent)
+            let artworkData = artworkByTrackID[track.id] ?? artworkByAlbumKey[track.albumKey]
+            var embeddedArtwork = false
+            if let artworkData {
+                embeddedArtwork = await library.writeArtworkToFile(
+                    at: destination,
+                    from: track.asTrack(artworkData: nil),
+                    data: artworkData
+                )
+            }
             await library.refreshDownloadedTrack(at: destination)
-            if let artworkData = artworkByAlbumKey[track.albumKey] {
+            if let artworkData, !embeddedArtwork {
                 library.applyArtworkToApp(for: track.id, data: artworkData)
             }
             removePersistedTrack(track.id)

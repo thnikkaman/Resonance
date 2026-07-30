@@ -63,6 +63,26 @@ private struct CachedLibraryDisplayTrack: Codable, Sendable {
 private struct CachedLibraryDisplaySnapshot: Codable, Sendable {
     let tracks: [CachedLibraryDisplayTrack]
     let artworkByAlbum: [String: Data]
+    let artworkByTrack: [String: Data]
+
+    init(tracks: [CachedLibraryDisplayTrack], artworkByAlbum: [String: Data], artworkByTrack: [String: Data]) {
+        self.tracks = tracks
+        self.artworkByAlbum = artworkByAlbum
+        self.artworkByTrack = artworkByTrack
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case tracks
+        case artworkByAlbum
+        case artworkByTrack
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tracks = try container.decode([CachedLibraryDisplayTrack].self, forKey: .tracks)
+        artworkByAlbum = try container.decode([String: Data].self, forKey: .artworkByAlbum)
+        artworkByTrack = try container.decodeIfPresent([String: Data].self, forKey: .artworkByTrack) ?? [:]
+    }
 }
 
 @MainActor
@@ -248,7 +268,10 @@ final class LibraryStore: ObservableObject {
         )
         guard !artworkByID.isEmpty else { return }
         tracks = tracks.map { track in
-            guard track.artworkData == nil, let (artworkData, artworkIsEmbedded) = artworkByID[track.id] else {
+            guard let (artworkData, artworkIsEmbedded) = artworkByID[track.id] else {
+                return track
+            }
+            guard track.artworkData != artworkData || track.artworkIsEmbedded != artworkIsEmbedded else {
                 return track
             }
             var hydrated = track
@@ -457,23 +480,11 @@ final class LibraryStore: ObservableObject {
     }
 
     func artworkData(for track: Track) -> Data? {
-        if let artworkData = track.artworkData { return artworkData }
-        return tracks.first {
-            $0.artworkData != nil &&
-            $0.album.localizedCaseInsensitiveCompare(track.album) == .orderedSame &&
-            ($0.albumArtist.localizedCaseInsensitiveCompare(track.albumArtist) == .orderedSame ||
-             $0.artist.localizedCaseInsensitiveCompare(track.artist) == .orderedSame)
-        }?.artworkData
+        track.artworkData
     }
 
     func artworkIsEmbedded(for track: Track) -> Bool {
-        if track.artworkData != nil { return track.artworkIsEmbedded }
-        return tracks.first {
-            $0.artworkData != nil &&
-            $0.album.localizedCaseInsensitiveCompare(track.album) == .orderedSame &&
-            ($0.albumArtist.localizedCaseInsensitiveCompare(track.albumArtist) == .orderedSame ||
-             $0.artist.localizedCaseInsensitiveCompare(track.artist) == .orderedSame)
-        }?.artworkIsEmbedded ?? true
+        track.artworkIsEmbedded
     }
 
     func hasMetadataOverride(_ track: Track) -> Bool {
@@ -489,6 +500,36 @@ final class LibraryStore: ObservableObject {
         metadataOverrides[trackID] = override
         tracks[index] = override.applying(to: tracks[index])
         persistMetadataOverrides()
+    }
+
+    func writeArtworkToFile(at url: URL, from track: Track, data: Data) async -> Bool {
+        guard !data.isEmpty else { return false }
+        let values = MetadataTagValues(
+            title: track.title,
+            artist: track.artist,
+            albumArtist: track.albumArtist,
+            album: track.album,
+            trackNumber: track.trackNumber,
+            discNumber: track.discNumber,
+            releaseYear: track.releaseYear
+        )
+        do {
+            try await Task.detached(priority: .utility) {
+                try MetadataTagWriter.write(
+                    to: url,
+                    values: values,
+                    artworkData: data,
+                    replaceArtwork: true
+                )
+            }.value
+            return true
+        } catch {
+            ResonanceDiagnostics.shared.recordDeferred(
+                "download.artworkEmbed.failed",
+                details: ["format": url.pathExtension.lowercased()]
+            )
+            return false
+        }
     }
 
     func applyArtworkToApp(forAlbumTrackIDs trackIDs: [UUID], data: Data) {
@@ -909,15 +950,20 @@ final class LibraryStore: ObservableObject {
 
     private func persistDisplaySnapshot() {
         var artworkByAlbum: [String: Data] = [:]
+        var artworkByTrack: [String: Data] = [:]
         var cachedTracks: [CachedLibraryDisplayTrack] = []
         cachedTracks.reserveCapacity(tracks.count)
 
         for track in tracks {
             let artworkKey: String?
             if let artworkData = track.artworkData, !artworkData.isEmpty {
-                let key = "\(track.albumArtist)|\(track.album)"
-                artworkByAlbum[key] = artworkByAlbum[key] ?? artworkData
-                artworkKey = key
+                // Keep the album-level map for backward compatibility, but
+                // preserve each track's own artwork for the display snapshot.
+                let albumKey = "\(track.albumArtist)|\(track.album)"
+                artworkByAlbum[albumKey] = artworkByAlbum[albumKey] ?? artworkData
+                let trackKey = track.id.uuidString
+                artworkByTrack[trackKey] = artworkData
+                artworkKey = trackKey
             } else {
                 artworkKey = nil
             }
@@ -926,7 +972,8 @@ final class LibraryStore: ObservableObject {
 
         let snapshot = CachedLibraryDisplaySnapshot(
             tracks: cachedTracks,
-            artworkByAlbum: artworkByAlbum
+            artworkByAlbum: artworkByAlbum,
+            artworkByTrack: artworkByTrack
         )
         let destination = Self.displaySnapshotURL
         Task.detached(priority: .utility) {
@@ -957,7 +1004,9 @@ final class LibraryStore: ObservableObject {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return snapshot.tracks.map { cached in
             cached.track(
-                artworkData: cached.artworkKey.flatMap { snapshot.artworkByAlbum[$0] },
+                artworkData: cached.artworkKey.flatMap {
+                    snapshot.artworkByTrack[$0] ?? snapshot.artworkByAlbum[$0]
+                },
                 documentsURL: documentsURL
             )
         }
@@ -1142,6 +1191,8 @@ final class LibraryStore: ObservableObject {
 
     private func preservingIdentity(of parsed: Track, existing: Track?) -> Track {
         guard let existing else { return parsed }
+        let artworkData = parsed.artworkData
+            ?? existing.artworkData.flatMap { MetadataReader.renderableArtworkData(from: $0) }
         return Track(
             id: existing.id,
             title: parsed.title,
@@ -1153,8 +1204,8 @@ final class LibraryStore: ObservableObject {
             releaseYear: parsed.releaseYear,
             duration: parsed.duration,
             fileURL: parsed.fileURL,
-            artworkData: parsed.artworkData ?? existing.artworkData,
-            artworkIsEmbedded: parsed.artworkData != nil ? parsed.artworkIsEmbedded : existing.artworkIsEmbedded,
+            artworkData: artworkData,
+            artworkIsEmbedded: artworkData != nil,
             dateAdded: existing.dateAdded
         )
     }

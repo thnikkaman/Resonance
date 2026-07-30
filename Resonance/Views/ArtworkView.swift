@@ -55,12 +55,20 @@ struct ArtworkView: View {
     let embedded: Bool
     let size: CGFloat
     let showWarningBorder: Bool
+    let fallbackTrack: StreamingArtworkTrackQuery?
 
-    init(data: Data?, embedded: Bool, size: CGFloat, showWarningBorder: Bool = true) {
+    init(
+        data: Data?,
+        embedded: Bool,
+        size: CGFloat,
+        showWarningBorder: Bool = true,
+        fallbackTrack: StreamingArtworkTrackQuery? = nil
+    ) {
         self.data = data
         self.embedded = embedded
         self.size = size
         self.showWarningBorder = showWarningBorder
+        self.fallbackTrack = fallbackTrack
     }
 
     @State private var image: UIImage?
@@ -68,8 +76,13 @@ struct ArtworkView: View {
     @State private var didFail = false
 
     private var sourceKey: String {
-        guard let data else { return "placeholder" }
-        return "data:\(data.count):\(data.prefix(24).base64EncodedString()):\(data.suffix(24).base64EncodedString())"
+        if let data {
+            return "data:\(data.count):\(data.prefix(24).base64EncodedString()):\(data.suffix(24).base64EncodedString())"
+        }
+        if let fallbackTrack {
+            return "online:\(fallbackTrack.artist)|\(fallbackTrack.albumArtist ?? "")|\(fallbackTrack.album)|\(fallbackTrack.title)"
+        }
+        return "placeholder"
     }
 
     private var taskKey: String {
@@ -103,6 +116,30 @@ struct ArtworkView: View {
         guard let data else {
             image = nil
             didFail = false
+            guard let fallbackTrack else { return }
+
+            isLoading = true
+            defer { isLoading = false }
+            let fallbackData = await StreamingArtworkCache.shared.artwork(
+                artist: fallbackTrack.artist,
+                album: fallbackTrack.album,
+                trackQueries: [fallbackTrack]
+            )
+            guard !Task.isCancelled, let fallbackData else {
+                didFail = true
+                return
+            }
+            let pixels = Int((size * displayScale).rounded(.up))
+            let loaded = await LocalArtworkLoader.shared.image(
+                data: fallbackData,
+                sourceKey: sourceKey,
+                maxPixelSize: pixels
+            )
+            guard !Task.isCancelled, let loaded else {
+                didFail = true
+                return
+            }
+            image = UIImage(cgImage: loaded.image, scale: displayScale, orientation: .up)
             return
         }
 

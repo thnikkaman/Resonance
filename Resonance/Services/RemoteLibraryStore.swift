@@ -1003,9 +1003,10 @@ final class RemoteLibraryStore: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request(for: url))
             guard let http = response as? HTTPURLResponse,
                   (200..<300).contains(http.statusCode),
-                  data.count <= 12 * 1_048_576 else { return nil }
-            artworkCache.setObject(data as NSData, forKey: url as NSURL)
-            return data
+                  data.count <= 12 * 1_048_576,
+                  let imageData = MetadataReader.renderableArtworkData(from: data) else { return nil }
+            artworkCache.setObject(imageData as NSData, forKey: url as NSURL)
+            return imageData
         } catch {
             return nil
         }

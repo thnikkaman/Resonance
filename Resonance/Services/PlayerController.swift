@@ -238,13 +238,11 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   func artworkData(for track: Track) -> Data? {
-    if let artwork = track.artworkData { return artwork }
-    return artworkSource(for: track)?.artworkData
+    track.artworkData
   }
 
   func artworkIsEmbedded(for track: Track) -> Bool {
-    if track.artworkData != nil { return track.artworkIsEmbedded }
-    return artworkSource(for: track)?.artworkIsEmbedded ?? true
+    track.artworkIsEmbedded
   }
 
   func play(_ track: Track, in tracks: [Track], presentsNowPlaying: Bool = true) {

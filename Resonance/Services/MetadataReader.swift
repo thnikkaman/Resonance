@@ -311,7 +311,8 @@ private struct FLACMetadata {
               let imageLength = readBE32(data, &offset),
               imageLength > 0,
               offset + imageLength <= data.count else { return nil }
-        return data.subdata(in: offset..<(offset + imageLength))
+        let imageData = data.subdata(in: offset..<(offset + imageLength))
+        return MetadataReader.renderableArtworkData(from: imageData)
     }
 
     private static func readLE32(_ data: Data, _ offset: inout Int) -> Int? {
