@@ -136,6 +136,10 @@ enum ResonanceLayer: Int {
 final class ResonanceLayerNavigation: ObservableObject {
   @Published var root: ResonanceBrowseRoot = .library
   @Published var layer: ResonanceLayer = .root
+  // Keep the layered container informed only about playback presence, not
+  // every PlayerController publication. Playback details stay local to the
+  // mini-player and Now Playing subtree.
+  @Published private(set) var hasCurrentTrack = false
   @Published var localArtist: Artist?
   @Published var localAlbum: Album?
   @Published var localAllAlbumsArtistName: String?
@@ -147,7 +151,9 @@ final class ResonanceLayerNavigation: ObservableObject {
   private var layerBeforeSettings: ResonanceLayer = .root
 
   func showPlayer() {
-    layer = .player
+    withAnimation(.easeInOut(duration: 0.35)) {
+      layer = .player
+    }
   }
 
   func showAlbum() {
@@ -178,6 +184,30 @@ final class ResonanceLayerNavigation: ObservableObject {
     layer = .artist
   }
 
+  func showRemoteArtist(_ artist: RemoteArtist) {
+    remoteArtist = artist
+    localArtist = nil
+    withAnimation(.easeInOut(duration: 0.35)) {
+      layer = .artist
+    }
+  }
+
+  func showLocalAlbum(_ album: Album) {
+    localAlbum = album
+    remoteAlbum = nil
+    withAnimation(.easeInOut(duration: 0.35)) {
+      layer = .album
+    }
+  }
+
+  func showRemoteAlbum(_ album: RemoteAlbum) {
+    remoteAlbum = album
+    localAlbum = nil
+    withAnimation(.easeInOut(duration: 0.35)) {
+      layer = .album
+    }
+  }
+
   func showRoot() {
     localArtist = nil
     localAlbum = nil
@@ -188,6 +218,11 @@ final class ResonanceLayerNavigation: ObservableObject {
     remoteAllAlbumsArtistName = nil
     remoteAllAlbumsTracks = nil
     layer = .root
+  }
+
+  func setCurrentTrackPresence(_ hasTrack: Bool) {
+    guard hasCurrentTrack != hasTrack else { return }
+    hasCurrentTrack = hasTrack
   }
 
   func showLibraryRoot() {
@@ -234,9 +269,6 @@ extension EnvironmentValues {
 }
 
 private struct ResonanceLayeredNavigationView: View {
-  @EnvironmentObject private var player: PlayerController
-  @EnvironmentObject private var library: LibraryStore
-  @EnvironmentObject private var remote: RemoteLibraryStore
   @EnvironmentObject private var settings: AppSettings
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
   @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
@@ -251,6 +283,9 @@ private struct ResonanceLayeredNavigationView: View {
 
       GeometryReader { proxy in
         ZStack(alignment: .top) {
+        ResonanceLayeredPlaybackCoordinator(navigation: navigation)
+          .frame(width: 0, height: 0)
+
         rootSurface
           .offset(y: offset(for: .root, height: proxy.size.height))
           .zIndex(0)
@@ -279,6 +314,7 @@ private struct ResonanceLayeredNavigationView: View {
           .transition(.move(edge: .bottom))
           .offset(y: offset(for: .artist, height: proxy.size.height))
           .zIndex(1)
+          .animation(.easeInOut(duration: 0.35), value: navigation.layer)
           .onAppear {
             ResonanceDiagnostics.shared.recordDeferred(
               "navigation.remoteArtistDetail.presented",
@@ -327,6 +363,7 @@ private struct ResonanceLayeredNavigationView: View {
           .transition(.move(edge: .bottom))
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(3)
+          .animation(.easeInOut(duration: 0.35), value: navigation.layer)
         } else if let album = navigation.remoteAlbum {
           NavigationStack {
             RemoteAlbumDetailView(album: album)
@@ -339,6 +376,7 @@ private struct ResonanceLayeredNavigationView: View {
           .transition(.move(edge: .bottom))
           .offset(y: offset(for: .album, height: proxy.size.height))
           .zIndex(3)
+          .animation(.easeInOut(duration: 0.35), value: navigation.layer)
         }
 
         NavigationStack {
@@ -354,12 +392,15 @@ private struct ResonanceLayeredNavigationView: View {
 
         if navigation.layer == .settings {
           NavigationStack {
-            SettingsView(openLibrary: navigation.showRoot)
+            SettingsView(closeSettings: navigation.closeSettings)
           }
           .environment(\.resonanceLayeredNavigationActive, true)
           .toolbarBackground(.hidden, for: .navigationBar)
           .background(Color.clear)
-          .layeredSurface { navigation.closeSettings() }
+          // Settings is not dismissible with a downward swipe. Its explicit
+          // navigation controls remain available, while the page keeps all
+          // vertical drags for normal Form scrolling.
+          .layeredSurface()
           .resonanceFrameDebug("Settings")
           .transition(.move(edge: .bottom))
           .zIndex(10)
@@ -376,32 +417,27 @@ private struct ResonanceLayeredNavigationView: View {
       .overlay(alignment: .top) {
         ResonanceLayerHeader(navigation: navigation)
       }
-      .overlay(alignment: .bottom) {
-        if player.currentTrack != nil,
+        .overlay(alignment: .top) {
+        if miniPlayerNavigation.dock == .top,
+           navigation.hasCurrentTrack,
            navigation.layer != .player,
            navigation.layer != .settings {
-          MiniPlayerView(
-            dock: .bottom,
-            openNowPlaying: {
-              prepareCurrentContext()
-              navigation.showPlayer()
-            },
-            onDock: { _ in }
-          )
-          .padding(.horizontal, 8)
-          .padding(.bottom, 8)
-          .resonanceFrameDebug("Mini Player")
+          ResonanceLayeredMiniPlayerOverlay(navigation: navigation)
+            // Keep the top-docked player at one consistent position below
+            // each module's navigation title and above its content.
+            .padding(.top, 176)
         }
       }
-      .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
-        prepareCurrentContext()
-        navigation.showPlayer()
+      .overlay(alignment: .bottom) {
+        if miniPlayerNavigation.dock == .bottom,
+           navigation.hasCurrentTrack,
+           navigation.layer != .player,
+           navigation.layer != .settings {
+          ResonanceLayeredMiniPlayerOverlay(navigation: navigation)
+        }
       }
       .onChange(of: navigation.root) { _, _ in
         navigation.showRoot()
-      }
-      .task {
-        prepareCurrentContext()
       }
         }
     }
@@ -409,25 +445,33 @@ private struct ResonanceLayeredNavigationView: View {
     .foregroundStyle(settings.textAccentColor)
     .environmentObject(navigation)
     .environment(\.resonanceLayeredNavigationActive, true)
-    .environment(\.resonanceMiniPlayerBottomInset, player.currentTrack != nil ? 76 : 0)
+    .environment(\.resonanceMiniPlayerBottomInset, navigation.hasCurrentTrack ? 76 : 0)
     .environmentObject(gestureCoordinator)
     .environmentObject(miniPlayerNavigation)
   }
 
   @ViewBuilder
   private var rootSurface: some View {
-    NavigationStack {
-      if navigation.root == .library {
+    ZStack {
+      NavigationStack {
         LibraryView(
           openStreaming: navigation.showStreamingRoot,
           openSettings: navigation.showSettings
         )
-      } else {
+      }
+      .opacity(navigation.root == .library ? 1 : 0)
+      .allowsHitTesting(navigation.root == .library)
+      .accessibilityHidden(navigation.root != .library)
+
+      NavigationStack {
         StreamingLibraryView(
           openLibrary: navigation.showLibraryRoot,
           openSettings: navigation.showSettings
         )
       }
+      .opacity(navigation.root == .streaming ? 1 : 0)
+      .allowsHitTesting(navigation.root == .streaming)
+      .accessibilityHidden(navigation.root != .streaming)
     }
     .environment(\.resonanceLayeredNavigationActive, true)
     .toolbarBackground(.hidden, for: .navigationBar)
@@ -450,6 +494,33 @@ private struct ResonanceLayeredNavigationView: View {
     case .settings:
       return layer == .settings ? 0 : 0
     }
+  }
+
+}
+
+private struct ResonanceLayeredPlaybackCoordinator: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var remote: RemoteLibraryStore
+  @ObservedObject var navigation: ResonanceLayerNavigation
+
+  var body: some View {
+    Color.clear
+      .onAppear {
+        synchronizeTrackPresence()
+        prepareCurrentContext()
+      }
+      .onChange(of: player.currentTrack?.id) { _, _ in
+        synchronizeTrackPresence()
+      }
+      .onChange(of: player.nowPlayingPresentationRequest) { _, _ in
+        prepareCurrentContext()
+        navigation.showPlayer()
+      }
+  }
+
+  private func synchronizeTrackPresence() {
+    navigation.setCurrentTrackPresence(player.currentTrack != nil)
   }
 
   private func prepareCurrentContext() {
@@ -475,6 +546,25 @@ private struct ResonanceLayeredNavigationView: View {
       navigation.remoteAlbum = nil
       navigation.remoteArtist = nil
     }
+  }
+}
+
+private struct ResonanceLayeredMiniPlayerOverlay: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
+  @ObservedObject var navigation: ResonanceLayerNavigation
+
+  var body: some View {
+    MiniPlayerView(
+      dock: miniPlayerNavigation.dock,
+      openNowPlaying: {
+        navigation.showPlayer()
+      },
+      onDock: { miniPlayerNavigation.dock = $0 }
+    )
+    .padding(.horizontal, 8)
+    .padding(.bottom, 8)
+    .resonanceFrameDebug("Mini Player")
   }
 }
 
@@ -589,7 +679,11 @@ private extension View {
       .simultaneousGesture(
         DragGesture(minimumDistance: 45, coordinateSpace: .local)
           .onEnded { value in
-            guard value.translation.height > 70,
+            // Detail dismissal belongs to the upper hero/header region.
+            // Track and album scrolling starts below it and must remain
+            // ordinary vertical scrolling instead of navigating away.
+            guard value.startLocation.y < 340,
+                  value.translation.height > 70,
                   value.translation.height > abs(value.translation.width) + 4
             else { return }
             onDown()
@@ -772,7 +866,7 @@ struct RootView: View {
                     )
                 }
                 tabPage(.settings, width: proxy.size.width) {
-                    SettingsView(openLibrary: { tabNavigation.select(.library) })
+                    SettingsView(closeSettings: { tabNavigation.select(.library) })
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -1157,7 +1251,9 @@ extension View {
 
     func resonanceDetailBottomSpace() -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: 96)
+            // Keep the final track above the floating mini-player, including
+            // on long albums where the list must scroll to its last row.
+            Color.clear.frame(height: 128)
         }
     }
 
@@ -1433,6 +1529,99 @@ struct ResonanceHeroActionButton: View {
             Label(title, systemImage: systemImage)
         }
         .accessibilityLabel(title)
+    }
+}
+
+struct ResonanceHeroMenuLabel: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let prominent: Bool
+    @EnvironmentObject private var settings: AppSettings
+
+    private var label: some View {
+        VStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(width: 64, height: 58)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var surface: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay { shape.fill(tint.opacity(prominent ? 0.78 : 0.10)) }
+        case .matteCrystal:
+            shape
+                .fill(settings.themeSurfaceColor.opacity(prominent ? 0.88 : 0.42))
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(prominent ? 0.20 : 0.10),
+                            Color.clear,
+                            tint.opacity(prominent ? 0.16 : 0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(shape)
+                }
+        case .innerGlow:
+            shape.fill(tint.opacity(prominent ? 0.16 : 0.045))
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.stroke(tint.opacity(prominent ? 0.92 : 0.55), lineWidth: 1)
+        case .matteCrystal:
+            shape.stroke(
+                tint.opacity(prominent ? 0.92 : 0.68),
+                lineWidth: prominent ? 1.2 : 1
+            )
+        case .innerGlow:
+            ZStack {
+                shape.stroke(tint.opacity(0.32), lineWidth: 5)
+                    .blur(radius: 3)
+                shape.stroke(tint.opacity(prominent ? 0.95 : 0.78), lineWidth: 1)
+            }
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    var body: some View {
+        label
+            .foregroundStyle(
+                prominent && settings.applyThemeColorToText
+                    ? settings.contrastingAccentTextColor
+                    : settings.textAccentColor
+            )
+            .background { surface }
+            .overlay { outline }
+            .overlay(alignment: .bottom) {
+                if settings.heroButtonStyle == .minimalTransparent {
+                    Capsule(style: .continuous)
+                        .fill(tint.opacity(prominent ? 0.95 : 0.80))
+                        .frame(width: prominent ? 32 : 24, height: prominent ? 2 : 1.5)
+                        .padding(.bottom, 4)
+                }
+            }
     }
 }
 

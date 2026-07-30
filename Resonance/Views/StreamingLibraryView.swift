@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CryptoKit
 import ImageIO
 
 private struct RemoteTrackSwipeActions: ViewModifier {
@@ -91,6 +92,17 @@ struct StreamingLibraryView: View {
             remote.grouping.rawValue,
             remote.sortDirection.rawValue,
             String(settings.groupCompilationArtists)
+        ].joined(separator: "|")
+    }
+
+    private var serverConfigurationKey: String {
+        [
+            settings.streamBackend.rawValue,
+            settings.streamHost,
+            settings.streamPort,
+            settings.streamUseHTTPS ? "https" : "http",
+            settings.streamManifestPath,
+            settings.streamUsername
         ].joined(separator: "|")
     }
 
@@ -293,8 +305,9 @@ struct StreamingLibraryView: View {
                 albumBrowseSnapshot = []
             }
         }
-        .task(id: settings.streamHost) {
+        .task(id: serverConfigurationKey) {
             browseReady = false
+            await remote.activateCachedCatalogAndCheckForChanges(using: settings)
             await Task.yield()
             guard !Task.isCancelled else { return }
             browseReady = true
@@ -862,14 +875,11 @@ private struct RemoteArtistCollectionView: View {
             } else if selectionMode {
                 toggleSelection(artist)
             } else {
-                withAnimation(.easeInOut(duration: 0.35)) {
-                    ResonanceDiagnostics.shared.recordDeferred(
-                        "navigation.streamingArtist.selected",
-                        details: ["destination": "remoteArtist"]
-                    )
-                    layeredNavigation.remoteArtist = artist
-                    layeredNavigation.layer = .artist
-                }
+                ResonanceDiagnostics.shared.recordDeferred(
+                    "navigation.streamingArtist.selected",
+                    details: ["destination": "remoteArtist"]
+                )
+                layeredNavigation.showRemoteArtist(artist)
             }
         } label: {
             ZStack(alignment: .topTrailing) {
@@ -1129,8 +1139,7 @@ private struct RemoteAlbumCollectionView: View {
             } else if selectionMode {
                 toggleSelection(album)
             } else {
-                layeredNavigation.remoteAlbum = album
-                layeredNavigation.layer = .album
+            layeredNavigation.showRemoteAlbum(album)
             }
         } label: {
             ZStack(alignment: .topTrailing) {
@@ -1453,8 +1462,7 @@ struct RemoteArtistDetailView: View {
     private func albumTile(_ album: RemoteAlbum) -> some View {
         Button {
             guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-            layeredNavigationState.remoteAlbum = album
-            layeredNavigationState.layer = .album
+            layeredNavigationState.showRemoteAlbum(album)
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 RemoteArtwork(
@@ -1578,8 +1586,7 @@ struct RemoteArtistDetailView: View {
                                         ForEach(section.items) { album in
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                                layeredNavigationState.remoteAlbum = album
-                                                layeredNavigationState.layer = .album
+                                                layeredNavigationState.showRemoteAlbum(album)
                                             } label: {
                                                 RemoteCollectionRow(
                                                     title: album.title,
@@ -1777,24 +1784,12 @@ private struct RemoteDownloadHeroMenu: View {
                 downloads.requestDownload(tracks, into: library)
             }
         } label: {
-            VStack(spacing: 4) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.headline)
-                Text("Download")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, minHeight: 58)
-            .foregroundStyle(settings.textAccentColor)
-            .background(
-                Color.teal.opacity(0.13),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            ResonanceHeroMenuLabel(
+                title: "Download",
+                systemImage: "arrow.down.circle.fill",
+                tint: settings.accentColor,
+                prominent: false
             )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.teal.opacity(0.35), lineWidth: 1)
-            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Download \(scope)")
@@ -2031,6 +2026,7 @@ struct RemoteAlbumDetailView: View {
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
+            .resonanceDetailBottomSpace()
         }
         .background {
             ResonanceThemeBackdrop()
@@ -2605,10 +2601,14 @@ private actor RemoteArtworkLoader {
 
     private let thumbnails = NSCache<NSString, RemoteArtworkImageBox>()
     private let sourceData = NSCache<NSString, NSData>()
+    private let diskDirectory: URL
 
     init() {
         thumbnails.countLimit = 600
         thumbnails.totalCostLimit = 96 * 1024 * 1024
+        diskDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ResonanceRemoteArtwork", isDirectory: true)
+        try? FileManager.default.createDirectory(at: diskDirectory, withIntermediateDirectories: true)
     }
 
     func image(
@@ -2646,6 +2646,10 @@ private actor RemoteArtworkLoader {
     ) async -> Data? {
         let key = sourceKey as NSString
         if let cached = sourceData.object(forKey: key) { return cached as Data }
+        if let cached = loadPersistedData(for: sourceKey) {
+            sourceData.setObject(cached as NSData, forKey: key, cost: cached.count)
+            return cached
+        }
 
         let imageData: Data
         if let data {
@@ -2670,7 +2674,26 @@ private actor RemoteArtworkLoader {
         }
         guard !imageData.isEmpty else { return nil }
         sourceData.setObject(imageData as NSData, forKey: key, cost: imageData.count)
+        persist(imageData, for: sourceKey)
         return imageData
+    }
+
+    private func persist(_ data: Data, for key: String) {
+        let destination = diskURL(for: key)
+        try? data.write(to: destination, options: .atomic)
+    }
+
+    private func loadPersistedData(for key: String) -> Data? {
+        let destination = diskURL(for: key)
+        guard let data = try? Data(contentsOf: destination), !data.isEmpty else { return nil }
+        return data
+    }
+
+    private func diskURL(for key: String) -> URL {
+        let digest = SHA256.hash(data: Data(key.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return diskDirectory.appendingPathComponent(digest).appendingPathExtension("artwork")
     }
 
     nonisolated private static func downsample(data: Data, maxPixelSize: Int) -> RemoteArtworkImageBox? {

@@ -9,7 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject private var remote: RemoteLibraryStore
     @EnvironmentObject private var errorLog: AppErrorLog
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
-    let openLibrary: () -> Void
+    let closeSettings: () -> Void
     @FocusState private var isTextFieldFocused: Bool
     @State private var accentHexDraft = ""
     @State private var showingServerQRCodeScanner = false
@@ -514,13 +514,13 @@ struct SettingsView: View {
                     if value.startLocation.x < 36 && value.translation.width > 70 {
                         isTextFieldFocused = false
                         UIApplication.shared.endEditing()
-                        openLibrary()
+                        closeSettings()
                     }
                 }
         )
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(action: openLibrary) { Label("Library", systemImage: "chevron.left") }
+                Button(action: closeSettings) { Label("Close Settings", systemImage: "chevron.left") }
             }
         }
         .onAppear {
@@ -1130,7 +1130,9 @@ private struct HexChannelSlider: View {
             }
             .frame(width: width, height: 46, alignment: .top)
             .contentShape(Rectangle())
-            .gesture(
+            // Claim the drag before the enclosing Form can interpret it as
+            // vertical scrolling. The slider should move only its channel.
+            .highPriorityGesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { gesture in
                         onBeginEditing()

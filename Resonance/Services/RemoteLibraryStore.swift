@@ -205,10 +205,69 @@ private struct CachedRemoteTrack: Codable, Sendable {
 }
 
 private struct CachedRemoteCatalog: Codable, Sendable {
+    let serverIdentity: String
     let serverName: String
     let savedAt: Date
     let albumFingerprint: String
     let tracks: [CachedRemoteTrack]
+
+    private enum CodingKeys: String, CodingKey {
+        case serverIdentity, serverName, savedAt, albumFingerprint, tracks
+    }
+
+    init(
+        serverIdentity: String,
+        serverName: String,
+        savedAt: Date,
+        albumFingerprint: String,
+        tracks: [CachedRemoteTrack]
+    ) {
+        self.serverIdentity = serverIdentity
+        self.serverName = serverName
+        self.savedAt = savedAt
+        self.albumFingerprint = albumFingerprint
+        self.tracks = tracks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        serverIdentity = try container.decodeIfPresent(String.self, forKey: .serverIdentity) ?? ""
+        serverName = try container.decode(String.self, forKey: .serverName)
+        savedAt = try container.decode(Date.self, forKey: .savedAt)
+        albumFingerprint = try container.decode(String.self, forKey: .albumFingerprint)
+        tracks = try container.decode([CachedRemoteTrack].self, forKey: .tracks)
+    }
+}
+
+private struct CachedRemoteDisplaySnapshot: Codable, Sendable {
+    let serverIdentity: String
+    let serverName: String
+    let savedAt: Date
+    let tracks: [CachedRemoteTrack]
+
+    private enum CodingKeys: String, CodingKey {
+        case serverIdentity, serverName, savedAt, tracks
+    }
+
+    init(serverIdentity: String, serverName: String, savedAt: Date, tracks: [CachedRemoteTrack]) {
+        self.serverIdentity = serverIdentity
+        self.serverName = serverName
+        self.savedAt = savedAt
+        self.tracks = tracks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        serverIdentity = try container.decodeIfPresent(String.self, forKey: .serverIdentity) ?? ""
+        serverName = try container.decode(String.self, forKey: .serverName)
+        savedAt = try container.decode(Date.self, forKey: .savedAt)
+        tracks = try container.decode([CachedRemoteTrack].self, forKey: .tracks)
+    }
+}
+
+private struct CachedManifestCatalog: Codable, Sendable {
+    let serverIdentity: String
+    let tracks: [RemoteTrackItem]
 }
 
 enum RemoteBrowseGrouping: String, CaseIterable, Identifiable {
@@ -227,6 +286,11 @@ final class RemoteLibraryStore: ObservableObject {
     @Published private(set) var tracks: [RemoteTrackItem] = [] {
         didSet {
             trackRevision &+= 1
+            // @Published sends its notification before didSet runs. Publish
+            // the incremented revision separately so StreamingLibraryView's
+            // browse snapshot task observes the new catalog instead of
+            // retaining the previous server's artist/album projections.
+            browseRevisionForViews = trackRevision
             browseCache = nil
         }
     }
@@ -237,15 +301,12 @@ final class RemoteLibraryStore: ObservableObject {
     @Published private(set) var playlists: [RemotePlaylist] = []
     @Published private(set) var catalogSyncStatus = "No cached remote catalog"
     @Published private(set) var lastCatalogCheck: Date?
+    @Published private(set) var browseRevisionForViews = 0
     @Published var playlistSearchText = ""
     @Published var grouping: RemoteBrowseGrouping = .artists
     @Published var sortDirection: SortDirection = .ascending {
         didSet { browseCache = nil }
     }
-
-    /// Stable identity for browse snapshots. Selection changes must not rebuild
-    /// the remote artist/album projections; only catalog changes invalidate them.
-    var browseRevisionForViews: Int { trackRevision }
 
     var hasConnectionIssue: Bool {
         guard !isLoading else { return false }
@@ -256,6 +317,9 @@ final class RemoteLibraryStore: ObservableObject {
 
     private let artworkCache = NSCache<NSURL, NSData>()
     private var pendingSubsonicCache: CachedRemoteCatalog?
+    private var cachedManifestIdentity: String?
+    private var isDisplaySnapshotActive = false
+    private var activeServerIdentity: String?
     private var lastAutomaticCatalogCheck: Date?
     private var playbackPreparationGeneration = 0
     private static let cachedTracksURL: URL = {
@@ -267,6 +331,11 @@ final class RemoteLibraryStore: ObservableObject {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("remote-subsonic-catalog.json")
+    }()
+    private static let cachedDisplaySnapshotURL: URL = {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base.appendingPathComponent("remote-library-display-cache.json")
     }()
 
     private struct BrowseCacheKey: Equatable {
@@ -306,15 +375,28 @@ final class RemoteLibraryStore: ObservableObject {
         if let data = try? Data(contentsOf: Self.cachedSubsonicCatalogURL),
            let cached = try? JSONDecoder().decode(CachedRemoteCatalog.self, from: data) {
             pendingSubsonicCache = cached
+            if let displayData = try? Data(contentsOf: Self.cachedDisplaySnapshotURL),
+               let display = try? JSONDecoder().decode(CachedRemoteDisplaySnapshot.self, from: displayData) {
+                tracks = display.tracks.map(Self.displayTrack(from:))
+                isDisplaySnapshotActive = true
+            }
             serverName = cached.serverName
             lastRefresh = cached.savedAt
-            connectionStatus = "Cached Navidrome catalog ready"
+            connectionStatus = tracks.isEmpty ? "Cached Navidrome catalog ready" : "Cached Navidrome library ready"
             catalogSyncStatus = "Cached catalog: \(cached.tracks.count) tracks"
         } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
+                  let cached = try? JSONDecoder().decode(CachedManifestCatalog.self, from: data) {
+            tracks = cached.tracks
+            cachedManifestIdentity = cached.serverIdentity
+            connectionStatus = cached.tracks.isEmpty ? "Not connected" : "Cached manifest library available"
+            catalogSyncStatus = cached.tracks.isEmpty ? "No cached remote catalog" : "Cached manifest: \(cached.tracks.count) tracks"
+        } else if let data = try? Data(contentsOf: Self.cachedTracksURL),
                   let cached = try? JSONDecoder().decode([RemoteTrackItem].self, from: data) {
+            // Legacy manifest caches have no server identity and must be
+            // discarded the first time the active server is verified.
             tracks = cached
-            connectionStatus = cached.isEmpty ? "Not connected" : "Cached manifest library available"
-            catalogSyncStatus = cached.isEmpty ? "No cached remote catalog" : "Cached manifest: \(cached.count) tracks"
+            connectionStatus = cached.isEmpty ? "Not connected" : "Legacy cached manifest library"
+            catalogSyncStatus = cached.isEmpty ? "No cached remote catalog" : "Legacy cached catalog pending verification"
         }
     }
 
@@ -657,12 +739,13 @@ final class RemoteLibraryStore: ObservableObject {
 
     func activateCachedCatalogAndCheckForChanges(using settings: AppSettings, forceCheck: Bool = false) async {
         guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        prepareForServerIdentity(using: settings)
 
         // Once a cached catalog is visible, automatic scene/view appearances do
         // not need to start another task just to discover that the check is
         // intentionally deferred. Settings' explicit check still bypasses this
         // guard and is the only path that should refresh cached content.
-        if !forceCheck, !tracks.isEmpty { return }
+        if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive { return }
 
         ResonanceDiagnostics.shared.recordDeferred(
             "remote.catalogCheck.begin",
@@ -673,11 +756,15 @@ final class RemoteLibraryStore: ObservableObject {
             ]
         )
 
-        if settings.streamBackend == .subsonic, tracks.isEmpty, let cached = pendingSubsonicCache {
+        if settings.streamBackend == .subsonic,
+           isDisplaySnapshotActive || tracks.isEmpty,
+           let cached = pendingSubsonicCache {
             do {
                 let client = try makeSubsonicClient(using: settings)
                 let restored = try cached.tracks.map { try client.restoreCachedTrack($0) }
                 tracks = Self.canonicalizeAlbumArtists(restored)
+                isDisplaySnapshotActive = false
+                persistDisplaySnapshot(cached)
                 serverName = cached.serverName
                 lastRefresh = cached.savedAt
                 connectionStatus = "Showing cached catalog — remote check available in Settings"
@@ -786,6 +873,8 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     func refresh(using settings: AppSettings) async {
+        guard !settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        prepareForServerIdentity(using: settings)
         isLoading = true
         defer { isLoading = false }
 
@@ -1077,7 +1166,12 @@ final class RemoteLibraryStore: ObservableObject {
         serverName = manifest.name?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty ?? "Remote Library"
         lastRefresh = Date()
         connectionStatus = "Connected — \(unique.count) tracks indexed"
-        if let stored = try? JSONEncoder().encode(unique) {
+        let cached = CachedManifestCatalog(
+            serverIdentity: serverIdentity(using: settings),
+            tracks: unique
+        )
+        cachedManifestIdentity = cached.serverIdentity
+        if let stored = try? JSONEncoder().encode(cached) {
             try? stored.write(to: Self.cachedTracksURL, options: .atomic)
         }
     }
@@ -1124,6 +1218,7 @@ final class RemoteLibraryStore: ObservableObject {
         lastRefresh = refreshedAt
         connectionStatus = "Connected — \(tracks.count) unique tracks and \(playlists.count) playlists from \(server.displayName)"
         let catalog = CachedRemoteCatalog(
+            serverIdentity: serverIdentity(using: settings),
             serverName: server.displayName,
             savedAt: refreshedAt,
             albumFingerprint: Self.albumFingerprint(summaries),
@@ -1133,9 +1228,45 @@ final class RemoteLibraryStore: ObservableObject {
         if let encoded = try? JSONEncoder().encode(catalog) {
             try? encoded.write(to: Self.cachedSubsonicCatalogURL, options: .atomic)
         }
+        persistDisplaySnapshot(catalog)
         catalogSyncStatus = "Cached \(catalog.tracks.count) tracks for fast relaunch"
         // Authenticated Subsonic stream URLs are never written to disk.
         try? FileManager.default.removeItem(at: Self.cachedTracksURL)
+    }
+
+    private static func displayTrack(from cached: CachedRemoteTrack) -> RemoteTrackItem {
+        RemoteTrackItem(
+            id: cached.id,
+            sourceID: cached.sourceID,
+            title: cached.title,
+            artist: cached.artist,
+            albumArtist: cached.albumArtist.nonEmpty ?? cached.artist,
+            album: cached.album,
+            trackNumber: cached.trackNumber,
+            discNumber: cached.discNumber,
+            releaseYear: cached.releaseYear,
+            duration: cached.duration,
+            fileSizeBytes: cached.fileSizeBytes,
+            streamURL: URL(string: "resonance-cache://remote/\(cached.id.uuidString)")!,
+            artworkURL: nil,
+            artworkBase64: nil,
+            coverArtID: cached.coverArtID,
+            starred: cached.starred,
+            dateAdded: cached.dateAdded,
+            lastPlayed: cached.lastPlayed
+        )
+    }
+
+    private func persistDisplaySnapshot(_ catalog: CachedRemoteCatalog) {
+        let displaySnapshot = CachedRemoteDisplaySnapshot(
+            serverIdentity: catalog.serverIdentity,
+            serverName: catalog.serverName,
+            savedAt: catalog.savedAt,
+            tracks: catalog.tracks
+        )
+        if let encoded = try? JSONEncoder().encode(displaySnapshot) {
+            try? encoded.write(to: Self.cachedDisplaySnapshotURL, options: .atomic)
+        }
     }
 
     private func makeSubsonicClient(using settings: AppSettings) throws -> SubsonicClient {
@@ -1151,6 +1282,40 @@ final class RemoteLibraryStore: ObservableObject {
             username: settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines),
             password: settings.streamPassword
         )
+    }
+
+    private func serverIdentity(using settings: AppSettings) -> String {
+        [
+            settings.streamBackend.rawValue,
+            settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+            settings.streamPort.trimmingCharacters(in: .whitespacesAndNewlines),
+            settings.streamUseHTTPS ? "https" : "http",
+            settings.streamManifestPath.trimmingCharacters(in: .whitespacesAndNewlines),
+            settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        ].joined(separator: "|")
+    }
+
+    private func prepareForServerIdentity(using settings: AppSettings) {
+        let identity = serverIdentity(using: settings)
+        guard activeServerIdentity != identity else { return }
+
+        let matchesCache = settings.streamBackend == .subsonic
+            ? pendingSubsonicCache?.serverIdentity == identity
+            : cachedManifestIdentity == identity
+        if !matchesCache {
+            // Never show or merge catalog entries from a different server.
+            tracks = []
+            playlists = []
+            pendingSubsonicCache = nil
+            cachedManifestIdentity = nil
+            isDisplaySnapshotActive = false
+            try? FileManager.default.removeItem(at: Self.cachedSubsonicCatalogURL)
+            try? FileManager.default.removeItem(at: Self.cachedDisplaySnapshotURL)
+            try? FileManager.default.removeItem(at: Self.cachedTracksURL)
+            connectionStatus = "Switching remote server…"
+            catalogSyncStatus = "Old server catalog cleared"
+        }
+        activeServerIdentity = identity
     }
 
     private func configuredContentURL(path: String, using settings: AppSettings) -> URL? {

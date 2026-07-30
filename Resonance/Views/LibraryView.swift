@@ -100,7 +100,7 @@ struct LibraryView: View {
                         accessibilityLabel: "Scan Resonance Music folder",
                         systemImage: "arrow.clockwise"
                     ) {
-                        Task { await library.scanSharedMusicFolder(forceMetadataRefresh: true) }
+                        Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
                     }
                     .disabled(library.isScanning)
 
@@ -1026,8 +1026,7 @@ struct ArtistDetailView: View {
                                     Button {
                                         guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                         withAnimation(.easeInOut(duration: 0.35)) {
-                                            layeredNavigationState.localAlbum = album
-                                            layeredNavigationState.layer = .album
+                                            layeredNavigationState.showLocalAlbum(album)
                                         }
                                     } label: {
                                         AlbumTile(album: album)
@@ -1089,8 +1088,7 @@ struct ArtistDetailView: View {
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
                                                 withAnimation(.easeInOut(duration: 0.35)) {
-                                                    layeredNavigationState.localAlbum = album
-                                                    layeredNavigationState.layer = .album
+                                                    layeredNavigationState.showLocalAlbum(album)
                                                 }
                                             } label: {
                                                 HStack(spacing: 12) {

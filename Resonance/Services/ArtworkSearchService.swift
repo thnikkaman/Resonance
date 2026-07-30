@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -512,6 +513,13 @@ actor StreamingArtworkCache {
     private var cachedData: [String: Data] = [:]
     private var misses = Set<String>()
     private var inFlight: [String: Task<Data?, Never>] = [:]
+    private let diskDirectory: URL
+
+    init() {
+        diskDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ResonanceStreamingArtwork", isDirectory: true)
+        try? FileManager.default.createDirectory(at: diskDirectory, withIntermediateDirectories: true)
+    }
 
     func seed(
         data: Data,
@@ -520,15 +528,28 @@ actor StreamingArtworkCache {
         aliases: [String] = []
     ) {
         guard !data.isEmpty else { return }
-        let names = [artist] + aliases
+        // Album artwork must not become an artist-wide result. A compilation
+        // or mixed-artist album can contain many unrelated artists, and
+        // seeding those aliases would make the first successful cover appear
+        // on every artist tile. Artist aliases are safe only for an
+        // artist-level lookup and only when they normalize to the same name.
+        let names: [String]
+        if album == nil {
+            let normalizedArtist = Self.normalize(artist)
+            names = [artist] + aliases.filter { Self.normalize($0) == normalizedArtist }
+        } else {
+            names = [artist]
+        }
         for name in names {
             guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             let artistKey = Self.key(artist: name, album: nil)
             cachedData[artistKey] = data
+            persist(data, for: artistKey)
             misses.remove(artistKey)
             if let album, !album.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 let albumKey = Self.key(artist: name, album: album)
                 cachedData[albumKey] = data
+                persist(data, for: albumKey)
                 misses.remove(albumKey)
             }
         }
@@ -542,6 +563,10 @@ actor StreamingArtworkCache {
         let key = Self.key(artist: artist, album: album)
         guard !key.isEmpty else { return nil }
         if let cached = cachedData[key] { return cached }
+        if let cached = loadPersistedData(for: key) {
+            cachedData[key] = cached
+            return cached
+        }
         if misses.contains(key) { return nil }
         if let task = inFlight[key] { return await task.value }
 
@@ -556,7 +581,17 @@ actor StreamingArtworkCache {
             // the artist's albums is indexed with artwork. Try each distinct
             // album represented by the catalog before falling back to songs.
             var searchedAlbums = Set<String>()
-            for query in trackQueries {
+            let relevantQueries: [StreamingArtworkTrackQuery]
+            if album == nil {
+                let requestedArtist = Self.normalize(artist)
+                relevantQueries = trackQueries.filter {
+                    Self.normalize($0.artist) == requestedArtist ||
+                    Self.normalize($0.albumArtist ?? "") == requestedArtist
+                }
+            } else {
+                relevantQueries = trackQueries
+            }
+            for query in relevantQueries {
                 let candidateAlbum = album ?? query.album
                 if album == nil,
                    !candidateAlbum.isEmpty,
@@ -596,10 +631,29 @@ actor StreamingArtworkCache {
                 album: album,
                 aliases: trackQueries.flatMap { [$0.artist, $0.albumArtist ?? ""] }
             )
+            persist(data, for: key)
         } else {
             misses.insert(key)
         }
         return data
+    }
+
+    private func persist(_ data: Data, for key: String) {
+        let destination = diskURL(for: key)
+        try? data.write(to: destination, options: .atomic)
+    }
+
+    private func loadPersistedData(for key: String) -> Data? {
+        let destination = diskURL(for: key)
+        guard let data = try? Data(contentsOf: destination), !data.isEmpty else { return nil }
+        return data
+    }
+
+    private func diskURL(for key: String) -> URL {
+        let digest = SHA256.hash(data: Data(key.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return diskDirectory.appendingPathComponent(digest).appendingPathExtension("artwork")
     }
 
     private static func firstUsableImage(from suggestions: [ArtworkSearchSuggestion]?) async -> Data? {
@@ -613,19 +667,19 @@ actor StreamingArtworkCache {
     }
 
     private static func key(artist: String, album: String?) -> String {
-        func normalize(_ value: String) -> String {
-            value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .map { CharacterSet.alphanumerics.contains($0) ? String($0) : " " }
-                .joined()
-                .split(whereSeparator: { $0.isWhitespace })
-                .joined(separator: " ")
-                .lowercased()
-        }
-
         let artistKey = normalize(artist)
         let albumKey = normalize(album ?? "")
         return albumKey.isEmpty ? Self.artistKey(artistKey) : Self.albumKey(artistKey, albumKey)
+    }
+
+    private static func normalize(_ value: String) -> String {
+        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) ? String($0) : " " }
+            .joined()
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+            .lowercased()
     }
 
     private static func artistKey(_ artist: String) -> String {

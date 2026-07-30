@@ -7,6 +7,64 @@ private struct LibraryDocumentInventory: Sendable {
     let sharedFolderTrackCount: Int
 }
 
+private struct CachedLibraryDisplayTrack: Codable, Sendable {
+    let id: UUID
+    let title: String
+    let artist: String
+    let albumArtist: String
+    let album: String
+    let trackNumber: Int
+    let discNumber: Int
+    let releaseYear: Int
+    let duration: Double
+    let fileURL: URL?
+    let artworkKey: String?
+    let artworkIsEmbedded: Bool
+    let dateAdded: Date
+    let sourceByteSize: Int64
+
+    init(_ track: Track, artworkKey: String?) {
+        id = track.id
+        title = track.title
+        artist = track.artist
+        albumArtist = track.albumArtist
+        album = track.album
+        trackNumber = track.trackNumber
+        discNumber = track.discNumber
+        releaseYear = track.releaseYear
+        duration = track.duration
+        fileURL = track.fileURL
+        self.artworkKey = artworkKey
+        artworkIsEmbedded = track.artworkIsEmbedded
+        dateAdded = track.dateAdded
+        sourceByteSize = track.sourceByteSize
+    }
+
+    func track(artworkData: Data?, documentsURL: URL) -> Track {
+        Track(
+            id: id,
+            title: title,
+            artist: artist,
+            albumArtist: albumArtist,
+            album: album,
+            trackNumber: trackNumber,
+            discNumber: discNumber,
+            releaseYear: releaseYear,
+            duration: duration,
+            fileURL: LibraryStore.resolvedLocalURL(fileURL, documentsURL: documentsURL),
+            artworkData: artworkData,
+            artworkIsEmbedded: artworkIsEmbedded,
+            dateAdded: dateAdded,
+            sourceByteSize: sourceByteSize
+        )
+    }
+}
+
+private struct CachedLibraryDisplaySnapshot: Codable, Sendable {
+    let tracks: [CachedLibraryDisplayTrack]
+    let artworkByAlbum: [String: Data]
+}
+
 @MainActor
 final class LibraryStore: ObservableObject {
     static let sharedMusicFolderName = "Resonance Music"
@@ -33,6 +91,12 @@ final class LibraryStore: ObservableObject {
     private var didBootstrap = false
     private var lastActiveRefresh: Date?
 
+    private static let displaySnapshotURL: URL = {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base.appendingPathComponent("library-display-cache.json")
+    }()
+
     private enum PersistenceKey {
         static let favorites = "resonance.favoriteTrackIDs"
         static let recentPlays = "resonance.recentPlayDates"
@@ -47,6 +111,7 @@ final class LibraryStore: ObservableObject {
         metadataOverrides = Self.loadMetadataOverrides()
         artistMetadataOverrides = Self.loadArtistMetadataOverrides()
         ignoredLocalPaths = Self.loadIgnoredLocalPaths()
+        tracks = Self.loadDisplaySnapshot().map(applyMetadataOverride)
     }
 
     var filteredTracks: [Track] {
@@ -115,11 +180,30 @@ final class LibraryStore: ObservableObject {
         didBootstrap = true
         ensureSharedMusicFolder()
 
-        let stored = await database.loadAll().filter { track in
+        if !tracks.isEmpty {
+            let cachedTracks = tracks
+            knownModificationDates = await Task.detached(priority: .utility) {
+                Self.modificationDates(for: cachedTracks)
+            }.value
+            sharedFolderTrackCount = tracks.reduce(into: 0) { count, track in
+                guard let url = track.fileURL, !track.isRemote else { return }
+                if url.standardizedFileURL.path.hasPrefix(sharedMusicFolderURL.standardizedFileURL.path + "/") {
+                    count += 1
+                }
+            }
+            scanStatus = "Cached library ready — \(tracks.count) tracks"
+            return
+        }
+
+        // Publish the lightweight persisted index first. Artwork blobs can be
+        // large and decoding them all before assigning `tracks` made Library
+        // appear empty during startup.
+        let stored = await database.loadAll(includeArtwork: false).filter { track in
             guard let url = track.fileURL else { return true }
             return !ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
         }
         tracks = stored.map(applyMetadataOverride)
+        persistDisplaySnapshot()
         knownModificationDates = await Task.detached(priority: .utility) {
             Self.modificationDates(for: stored)
         }.value
@@ -140,7 +224,37 @@ final class LibraryStore: ObservableObject {
                     count += 1
                 }
             }
-            scanStatus = "Cached library ready — (tracks.count) tracks"
+            scanStatus = "Cached library ready — \(tracks.count) tracks"
+
+            // Hydrate cached artwork without blocking the first visible
+            // Library frame. File inventory is deliberately not checked here;
+            // explicit Refresh, imports, and completed downloads are the
+            // supported paths that update the local index.
+            Task { [weak self] in
+                guard let self else { return }
+                let hydrated = await self.database.loadAll(includeArtwork: true)
+                self.mergeCachedArtwork(from: hydrated)
+                self.persistDisplaySnapshot()
+            }
+        }
+    }
+
+    private func mergeCachedArtwork(from cachedTracks: [Track]) {
+        let artworkByID = Dictionary(
+            uniqueKeysWithValues: cachedTracks.compactMap { track -> (UUID, (Data, Bool))? in
+                guard let artworkData = track.artworkData else { return nil }
+                return (track.id, (artworkData, track.artworkIsEmbedded))
+            }
+        )
+        guard !artworkByID.isEmpty else { return }
+        tracks = tracks.map { track in
+            guard track.artworkData == nil, let (artworkData, artworkIsEmbedded) = artworkByID[track.id] else {
+                return track
+            }
+            var hydrated = track
+            hydrated.artworkData = artworkData
+            hydrated.artworkIsEmbedded = artworkIsEmbedded
+            return hydrated
         }
     }
 
@@ -181,6 +295,7 @@ final class LibraryStore: ObservableObject {
         knownModificationDates[path] = modificationDate(for: url)
         cleanPersistedCollections()
         await database.upsert(refreshed)
+        persistDisplaySnapshot()
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
     }
@@ -190,6 +305,7 @@ final class LibraryStore: ObservableObject {
         isScanning = true
         scanStatus = "Copying selected music…"
         defer { isScanning = false }
+        var importedURLs: [URL] = []
 
         for selectedURL in urls {
             let accessed = selectedURL.startAccessingSecurityScopedResource()
@@ -218,6 +334,7 @@ final class LibraryStore: ObservableObject {
                     if !FileManager.default.fileExists(atPath: target.path) {
                         try FileManager.default.copyItem(at: source, to: target)
                     }
+                    importedURLs.append(target)
                 } catch {
                     continue
                 }
@@ -226,7 +343,9 @@ final class LibraryStore: ObservableObject {
 
         isScanning = false
         persistIgnoredLocalPaths()
-        await scanDocuments(forceMetadataRefresh: false)
+        for url in importedURLs {
+            await refreshDownloadedTrack(at: url)
+        }
     }
 
     func isFavorite(_ track: Track) -> Bool {
@@ -518,7 +637,8 @@ final class LibraryStore: ObservableObject {
         let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
         guard !ids.isEmpty else { return "The selected artist has no tracks." }
         let oldName = artist.name
-        let requests = tracks.compactMap { track -> MetadataWriteRequest? in
+        let shouldRewriteTags = oldName.localizedCaseInsensitiveCompare(cleanedName) != .orderedSame
+        let requests = shouldRewriteTags ? tracks.compactMap { track -> MetadataWriteRequest? in
             guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
             let updatedArtist = artist.usesAlbumArtist ? track.artist : cleanedName
             let updatedAlbumArtist = artist.usesAlbumArtist
@@ -542,7 +662,7 @@ final class LibraryStore: ObservableObject {
                 artworkData: nil,
                 replaceArtwork: false
             )
-        }
+        } : []
         let writeResult = await MetadataWriteBatch.write(requests)
         let writableIDs = writeResult.successfulIDs
         let failures = writeResult.failures
@@ -705,7 +825,15 @@ final class LibraryStore: ObservableObject {
         let ids = Set(trackIDs)
         for id in ids { metadataOverrides.removeValue(forKey: id) }
         persistMetadataOverrides()
-        await scanDocuments(forceMetadataRefresh: true)
+        // The affected files are already known; reread only those tracks
+        // instead of forcing a full-library metadata scan.
+        let affectedURLs = tracks.compactMap { track -> URL? in
+            guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
+            return url
+        }
+        for url in affectedURLs {
+            await refreshDownloadedTrack(at: url)
+        }
     }
 
     func removeArtist(_ artist: Artist, deletingFiles: Bool) async {
@@ -766,16 +894,73 @@ final class LibraryStore: ObservableObject {
         }
         persistIgnoredLocalPaths()
         await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
-        await scanDocuments(forceMetadataRefresh: false)
+        persistDisplaySnapshot()
     }
 
     func resetDemoLibrary() async {
         tracks = Self.demoTracks
         await database.replaceAll(with: [])
+        try? FileManager.default.removeItem(at: Self.displaySnapshotURL)
     }
 
     private var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    private func persistDisplaySnapshot() {
+        var artworkByAlbum: [String: Data] = [:]
+        var cachedTracks: [CachedLibraryDisplayTrack] = []
+        cachedTracks.reserveCapacity(tracks.count)
+
+        for track in tracks {
+            let artworkKey: String?
+            if let artworkData = track.artworkData, !artworkData.isEmpty {
+                let key = "\(track.albumArtist)|\(track.album)"
+                artworkByAlbum[key] = artworkByAlbum[key] ?? artworkData
+                artworkKey = key
+            } else {
+                artworkKey = nil
+            }
+            cachedTracks.append(CachedLibraryDisplayTrack(track, artworkKey: artworkKey))
+        }
+
+        let snapshot = CachedLibraryDisplaySnapshot(
+            tracks: cachedTracks,
+            artworkByAlbum: artworkByAlbum
+        )
+        let destination = Self.displaySnapshotURL
+        Task.detached(priority: .utility) {
+            guard let encoded = try? JSONEncoder().encode(snapshot) else { return }
+            try? encoded.write(to: destination, options: .atomic)
+        }
+    }
+
+    fileprivate nonisolated static func resolvedLocalURL(_ url: URL?, documentsURL: URL) -> URL? {
+        guard let url, url.isFileURL else { return url }
+
+        // Cached snapshots historically stored absolute URLs. An in-place app
+        // update can change the container UUID while preserving Documents, so
+        // restore files beneath the current Documents directory instead of
+        // trusting the stale container component.
+        let path = url.standardizedFileURL.path
+        let marker = "/Documents/"
+        guard let range = path.range(of: marker) else { return url }
+        let relativePath = String(path[range.upperBound...])
+        return documentsURL.appendingPathComponent(relativePath)
+    }
+
+    private static func loadDisplaySnapshot() -> [Track] {
+        guard let data = try? Data(contentsOf: displaySnapshotURL),
+              let snapshot = try? JSONDecoder().decode(CachedLibraryDisplaySnapshot.self, from: data)
+        else { return [] }
+
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return snapshot.tracks.map { cached in
+            cached.track(
+                artworkData: cached.artworkKey.flatMap { snapshot.artworkByAlbum[$0] },
+                documentsURL: documentsURL
+            )
+        }
     }
 
     private func ensureSharedMusicFolder() {
@@ -794,7 +979,10 @@ final class LibraryStore: ObservableObject {
     private func scanDocuments(forceMetadataRefresh: Bool) async {
         guard !isScanning else { return }
         let hadExistingContent = !tracks.isEmpty
-        isScanning = !hadExistingContent
+        // Keep the scan gate active even when cached content is already
+        // visible. Previously this was false for an existing library, so a
+        // second refresh could start another full metadata scan concurrently.
+        isScanning = true
         scanStatus = hadExistingContent ? "Checking transferred music…" : "Scanning transferred music…"
         let scanStarted = Date()
         ResonanceDiagnostics.shared.recordDeferred(
@@ -882,6 +1070,7 @@ final class LibraryStore: ObservableObject {
         tracks = deduplicate(refreshed)
         cleanPersistedCollections()
         await database.replaceAll(with: tracks)
+        persistDisplaySnapshot()
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
         ResonanceDiagnostics.shared.recordDeferred(

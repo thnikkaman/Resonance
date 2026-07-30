@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct OnlineArtworkSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -31,6 +33,7 @@ struct OnlineArtworkSearchSheet: View {
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
@@ -40,6 +43,10 @@ struct OnlineArtworkSearchSheet: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if suggestions.isEmpty || suggestions.allSatisfy({ unavailableSuggestionIDs.contains($0.id) }) {
                     VStack(spacing: 14) {
+                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                            Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
                         ContentUnavailableView(
                             "No Artwork Found",
                             systemImage: "photo.on.rectangle.angled",
@@ -54,6 +61,10 @@ struct OnlineArtworkSearchSheet: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
+                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                                Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
+                            }
+                            .buttonStyle(.borderedProminent)
                             if !unavailableProviders.isEmpty {
                                 Text("Unavailable sources: \(unavailableProviders.joined(separator: ", "))")
                                     .font(.caption)
@@ -101,6 +112,18 @@ struct OnlineArtworkSearchSheet: View {
                 Button("OK", role: .cancel) { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "The artwork could not be loaded.")
+            }
+            .onChange(of: selectedPhoto) { _, item in
+                guard let item else { return }
+                Task {
+                    guard let data = try? await item.loadTransferable(type: Data.self),
+                          UIImage(data: data) != nil else {
+                        errorMessage = "The selected photo could not be read as artwork."
+                        return
+                    }
+                    dismiss()
+                    onApplyToApp(data)
+                }
             }
             .task { await search() }
         }

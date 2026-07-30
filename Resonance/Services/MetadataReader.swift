@@ -267,7 +267,11 @@ private struct FLACMetadata {
             guard length >= 0, length <= 64 * 1024 * 1024,
                   let block = try? handle.read(upToCount: length), block.count == length else { break }
             if type == 4 { parseVorbis(block, into: &result) }
-            else if type == 6, result.pictureData == nil { result.pictureData = parsePicture(block) }
+            // FLAC front-cover artwork is conventionally picture type 3.
+            // Type 6 is also seen in existing libraries, so accept both.
+            else if (type == 3 || type == 6), result.pictureData == nil {
+                result.pictureData = parsePicture(block)
+            }
         }
         return result
     }

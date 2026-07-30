@@ -131,6 +131,7 @@ struct AlbumDetailView: View {
             .background {
                 ResonanceThemeSurfaceBackdrop()
             }
+            .resonanceDetailBottomSpace()
         }
         .background {
             // The detail destination owns its page backdrop so the image stays

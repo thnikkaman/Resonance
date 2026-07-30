@@ -111,7 +111,7 @@ actor LibraryDatabase {
         sqlite3_step(statement)
     }
 
-    func loadAll() -> [Track] {
+    func loadAll(includeArtwork: Bool = true) -> [Track] {
         guard let db else { return [] }
         let sql = """
         SELECT id,title,artist,album_artist,album_name,track_number,disc_number,
@@ -124,6 +124,7 @@ actor LibraryDatabase {
         var result: [Track] = []
         while sqlite3_step(statement) == SQLITE_ROW {
             let artwork: Data? = {
+                guard includeArtwork else { return nil }
                 guard let bytes = sqlite3_column_blob(statement, 10) else { return nil }
                 let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 10)))
                 return MetadataReader.renderableArtworkData(from: data)
