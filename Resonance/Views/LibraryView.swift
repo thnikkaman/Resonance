@@ -386,6 +386,10 @@ struct VerticalArtistIndex: View {
     @State private var hideTask: Task<Void, Never>?
 
     private let indexColumnWidth: CGFloat = 32
+    // Keep the letters in their existing 32-point visual column while giving
+    // the gesture a small edge-side extension so the glyphs themselves are
+    // inside the hit region.
+    private let indexHitWidth: CGFloat = 48
     private let bubbleSize: CGFloat = 86
     private let verticalInset: CGFloat = 8
 
@@ -527,7 +531,7 @@ struct VerticalArtistIndex: View {
                     }
             )
         }
-        .frame(width: indexColumnWidth)
+        .frame(width: indexHitWidth)
         .frame(maxHeight: .infinity)
         .accessibilityLabel("Alphabet index")
     }
@@ -1077,9 +1081,7 @@ struct ArtistDetailView: View {
                                 ) { album in
                                     Button {
                                         guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                        withAnimation(.easeInOut(duration: 0.35)) {
-                                            layeredNavigationState.showLocalAlbum(album)
-                                        }
+                                        layeredNavigationState.showLocalAlbum(album)
                                     } label: {
                                         AlbumTile(album: album)
                                     }
@@ -1139,9 +1141,7 @@ struct ArtistDetailView: View {
                                         ForEach(section.items) { album in
                                             Button {
                                                 guard !gestureCoordinator.isHorizontalSwipeSuppressed else { return }
-                                                withAnimation(.easeInOut(duration: 0.35)) {
-                                                    layeredNavigationState.showLocalAlbum(album)
-                                                }
+                                                layeredNavigationState.showLocalAlbum(album)
                                             } label: {
                                                 HStack(spacing: 12) {
                                                     ArtworkView(

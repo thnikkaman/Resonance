@@ -461,7 +461,7 @@ assert 'catalogSyncStatus' in remote
 assert 'remote-artist-section-' in streaming
 assert 'RemoteArtworkLoader' in streaming and 'ImageIO' in streaming
 assert 'Showing cached catalog' in remote
-assert 'frame(width: indexColumnWidth)' in library_view
+assert 'frame(width: indexHitWidth)' in library_view
 assert 'coordinateSpace: .local' in library_view
 assert 'y - topInset' in library_view
 assert 'if first.isLetter { return String(first) }' in library_view
@@ -630,6 +630,8 @@ assert 'Enter track title' in smart
 assert '_discNumber = State(initialValue: "")' in smart
 assert 'discNumber: discNumber.map { max(1, $0) } ?? track.discNumber' in library_store
 assert 'ScrollableArtistName' in library_view
+assert 'private let indexHitWidth: CGFloat = 48' in library_view
+assert '.frame(width: indexHitWidth)' in library_view
 assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming
 assert 'ServerQRCodeScannerView' in settings_view
