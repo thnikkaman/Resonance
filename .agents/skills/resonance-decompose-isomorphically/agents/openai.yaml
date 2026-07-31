@@ -1,0 +1,3 @@
+interface:
+  display_name: "Resonance Decompose Isomorphically"
+  short_description: "Split large Resonance Swift files without product drift"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Resonance Real-Service E2E"
+  short_description: "Test Resonance through real services, files, and devices"

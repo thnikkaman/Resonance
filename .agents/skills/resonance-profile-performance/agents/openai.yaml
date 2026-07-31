@@ -1,0 +1,3 @@
+interface:
+  display_name: "Resonance Profile Performance"
+  short_description: "Measure and rank Resonance app and service bottlenecks"
