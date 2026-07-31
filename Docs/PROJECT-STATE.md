@@ -8,6 +8,8 @@ Last verified: 2026-07-30
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
 - Release commit: `6aa68ae` (`Release Resonance Beta v1.0.7 build 259`)
+- GitHub tag/release: `Resonance-Beta-v1.0.7` (prerelease published).
+- GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `1.0.7`, build `259`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 

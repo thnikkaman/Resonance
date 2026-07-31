@@ -35,7 +35,9 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 - Status: installed and pushed; user runtime acceptance pending.
 - Artifact: `com.example.ResonancePrototype`, version `1.0.7`, build `259`.
-- Source: commit `6aa68ae`, tag/release metadata to be recorded after GitHub publication.
+- Source: commit `6aa68ae`; GitHub tag `Resonance-Beta-v1.0.7` and prerelease are published.
+- Release: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.7
+- Pull request: not created because `agent/alpha-3.7.4-source` has no common history with the ZIP-history `main` branch.
 - Validation: `Tools/RegressionChecks.sh`, `Tools/PreflightBuild.sh`, signed Release build, deep signature verification, and `devicectl` install/info passed.
 - Rollback: reinstall the preceding signed build without uninstalling.
 
