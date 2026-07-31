@@ -6,7 +6,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 ## Active baseline
 
 - Runtime baseline: signed Beta v2.0/build 267 installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
-- Source baseline: pending `Resonance-Beta-v2.0` publication commit on `agent/alpha-3.7.4-source`.
+- Source baseline: `Resonance-Beta-v2.0` publication commit `088c291` on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
@@ -14,7 +14,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-BETA-2.0 — Audiobook playback and bookmark history
 
-- Status: implemented, validated, installed in place, and being published as a GitHub prerelease.
+- Status: implemented, validated, installed in place, committed, and published as a GitHub prerelease.
 - Scope: mark local and personal Streaming albums as audiobooks; resume the newest saved position; expose audiobook-only
   speed controls; retain five pause/stop positions per audiobook album; save one position when an active audiobook exits
   the foreground; keep manual bookmarks separate; and scope the viewer to the active audiobook with album/book and track titles.
@@ -24,6 +24,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Manual oracle: mark multiple albums, pause/stop several tracks in each, verify five positions per album, reopen the app
   while an audiobook is playing, and confirm the active audiobook’s positions appear above manual Saved Positions.
 - Rollback: reinstall the prior signed beta without uninstalling.
+- Release: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0; branch commit `088c291`.
 
 ### R-BETA-1.0.9 — Safe multi-disc album metadata editing
 

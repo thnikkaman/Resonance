@@ -7,8 +7,8 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: pending Beta v2.0 release commit.
-- GitHub tag/release: pending `Resonance-Beta-v2.0` prerelease publication.
+- Release commit: `088c291` (`Prepare Resonance Beta v2.0`).
+- GitHub tag/release: `Resonance-Beta-v2.0` prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `2.0`, build `267`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
@@ -23,7 +23,7 @@ Last verified: 2026-07-31
 - The installed physical artifact is version `2.0`, build `267`; it was installed in place after signed verification.
 - Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
 
-The v2.0 source will be published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
+The v2.0 source is published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
 
 ## Implemented change
 
