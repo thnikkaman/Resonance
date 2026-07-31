@@ -742,30 +742,6 @@ struct AlbumMetadataEditorSheet: View {
                     )
                 }
 
-                Section(
-                    content: {
-                        ForEach(album.tracks.sorted { ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title) }) { track in
-                            HStack(spacing: 12) {
-                                Text(track.trackNumber > 0 ? String(track.trackNumber) : "—")
-                                    .font(.caption.monospacedDigit())
-                                    .frame(width: 28, alignment: .trailing)
-                                Text(track.title)
-                                    .lineLimit(1)
-                                Spacer()
-                            }
-                            .foregroundStyle(.secondary)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("Track \(track.trackNumber), \(track.title), read only")
-                        }
-                    },
-                    header: {
-                        Text("Track Titles and Numbers — Read Only")
-                    },
-                    footer: {
-                        Text("Track title and track number are shown for reference and are not changed by an album-wide edit.")
-                    }
-                )
-
                 Section("Artwork for Every Track") {
                     HStack {
                         Spacer()
@@ -795,6 +771,30 @@ struct AlbumMetadataEditorSheet: View {
                         Label("Remove Artwork in Resonance", systemImage: "photo.badge.minus")
                     }
                 }
+
+                Section(
+                    content: {
+                        ForEach(album.tracks.sorted { ($0.discNumber, $0.trackNumber, $0.title) < ($1.discNumber, $1.trackNumber, $1.title) }) { track in
+                            HStack(spacing: 12) {
+                                Text(track.trackNumber > 0 ? String(track.trackNumber) : "—")
+                                    .font(.caption.monospacedDigit())
+                                    .frame(width: 28, alignment: .trailing)
+                                Text(track.title)
+                                    .lineLimit(1)
+                                Spacer()
+                            }
+                            .foregroundStyle(.secondary)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Track \(track.trackNumber), \(track.title), read only")
+                        }
+                    },
+                    header: {
+                        Text("Track Titles and Numbers — Read Only")
+                    },
+                    footer: {
+                        Text("Track title and track number are shown for reference and are not changed by an album-wide edit.")
+                    }
+                )
 
                 Section {
                     Button("Reset Entire Album to File Metadata", role: .destructive) {
