@@ -764,27 +764,31 @@ final class LibraryStore: ObservableObject {
     func updateArtistMetadata(
         artist: Artist,
         name: String,
+        albumArtist: String,
         artworkData: Data?,
         replaceArtwork: Bool,
         clearArtworkOverride: Bool
     ) async -> String? {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedAlbumArtist = albumArtist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanedName.isEmpty else { return "Enter an artist name." }
+        guard !cleanedAlbumArtist.isEmpty else { return "Enter an album artist name." }
 
         let ids = Set(artist.albums.flatMap(\.tracks).map(\.id))
         guard !ids.isEmpty else { return "The selected artist has no tracks." }
         let oldName = artist.name
-        let shouldRewriteTags = oldName.localizedCaseInsensitiveCompare(cleanedName) != .orderedSame
+        let shouldRewriteTags = tracks.contains { track in
+            ids.contains(track.id) && (
+                track.artist.localizedCaseInsensitiveCompare(cleanedName) != .orderedSame
+                || track.albumArtist.localizedCaseInsensitiveCompare(cleanedAlbumArtist) != .orderedSame
+            )
+        }
         let requests = shouldRewriteTags ? tracks.compactMap { track -> MetadataWriteRequest? in
             guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
-            let updatedArtist = artist.usesAlbumArtist ? track.artist : cleanedName
-            let updatedAlbumArtist = artist.usesAlbumArtist
-                ? cleanedName
-                : (track.albumArtist.localizedCaseInsensitiveCompare(oldName) == .orderedSame ? cleanedName : track.albumArtist)
             let values = MetadataTagValues(
                 title: track.title,
-                artist: updatedArtist,
-                albumArtist: updatedAlbumArtist,
+                artist: cleanedName,
+                albumArtist: cleanedAlbumArtist,
                 album: track.album,
                 trackNumber: track.trackNumber,
                 discNumber: track.discNumber,
@@ -834,6 +838,7 @@ final class LibraryStore: ObservableObject {
     func updateArtistMetadataInBackground(
         artist: Artist,
         name: String,
+        albumArtist: String,
         artworkData: Data?,
         replaceArtwork: Bool,
         clearArtworkOverride: Bool
@@ -843,6 +848,7 @@ final class LibraryStore: ObservableObject {
             let error = await self.updateArtistMetadata(
                 artist: artist,
                 name: name,
+                albumArtist: albumArtist,
                 artworkData: artworkData,
                 replaceArtwork: replaceArtwork,
                 clearArtworkOverride: clearArtworkOverride
@@ -860,6 +866,7 @@ final class LibraryStore: ObservableObject {
     func updateAlbumMetadata(
         trackIDs: [UUID],
         album: String,
+        artist: String,
         albumArtist: String,
         releaseYear: Int,
         artworkData: Data?,
@@ -871,7 +878,7 @@ final class LibraryStore: ObservableObject {
             guard ids.contains(track.id), let url = track.fileURL, !track.isRemote else { return nil }
             let values = MetadataTagValues(
                 title: track.title,
-                artist: track.artist,
+                artist: artist.trimmingCharacters(in: .whitespacesAndNewlines),
                 albumArtist: albumArtist.trimmingCharacters(in: .whitespacesAndNewlines),
                 album: album.trimmingCharacters(in: .whitespacesAndNewlines),
                 trackNumber: track.trackNumber,
@@ -921,6 +928,7 @@ final class LibraryStore: ObservableObject {
     func updateAlbumMetadataInBackground(
         trackIDs: [UUID],
         album: String,
+        artist: String,
         albumArtist: String,
         releaseYear: Int,
         artworkData: Data?,
@@ -931,6 +939,7 @@ final class LibraryStore: ObservableObject {
             let error = await self.updateAlbumMetadata(
                 trackIDs: trackIDs,
                 album: album,
+                artist: artist,
                 albumArtist: albumArtist,
                 releaseYear: releaseYear,
                 artworkData: artworkData,

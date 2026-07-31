@@ -244,6 +244,7 @@ struct AlbumDetailView: View {
                     library.updateAlbumMetadataInBackground(
                         trackIDs: liveAlbum.tracks.map(\.id),
                         album: liveAlbum.title,
+                        artist: liveAlbum.tracks.first?.artist ?? liveAlbum.artist,
                         albumArtist: liveAlbum.artist,
                         releaseYear: liveAlbum.releaseYear,
                         artworkData: data,

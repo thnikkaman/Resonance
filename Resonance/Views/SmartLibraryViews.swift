@@ -703,6 +703,7 @@ struct AlbumMetadataEditorSheet: View {
     let album: Album
 
     @State private var albumTitle: String
+    @State private var artist: String
     @State private var albumArtist: String
     @State private var releaseYear: String
     @State private var artworkData: Data?
@@ -714,13 +715,15 @@ struct AlbumMetadataEditorSheet: View {
     init(album: Album) {
         self.album = album
         _albumTitle = State(initialValue: album.title)
-        _albumArtist = State(initialValue: album.artist)
+        _artist = State(initialValue: album.tracks.first?.artist ?? album.artist)
+        _albumArtist = State(initialValue: album.tracks.first?.albumArtist ?? album.artist)
         _releaseYear = State(initialValue: album.releaseYear > 0 ? String(album.releaseYear) : "")
         _artworkData = State(initialValue: album.artworkData)
     }
 
     private var canSave: Bool {
         !albumTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !albumArtist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -729,6 +732,7 @@ struct AlbumMetadataEditorSheet: View {
             Form {
                 Section("Album") {
                     MetadataTextField(label: "Album Title", prompt: "Enter album title", text: $albumTitle)
+                    MetadataTextField(label: "Artist", prompt: "Enter performing artist", text: $artist)
                     MetadataTextField(label: "Album Artist", prompt: "Enter album artist", text: $albumArtist)
                     MetadataTextField(
                         label: "Release Year",
@@ -800,7 +804,7 @@ struct AlbumMetadataEditorSheet: View {
                         }
                     }
                 } footer: {
-                    Text("Album edits apply to every track in this album. Track titles and individual performing artists are left unchanged.")
+                    Text("Album edits apply to every track in this album, including both Artist and Album Artist.")
                 }
             }
             .navigationTitle("Edit Album Metadata")
@@ -815,7 +819,8 @@ struct AlbumMetadataEditorSheet: View {
                         library.updateAlbumMetadataInBackground(
                             trackIDs: album.tracks.map(\.id),
                             album: albumTitle,
-                            albumArtist: albumArtist,
+                        artist: artist,
+                        albumArtist: albumArtist,
                             releaseYear: Int(releaseYear) ?? 0,
                             artworkData: artworkData,
                             replaceArtwork: replaceArtwork
@@ -836,7 +841,7 @@ struct AlbumMetadataEditorSheet: View {
             }
             .sheet(isPresented: $showingArtworkSearch) {
                 OnlineArtworkSearchSheet(
-                    artist: albumArtist,
+                    artist: artist,
                     albumArtist: albumArtist,
                     album: albumTitle,
                     stagesSelection: true,
@@ -870,6 +875,7 @@ struct ArtistMetadataEditorSheet: View {
     let artist: Artist
 
     @State private var artistName: String
+    @State private var albumArtistName: String
     @State private var artworkData: Data?
     @State private var replaceArtwork = false
     @State private var clearArtworkOverride = false
@@ -879,7 +885,9 @@ struct ArtistMetadataEditorSheet: View {
 
     init(artist: Artist) {
         self.artist = artist
-        _artistName = State(initialValue: artist.name)
+        let firstTrack = artist.albums.flatMap(\.tracks).first
+        _artistName = State(initialValue: firstTrack?.artist ?? artist.name)
+        _albumArtistName = State(initialValue: firstTrack?.albumArtist ?? artist.name)
         _artworkData = State(initialValue: artist.artworkData)
     }
 
@@ -915,6 +923,7 @@ struct ArtistMetadataEditorSheet: View {
 
     private var canSave: Bool {
         !artistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !albumArtistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -923,16 +932,21 @@ struct ArtistMetadataEditorSheet: View {
                 Section(
                     content: {
                         MetadataTextField(
-                            label: artist.usesAlbumArtist ? "Album Artist Name" : "Artist Name",
-                            prompt: artist.usesAlbumArtist ? "Enter album artist name" : "Enter artist name",
+                            label: "Artist Name",
+                            prompt: "Enter artist name",
                             text: $artistName
+                        )
+                        MetadataTextField(
+                            label: "Album Artist Name",
+                            prompt: "Enter album artist name",
+                            text: $albumArtistName
                         )
                     },
                     header: {
-                        Text(artist.usesAlbumArtist ? "Album Artist" : "Artist")
+                        Text("Artist and Album Artist")
                     },
                     footer: {
-                        Text("Artist-wide editing is intentionally limited to the artist name and the artwork used for the artist display.")
+                        Text("These names are written to every file represented by this artist entry.")
                     }
                 )
 
@@ -1039,7 +1053,7 @@ struct ArtistMetadataEditorSheet: View {
                     LabeledContent("Albums affected", value: String(artist.albums.count))
                     LabeledContent("Tracks affected", value: String(artist.albums.flatMap(\.tracks).count))
                 } footer: {
-                    Text("Changing the artist name updates every track represented by this artist entry. Album titles, release years, track titles, and track numbers remain unchanged.")
+                    Text("Changing either name updates every track represented by this artist entry. Album titles, release years, track titles, and track numbers remain unchanged.")
                 }
             }
             .navigationTitle("Edit Artist Metadata")
@@ -1054,6 +1068,7 @@ struct ArtistMetadataEditorSheet: View {
                         library.updateArtistMetadataInBackground(
                             artist: artist,
                             name: artistName,
+                            albumArtist: albumArtistName,
                             artworkData: artworkData,
                             replaceArtwork: replaceArtwork,
                             clearArtworkOverride: clearArtworkOverride
@@ -1076,6 +1091,7 @@ struct ArtistMetadataEditorSheet: View {
             .sheet(isPresented: $showingArtworkSearch) {
                 OnlineArtworkSearchSheet(
                     artist: artistName,
+                    albumArtist: albumArtistName,
                     album: nil,
                     stagesSelection: true,
                     onApplyToApp: { data in
