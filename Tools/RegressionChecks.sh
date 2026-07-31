@@ -3,6 +3,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+test -f AGENTS.md
+test -f Docs/ARCHITECTURE.md
+test -f Docs/PROJECT-STATE.md
+test -f Docs/WORK-QUEUE.md
+Tools/ProjectStateCheck.sh --source-only >/dev/null
+
 find Resonance -name '*.swift' -print0 | xargs -0 -n1 swiftc -frontend -swift-version 6 -parse
 plutil -lint Resonance/Info.plist
 plutil -lint Resonance.xcodeproj/project.pbxproj
@@ -633,5 +639,9 @@ assert mixed_fixture_keys == {'split album|2024'}
 
 
 
-print('Resonance Beta v1.0.7 regression checks passed.')
+import re
+source_version = sorted(set(re.findall(r'MARKETING_VERSION = ([^;]+);', pbx)))
+source_build = sorted(set(re.findall(r'CURRENT_PROJECT_VERSION = ([^;]+);', pbx)))
+assert len(source_version) == 1 and len(source_build) == 1
+print(f'Resonance source-contract regression checks passed (project default {source_version[0]}/{source_build[0]}).')
 PY

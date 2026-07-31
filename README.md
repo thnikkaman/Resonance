@@ -10,6 +10,21 @@ artwork parsing.
 The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
 refresh, and Settings. The local file-browser/import control is intentionally omitted.
 
+## Verified source and simulator artifact identity — 2026-07-30
+
+The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
+`agent/alpha-3.7.4-source`; the verified implementation baseline is source commit
+`3cc3d35`. Documentation-only commits may sit on top of that baseline. The project’s
+default Xcode settings remain version `1.0.6`, build `210`.
+
+The currently installed iPhone 17 Pro simulator artifact is version `1.0.7`,
+build `247`. It was built with explicit `MARKETING_VERSION=1.0.7` and
+`CURRENT_PROJECT_VERSION=247` overrides from the toolbar restoration source
+(`1c52501`), then documented by the follow-up README commit. The two identities
+are intentionally different and must be reported separately. See
+`Docs/PROJECT-STATE.md` and run `Tools/ProjectStateCheck.sh` before making
+source or runtime claims.
+
 Release source build: `1.0.6` (build `210`)
 
 Latest device validation build: `1.0.6` (build `214`). The first Streaming transition now precomputes the cached
