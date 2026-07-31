@@ -10,28 +10,29 @@ artwork parsing.
 The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
 refresh, and Settings. The local file-browser/import control is intentionally omitted.
 
-## Verified source and simulator artifact identity — 2026-07-30
+## Verified source and release artifact identity — 2026-07-30
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the verified implementation baseline is source commit
-`3cc3d35`. Documentation-only commits may sit on top of that baseline. The project’s
-default Xcode settings are version `1.0.7`, build `259`.
-
-The currently installed iPhone 17 Pro simulator artifact is version `1.0.7`,
-build `249`. It was built with explicit `MARKETING_VERSION=1.0.7` and
-`CURRENT_PROJECT_VERSION=249` overrides from the restored toolbar source
-(`1c52501`), then installed in place after the rejected `1.0.7/build 248`
-separate-toolbar-item layout was removed. The two identities
-are intentionally different and must be reported separately. See
-`Docs/PROJECT-STATE.md` and run `Tools/ProjectStateCheck.sh` before making
-source or runtime claims.
+`agent/alpha-3.7.4-source`; the release source is commit `6aa68ae`. The project’s
+default Xcode settings are version `1.0.7`, build `259`. See `Docs/PROJECT-STATE.md`
+and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
 Release source build: `1.0.7` (build `259`)
 
-Latest device validation build: `1.0.6` (build `214`). The first Streaming transition now precomputes the cached
-artist, album-artist, and album browse projections off the main actor while the app shell is active. Results are
-published only when the remote catalog revision and sort state still match, preserving cached browse ordering and
-stale-result safety. Build 214 was installed in place on SaiyanDenawa; the physical app was not launched by Codex.
+Latest device validation build: `1.0.7` (build `259`). It was signed with team `98CWMFS26R`, verified with deep strict
+code-signature checks, and installed in place on `SaiyanDenawa` without uninstalling or launching the app.
+
+## Resonance Beta v1.0.7 — 2026-07-30 UTC
+
+Beta v1.0.7 preserves the established Library and Streaming toolbar layout while keeping Browse Files and Download as
+direct button actions. Settings now centers Hero Buttons and Backend choices in custom popovers. The RGB hex color
+sliders continue to update channel values but no longer request text-field editing; the keyboard appears only when a
+user touches an actual red, green, or blue hex value.
+
+Automated validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, signed arm64
+Release compilation, deep strict code-signature verification, and in-place device installation. The physical app was
+not launched by Codex. Manual acceptance remains: launch the installed beta, verify the hex-field/slider keyboard
+behavior, centered Settings options, toolbar actions, navigation, and preserved app data.
 
 Authoritative continuation source: the `Resonance-Beta-v1.0.6` tag on `agent/alpha-3.7.4-source`,
 checked out at `/Users/brian/Resonance/Resonance-Alpha-3.7.4`. This preserves the current

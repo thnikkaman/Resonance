@@ -1,95 +1,50 @@
 # Resonance work queue
 
-This is the lightweight execution record for the current phase. It replaces an
-unstructured conversational TODO list without pretending that speculative work is
-already approved. Each item must name its owner, evidence, acceptance oracle, and
-rollback point before implementation begins.
+This is the lightweight execution record for the current phase. Each item names its owner, evidence, acceptance
+oracle, and rollback point. Generated logs, diagnostics, screenshots, and build outputs remain outside Git.
 
 ## Active baseline
 
-- Runtime baseline: installed simulator artifact `1.0.7/249`.
-- Source baseline: checkout `3cc3d35`, with toolbar code from `1c52501`.
-- Physical device: unchanged and not launched by Codex.
+- Runtime baseline: signed Beta v1.0.7/build 259 installed in place on `SaiyanDenawa`.
+- Source baseline: commit `6aa68ae` on `agent/alpha-3.7.4-source`.
+- Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
-## Queue
+## Completed release work
 
 ### R-TOOLBAR-ACTIONS — Preserve stacked Browse Files and Download actions
 
-- Status: pending user-run validation
-- Owner: `LibraryView.swift` and `StreamingLibraryView.swift` toolbar presentation
-- Goal: preserve the established stacked right-side toolbar layout and the existing
-  Browse Files/Download button actions while preserving centered navigation and leading controls
-- Preserved invariants: no hierarchy/navigation removal, no leading/trailing control
-  redesign, existing file importer state, existing download prompt/selection flow,
-  and existing toolbar styling
-- Smallest causal lever: restore the known-good nested trailing `VStack` and leave
-  the existing `ResonanceToolbarTextButton` action closures unchanged
-- Acceptance oracle: source retains principal `Streaming`/`Local` navigation labels;
-  trailing controls remain stacked with the existing offset; regression checks and
-  strict preflight pass
-- Manual acceptance: user launches the resulting simulator build and taps Browse Files,
-  Download, and both centered navigation controls without layout regression
-- Rollback: revert the focused toolbar and regression-check changes, preserving all
-  catalog, playback, theme, and navigation source
+- Status: implemented and included in Beta v1.0.7.
+- Owner: Library/Streaming toolbar presentation.
+- Preserved invariants: centered hierarchy navigation, leading controls, existing importer/download actions, and no hit regions.
+- Evidence: regression checks, strict preflight, signed Release build, and in-place device installation passed.
+- Manual oracle: user taps Browse Files, Download, and centered navigation on the installed beta.
+- Rollback: revert the toolbar portion of the prior source commit.
 
-### R-249 — Manual simulator acceptance
+### R-SETTINGS-HEX-KEYBOARD — Keep keyboard activation on the hex fields
 
-- Status: pending user-run validation
-- Owner: user/runtime acceptance
-- Scope: restored Library/Streaming toolbar arrangement after rejecting the 248
-  separate-toolbar-item layout
-- Oracle: centered hierarchy controls, leading options/playlist controls, Browse Files
-  importer, Download flow, and unchanged navigation behavior
-- Evidence required: user-captured screenshot and interaction result
-- Rollback: reinstall the previous simulator artifact without changing app data
+- Status: implemented and included in Beta v1.0.7.
+- Owner: `SettingsView.swift` RGB hex editor.
+- Causal lever: remove the slider’s `onBeginEditing` callback; retain the callback on `HexChannelTextField`.
+- Preserved invariants: slider value mapping, RGB editing, appearance layout, and keyboard behavior for actual fields.
+- Evidence: regression checks, strict preflight, signed Release build, code-signature verification, and device install passed.
+- Manual oracle: slider touches never summon the keyboard; actual hex-field touches do.
+- Rollback: revert the focused `HexChannelSlider` callback removal.
 
-### R-ARCH — Preserve ownership boundaries
+### R-BETA-1.0.7 — Publish the completed beta
 
-- Status: implemented in project and scoped module contracts
-- Owner: project maintenance
-- Scope: root `AGENTS.md`, `Resonance/Views/AGENTS.md`,
-  `Resonance/Services/AGENTS.md`, `Resonance/Models/AGENTS.md`,
-  `Docs/ARCHITECTURE.md`, `Docs/PROJECT-STATE.md`, and this queue
-- Oracle: every future change identifies one owning module, one causal lever, and an
-  explicit acceptance path; views own layout while services own durable behavior and
-  models own identity/compatibility
-- Validation: `Tools/RegressionChecks.sh` checks the contract files and ownership
-  assertions; state check reports actual source and artifact identities
+- Status: installed and pushed; user runtime acceptance pending.
+- Artifact: `com.example.ResonancePrototype`, version `1.0.7`, build `259`.
+- Source: commit `6aa68ae`, tag/release metadata to be recorded after GitHub publication.
+- Validation: `Tools/RegressionChecks.sh`, `Tools/PreflightBuild.sh`, signed Release build, deep signature verification, and `devicectl` install/info passed.
+- Rollback: reinstall the preceding signed build without uninstalling.
 
-### R-PERF — Profile before the next performance change
+## Ongoing safeguards
 
-- Status: blocked on a named reproduced workload, not a code defect
-- Owner: performance investigation
-- Scope: Release profiling only if the user reports a current responsiveness regression
-- Required evidence: equivalent workload manifest, at least five comparable runs,
-  profiler-confirmed hotspot, risk-adjusted opportunity score, and behavior oracle
-- Rule: no speculative concurrency, broad refactor, cache expansion, or timer change
-
-### R-DEVICE — Physical-device acceptance
-
-- Status: pending explicit user request
-- Owner: user/runtime acceptance
-- Scope: audible playback, explicit 5.1 routing, background downloads, thermal and
-  long-idle behavior
-- Rule: simulator evidence cannot close this item; Codex must not launch the physical app
-  automatically
-
-### R-250 — Install current toolbar test build
-
-- Status: installed; manual acceptance pending
-- Artifact: signed Release build `1.0.7/256` from commit `52c71e2`
-- Device result: SaiyanDenawa reports `com.example.ResonancePrototype` version `1.0.7/build 256`
-- Rule: do not launch the physical app automatically; user performs the Browse Files, Download,
-  navigation, and data-preservation checks
+- R-PERF: profile before any new performance change; require a named reproduced workload and before/after evidence.
+- R-DEVICE: physical playback, explicit 5.1 routing, background suspension, thermal, and long-idle acceptance require a user-launched device test.
 
 ## Definition of done
 
-An implementation item is complete only when:
-
-1. The source revision and artifact identity are recorded.
-2. The owning module and preserved invariants are documented.
-3. The narrowest relevant automated gates pass.
-4. The named runtime acceptance is either performed and recorded or explicitly left pending.
-5. README/handoff/state documentation are updated without inventing evidence.
-6. Generated logs, private data, credentials, and build outputs remain outside the commit.
+An implementation item is complete only when its source revision, artifact identity, owning module, preserved invariants,
+automated gates, and manual acceptance status are documented. Credentials, private data, and generated outputs stay outside commits.
