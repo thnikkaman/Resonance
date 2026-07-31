@@ -718,10 +718,10 @@ struct AlbumMetadataEditorSheet: View {
         _albumTitle = State(initialValue: album.title)
         _artist = State(initialValue: album.tracks.first?.artist ?? album.artist)
         _albumArtist = State(initialValue: album.tracks.first?.albumArtist ?? album.artist)
-        _discNumber = State(initialValue: {
-            guard let value = album.tracks.first?.discNumber, value > 0 else { return "" }
-            return String(value)
-        }())
+        // This is an album-wide override, not a reflection of the first
+        // track. Keep it blank so opening an album never turns an existing
+        // multi-disc layout into a disc-1 rewrite when another field is saved.
+        _discNumber = State(initialValue: "")
         _releaseYear = State(initialValue: album.releaseYear > 0 ? String(album.releaseYear) : "")
         _artworkData = State(initialValue: album.artworkData)
     }

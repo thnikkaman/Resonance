@@ -5,12 +5,22 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active baseline
 
-- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`.
-- Source baseline: `Resonance-Beta-v1.0.8` tagged publication commit on `agent/alpha-3.7.4-source`.
+- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`; Beta v1.0.9/build 261 is pending publication/install.
+- Source baseline: Beta v1.0.9/build 261 publication in progress on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
 ## Completed release work
+
+### R-BETA-1.0.9 — Safe multi-disc album metadata editing
+
+- Status: source corrected and release preparation in progress.
+- Scope: keep the album-wide Disc Number for Every Track override blank by default so unrelated metadata saves preserve
+  existing multi-disc assignments.
+- Validation: `Tools/RegressionChecks.sh`, `git diff --check`, and strict simulator compilation passed.
+- Manual oracle: open a multi-disc album, confirm the field is blank, save an unrelated title change, and verify disc 1
+  and disc 2 assignments remain intact; enter a value separately to verify intentional album-wide replacement.
+- Rollback: revert the default-value correction and release identity bump.
 
 ### R-BETA-1.0.8 — Metadata editing and artwork-search polish
 
@@ -64,7 +74,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-ALBUM-DISC-NUMBER — Edit album disc number in one operation
 
-- Status: implemented and simulator-compiled; physical runtime acceptance remains pending.
+- Status: implemented and simulator-compiled; the follow-up default-value correction is complete. Physical runtime acceptance remains pending.
 - Owner: `SmartLibraryViews.swift` album editor and `LibraryStore.swift` album metadata save boundary.
 - Goal: expose one editable Disc Number field and apply it to every track in the selected album.
 - Preserved invariants: track titles, track numbers, Artist, Album Artist, artwork behavior, targeted refresh, and
@@ -73,6 +83,9 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
   Cancel must leave all files unchanged.
 - Rollback: revert the album-save signature and editor field changes.
 - Evidence: `Tools/RegressionChecks.sh`, `git diff --check`, and the strict simulator build passed.
+- Follow-up correction: the field now always opens blank. It no longer copies the first track’s disc number, so saving an
+  unrelated album title change cannot rewrite a multi-disc album as disc 1. A blank value continues to preserve each
+  track’s existing disc number.
 
 ### R-MINI-PLAYER-TOP-POSITION — Align top-docked mini-player below module headers
 

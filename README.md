@@ -1,6 +1,6 @@
-# Resonance Beta v1.0.8 — Metadata Editing and Artwork Search Polish
+# Resonance Beta v1.0.9 — Multi-Disc Metadata Safety
 
-## Current beta — 1.0.8 (build 260)
+## Current beta — 1.0.9 (build 261)
 
 The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
@@ -13,14 +13,23 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v1.0.8` publication tag recorded below. The project’s
-default Xcode settings are version `1.0.8`, build `260`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v1.0.9` publication tag recorded below. The project’s
+default Xcode settings are version `1.0.9`, build `261`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Release source build: `1.0.8` (build `260`)
+Release source build: `1.0.9` (build `261`)
 
-Latest device validation build: `1.0.8` (build `260`). It was signed with team `98CWMFS26R`, verified with deep strict
+Latest device validation build: `1.0.9` (build `261`). It was signed with team `98CWMFS26R`, verified with deep strict
 code-signature checks, and installed in place on `SaiyanDenawa` without uninstalling or launching the app.
+
+## Resonance Beta v1.0.9 — 2026-07-31 UTC
+
+The album-wide Disc Number for Every Track field now opens blank on every album. It no longer copies the first track’s
+disc number, so saving an unrelated album title or metadata change cannot rewrite a multi-disc album as disc 1. Leaving
+the field blank preserves each track’s existing disc number; entering a value intentionally applies it to every track.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and strict simulator compilation. The signed physical
+Release build and GitHub publication are recorded below.
 
 ## Resonance Beta v1.0.8 — 2026-07-31 UTC
 

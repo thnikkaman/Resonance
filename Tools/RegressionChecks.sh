@@ -50,10 +50,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 260;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 261;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 1.0.8;') == 2
+assert pbx.count('MARKETING_VERSION = 1.0.9;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -627,6 +627,8 @@ assert 'browseReady' in streaming
 assert 'value.translation.height > 70' in streaming
 assert 'private struct MetadataTextField' in smart
 assert 'Enter track title' in smart
+assert '_discNumber = State(initialValue: "")' in smart
+assert 'discNumber: discNumber.map { max(1, $0) } ?? track.discNumber' in library_store
 assert 'ScrollableArtistName' in library_view
 assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming

@@ -7,23 +7,26 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: `Resonance-Beta-v1.0.8` tagged publication commit.
-- GitHub tag/release: `Resonance-Beta-v1.0.8` prerelease publication.
+- Release commit: pending Beta v1.0.9 publication.
+- GitHub tag/release: pending Beta v1.0.9 prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
-- Project defaults: version `1.0.8`, build `260`, Swift language mode `5.0`.
+- Project defaults: version `1.0.9`, build `261`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
 ## Current beta artifact
 
-- Product: Resonance Beta v1.0.8/build 260.
+- Product: Resonance Beta v1.0.9/build 261.
 - Bundle: `com.example.ResonancePrototype`.
 - Signed arm64 Release build passed with development team `98CWMFS26R`.
 - Deep strict code-signature verification passed.
 - In-place installation on `SaiyanDenawa` passed; existing app data was preserved.
-- `devicectl` verified version `1.0.8`, build `260`.
+- `devicectl` verified version `1.0.9`, build `261`.
 - Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
 
 ## Implemented change
+
+Beta v1.0.9 makes the album-wide disc-number override blank by default. A blank Save preserves every track’s current
+disc number, including multi-disc albums; an entered value remains an intentional album-wide update.
 
 Beta v1.0.8 stages metadata-editor artwork selections until Save, exposes both Artist and Album Artist in track,
 album, and artist metadata forms, places read-only album/artist information below artwork pickers, and adds keyboard
@@ -32,10 +35,15 @@ dismissal to the online artwork search. Automatic artwork recommendations during
 ## Validation
 
 - `git diff --check` passed.
-- `Tools/RegressionChecks.sh` passed for project default `1.0.8/260`.
+- `Tools/RegressionChecks.sh` passed for project default `1.0.9/261`.
 - `Tools/PreflightBuild.sh` passed simulator and generic-device strict compilation.
 - Signed Release build, code-signature verification, in-place install, and device bundle inspection passed.
 - Known non-blocking warning: AppIntents metadata extraction is skipped because the target has no AppIntents framework dependency.
+
+## Beta v1.0.9 release scope
+
+- Album disc-number editing opens blank and preserves existing per-track disc numbers when left blank.
+- Entering a disc number applies it intentionally to every track in the album.
 
 ## Beta v1.0.8 release scope
 
@@ -47,6 +55,11 @@ dismissal to the online artwork search. Automatic artwork recommendations during
 - Final signed Release build and in-place install verified `1.0.8`/`260` on `SaiyanDenawa`; the app was not launched.
 
 ## Manual continuation
+
+The album-wide disc-number editor follow-up now initializes its override field blank on every open. Leaving it blank
+preserves each track’s existing disc number, including multi-disc albums; entering a value applies that value to every
+track. The source-contract regression check and strict simulator build passed after this correction. The physical phone
+has not been updated with this follow-up and the app was not launched.
 
 On `SaiyanDenawa`, launch Beta v1.0.8 manually and verify:
 
