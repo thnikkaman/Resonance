@@ -1,8 +1,8 @@
-# Resonance Beta v1.0.6 — Playback, Streaming, and Interface Polish
+# Resonance Beta v1.0.7 — Settings Interaction and Toolbar Polish
 
-## Current stable beta — 1.0.6 (build 210)
+## Current beta — 1.0.7 (build 259)
 
-The current stable beta is the verified current source snapshot. It includes the layered navigation and animations,
+The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
 file refreshes, album-detail clearance above the mini-player, unified mini-player docking, and standard FLAC front-cover
 artwork parsing.
@@ -15,7 +15,7 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
 `agent/alpha-3.7.4-source`; the verified implementation baseline is source commit
 `3cc3d35`. Documentation-only commits may sit on top of that baseline. The project’s
-default Xcode settings remain version `1.0.6`, build `210`.
+default Xcode settings are version `1.0.7`, build `259`.
 
 The currently installed iPhone 17 Pro simulator artifact is version `1.0.7`,
 build `249`. It was built with explicit `MARKETING_VERSION=1.0.7` and
@@ -26,7 +26,7 @@ are intentionally different and must be reported separately. See
 `Docs/PROJECT-STATE.md` and run `Tools/ProjectStateCheck.sh` before making
 source or runtime claims.
 
-Release source build: `1.0.6` (build `210`)
+Release source build: `1.0.7` (build `259`)
 
 Latest device validation build: `1.0.6` (build `214`). The first Streaming transition now precomputes the cached
 artist, album-artist, and album browse projections off the main actor while the app shell is active. Results are

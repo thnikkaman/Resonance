@@ -50,10 +50,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 210;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 259;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 1.0.6;') == 2
+assert pbx.count('MARKETING_VERSION = 1.0.7;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -204,7 +204,9 @@ assert '.frame(width: width, height: 16, alignment: .topLeading)' in settings_vi
 assert '.frame(width: width, height: 28, alignment: .leading)' in settings_view
 assert 'nextValue = Int((x / usableWidth * 255).rounded())' in settings_view
 assert '@State private var focusedChannel: Channel?' in settings_view
-assert 'focusedChannel = selected' in settings_view
+assert 'focusedChannel = channel' in settings_view
+assert 'private struct HexChannelSlider: View' in settings_view
+assert 'let onBeginEditing: () -> Void' not in settings_view.split('private struct HexChannelSlider: View', 1)[1].split('private struct HexChannelTextField: UIViewRepresentable', 1)[0]
 assert '@Binding var isFocused: Bool' in settings_view
 assert 'uiView.becomeFirstResponder()' in settings_view
 assert 'onBeginEditing: { isTextFieldFocused = false }' in settings_view
@@ -620,6 +622,8 @@ assert 'ScrollableArtistName' in library_view
 assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming
 assert 'ServerQRCodeScannerView' in settings_view
+assert 'CenteredSettingsPicker' in settings_view
+assert '.presentationCompactAdaptation(.popover)' in settings_view
 assert 'qrcode.viewfinder' in settings_view
 assert 'MetadataTagWriter' in metadata
 assert 'Reported Errors' in settings_view

@@ -55,12 +55,11 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Picker("Hero buttons", selection: $settings.heroButtonStyle) {
-                    ForEach(ResonanceHeroButtonStyle.allCases) { style in
-                        Text(style.title).tag(style)
-                    }
-                }
-                .pickerStyle(.menu)
+                CenteredSettingsPicker(
+                    "Hero buttons",
+                    selection: $settings.heroButtonStyle,
+                    options: ResonanceHeroButtonStyle.allCases.map { ($0.title, $0) }
+                )
 
                 Text(settings.heroButtonStyle.description)
                     .font(.caption)
@@ -202,11 +201,11 @@ struct SettingsView: View {
                 key: "streaming",
                 isExpanded: $settings.settingsStreamingExpanded
             ) {
-                Picker("Backend", selection: $settings.streamBackend) {
-                    ForEach(RemoteLibraryBackend.allCases) { backend in
-                        Text(backend.rawValue).tag(backend)
-                    }
-                }
+                CenteredSettingsPicker(
+                    "Backend",
+                    selection: $settings.streamBackend,
+                    options: RemoteLibraryBackend.allCases.map { ($0.rawValue, $0) }
+                )
                 .onChange(of: settings.streamBackend) { _, backend in
                     settings.applyStreamingDefaults(for: backend)
                 }
@@ -918,6 +917,90 @@ private final class DebouncedSettingCommitter: ObservableObject {
     }
 }
 
+private struct CenteredSettingsPicker<Value: Hashable>: View {
+    @EnvironmentObject private var settings: AppSettings
+    let title: String
+    @Binding var selection: Value
+    let options: [(String, Value)]
+    @State private var isPresented = false
+
+    init(
+        _ title: String,
+        selection: Binding<Value>,
+        options: [(String, Value)]
+    ) {
+        self.title = title
+        self._selection = selection
+        self.options = options
+    }
+
+    private var selectedTitle: String {
+        options.first(where: { $0.1 == selection })?.0 ?? "Choose"
+    }
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            HStack(spacing: 8) {
+                Text(title)
+                Spacer(minLength: 12)
+                Text(selectedTitle)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isPresented) {
+            VStack(spacing: 10) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(settings.textAccentColor)
+
+                ForEach(options.indices, id: \.self) { index in
+                    let option = options[index]
+                    Button {
+                        selection = option.1
+                        isPresented = false
+                    } label: {
+                        HStack {
+                            Spacer(minLength: 0)
+                            Text(option.0)
+                                .font(.body.weight(.medium))
+                                .multilineTextAlignment(.center)
+                            Spacer(minLength: 0)
+                            if option.1 == selection {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.weight(.bold))
+                            } else {
+                                Color.clear
+                                    .frame(width: 13, height: 1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(settings.textAccentColor)
+                        .frame(maxWidth: .infinity, minHeight: 42)
+                        .background {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(
+                                    option.1 == selection
+                                        ? settings.accentColor.opacity(0.16)
+                                        : Color.clear
+                                )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(16)
+            .frame(minWidth: 260)
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
 private struct SettingsCategory<Content: View>: View {
     @EnvironmentObject private var settings: AppSettings
     let title: String
@@ -1083,11 +1166,7 @@ private struct RGBHexField: View {
                         set: { setSelectedInteger($0) }
                     ),
                     color: selectedColor,
-                    accessibilityLabel: selectedLabel + " channel",
-                    onBeginEditing: {
-                        onBeginEditing()
-                        focusedChannel = selected
-                    }
+                    accessibilityLabel: selectedLabel + " channel"
                 )
                 .frame(width: controlWidth, height: 55)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -1186,7 +1265,6 @@ private struct HexChannelSlider: View {
     @Binding var value: Int
     let color: Color
     let accessibilityLabel: String
-    let onBeginEditing: () -> Void
 
     private let thumbDiameter: CGFloat = 24
     private let trackHeight: CGFloat = 4
@@ -1252,7 +1330,6 @@ private struct HexChannelSlider: View {
             .highPriorityGesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { gesture in
-                        onBeginEditing()
                         let x = min(max(0, gesture.location.x - thumbRadius), usableWidth)
                         let nextValue = Int((x / usableWidth * 255).rounded())
                         if nextValue != value {
