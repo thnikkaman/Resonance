@@ -261,12 +261,6 @@ struct StreamingLibraryView: View {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
                     ResonanceToolbarIconButton(
-                        accessibilityLabel: "Open local library",
-                        systemImage: "arrow.left.circle",
-                        action: openLibrary
-                    )
-
-                    ResonanceToolbarIconButton(
                         accessibilityLabel: "Streaming library options",
                         systemImage: "slider.horizontal.3"
                     ) {
@@ -286,28 +280,44 @@ struct StreamingLibraryView: View {
             }
             .resonanceHideSharedBackground()
 
+            ToolbarItem(placement: .principal) {
+                Button(action: openLibrary) {
+                    ResonanceHierarchyNavigationLabel(
+                        title: "Local",
+                        systemImage: "arrow.left"
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Open local library")
+                .accessibilityLabel("Local, move left")
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 4) {
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Download",
+                VStack(alignment: .trailing, spacing: 10) {
+                    HStack(spacing: 4) {
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Refresh streaming library",
+                            systemImage: "arrow.clockwise"
+                        ) {
+                            Task { await remote.refresh(using: settings) }
+                        }
+                        .disabled(remote.isLoading || settings.streamHost.isEmpty)
+
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Open Settings",
+                            systemImage: "gearshape",
+                            action: openSettings
+                        )
+                    }
+
+                    ResonanceToolbarTextButton(
+                        title: "Download",
                         systemImage: "arrow.down.circle",
                         action: handleDownloadTap
                     )
-
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Refresh streaming library",
-                        systemImage: "arrow.clockwise"
-                    ) {
-                        Task { await remote.refresh(using: settings) }
-                    }
-                    .disabled(remote.isLoading || settings.streamHost.isEmpty)
-
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Open Settings",
-                        systemImage: "gearshape",
-                        action: openSettings
-                    )
                 }
+                .padding(.top, 6)
+                .offset(y: 18)
             }
             .resonanceHideSharedBackground()
         }

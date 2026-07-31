@@ -71,12 +71,6 @@ struct LibraryView: View {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
                     ResonanceToolbarIconButton(
-                        accessibilityLabel: "Open Streaming library",
-                        systemImage: "arrow.right.circle",
-                        action: openStreaming
-                    )
-
-                    ResonanceToolbarIconButton(
                         accessibilityLabel: library.grouping == .albums
                             ? "Album view settings"
                             : library.grouping == .artists || library.grouping == .albumArtists
@@ -100,30 +94,44 @@ struct LibraryView: View {
             }
             .resonanceHideSharedBackground()
 
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Scan Resonance Music folder",
-                    systemImage: "arrow.clockwise"
-                ) {
-                    Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
+            ToolbarItem(placement: .principal) {
+                Button(action: openStreaming) {
+                    ResonanceHierarchyNavigationLabel(
+                        title: "Streaming",
+                        systemImage: "arrow.right"
+                    )
                 }
-                .disabled(library.isScanning)
-
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Open Settings",
-                    systemImage: "gearshape",
-                    action: openSettings
-                )
+                .buttonStyle(.plain)
+                .help("Open Streaming library")
+                .accessibilityLabel("Streaming, move right")
             }
-            .resonanceHideSharedBackground()
 
             ToolbarItem(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Browse Files",
-                    systemImage: "folder.badge.plus"
-                ) {
-                    importing = true
+                VStack(alignment: .trailing, spacing: 10) {
+                    HStack(spacing: 4) {
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Scan Resonance Music folder",
+                            systemImage: "arrow.clockwise"
+                        ) {
+                            Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
+                        }
+                        .disabled(library.isScanning)
+
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Open Settings",
+                            systemImage: "gearshape",
+                            action: openSettings
+                        )
+                    }
+
+                    ResonanceToolbarTextButton(
+                        title: "Browse Files",
+                        systemImage: "folder.badge.plus",
+                        action: { importing = true }
+                    )
                 }
+                .padding(.top, 6)
+                .offset(y: 18)
             }
             .resonanceHideSharedBackground()
         }
