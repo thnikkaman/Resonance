@@ -261,6 +261,12 @@ struct StreamingLibraryView: View {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
                     ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open local library",
+                        systemImage: "arrow.left.circle",
+                        action: openLibrary
+                    )
+
+                    ResonanceToolbarIconButton(
                         accessibilityLabel: "Streaming library options",
                         systemImage: "slider.horizontal.3"
                     ) {
@@ -279,18 +285,6 @@ struct StreamingLibraryView: View {
                 }
             }
             .resonanceHideSharedBackground()
-
-            ToolbarItem(placement: .principal) {
-                Button(action: openLibrary) {
-                    ResonanceHierarchyNavigationLabel(
-                        title: "Local",
-                        systemImage: "arrow.left"
-                    )
-                }
-                .buttonStyle(.plain)
-                .help("Open local library")
-                .accessibilityLabel("Local, move left")
-            }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
                 ResonanceToolbarIconButton(

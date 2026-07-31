@@ -71,6 +71,12 @@ struct LibraryView: View {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
                     ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Streaming library",
+                        systemImage: "arrow.right.circle",
+                        action: openStreaming
+                    )
+
+                    ResonanceToolbarIconButton(
                         accessibilityLabel: library.grouping == .albums
                             ? "Album view settings"
                             : library.grouping == .artists || library.grouping == .albumArtists
@@ -93,18 +99,6 @@ struct LibraryView: View {
                 .frame(width: 112, alignment: .leading)
             }
             .resonanceHideSharedBackground()
-
-            ToolbarItem(placement: .principal) {
-                Button(action: openStreaming) {
-                    ResonanceHierarchyNavigationLabel(
-                        title: "Streaming",
-                        systemImage: "arrow.right"
-                    )
-                }
-                .buttonStyle(.plain)
-                .help("Open Streaming library")
-                .accessibilityLabel("Streaming, move right")
-            }
 
             ToolbarItemGroup(placement: .topBarTrailing) {
                 ResonanceToolbarIconButton(
