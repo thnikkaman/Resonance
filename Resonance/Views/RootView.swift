@@ -425,8 +425,8 @@ private struct ResonanceLayeredNavigationView: View {
            navigation.layer != .settings {
           ResonanceLayeredMiniPlayerOverlay(navigation: navigation)
             // Keep the top-docked player at one consistent position below
-            // each module's navigation title and above its content.
-            .padding(.top, 176)
+            // each module's navigation/header controls and above its content.
+            .padding(.top, 150)
         }
       }
       .overlay(alignment: .bottom) {
@@ -1145,7 +1145,7 @@ struct ResonanceTabBar: View {
         HStack(spacing: 0) {
             tabButton(.playing, title: "Playing", systemImage: "music.note")
             tabButton(.library, title: "Library", systemImage: "square.stack")
-            tabButton(.streaming, title: "Streaming", systemImage: "network")
+            tabButton(.streaming, title: "Streaming Library", systemImage: "network")
             tabButton(.settings, title: "Settings", systemImage: "gearshape")
         }
         .padding(.horizontal, 8)
@@ -1520,6 +1520,54 @@ private struct ResonanceHeroSurface: ViewModifier {
             .padding(.horizontal, 10)
             .padding(.top, 4)
             .padding(.bottom, 4)
+    }
+}
+
+struct ResonanceDetailHeroHeader<Content: View>: View {
+    @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
+    @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
+    @EnvironmentObject private var player: PlayerController
+    let title: String
+    let showsMetadataOverride: Bool
+    let reservesTopMiniPlayerClearance: Bool
+    let content: Content
+
+    private var topMiniPlayerClearance: CGFloat {
+        (layeredNavigation || reservesTopMiniPlayerClearance)
+            && miniPlayerNavigation.dock == .top
+            && player.currentTrack != nil ? 48 : 0
+    }
+
+    init(
+        title: String,
+        showsMetadataOverride: Bool = false,
+        reservesTopMiniPlayerClearance: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.showsMetadataOverride = showsMetadataOverride
+        self.reservesTopMiniPlayerClearance = reservesTopMiniPlayerClearance
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 5) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                if showsMetadataOverride {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.caption)
+                }
+            }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
+            content
+                .padding(.top, topMiniPlayerClearance)
+        }
     }
 }
 
@@ -2013,7 +2061,7 @@ private struct MiniPlayerInsets: ViewModifier {
                         onDock: onDock
                     )
                     .padding(.horizontal, 8)
-                    .padding(.top, 90)
+                    .padding(.top, 95)
                     .padding(.bottom, 6)
                 }
             }

@@ -42,59 +42,57 @@ struct AlbumDetailView: View {
     private var displayedTracks: [Track] { liveAlbum.tracks }
 
     private var albumHero: some View {
-        VStack(spacing: 4) {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(spacing: 6) {
-                    ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
-                        if let first = liveAlbum.tracks.first {
-                            player.play(first, in: liveAlbum.tracks)
+        ResonanceDetailHeroHeader(title: liveAlbum.title) {
+            VStack(spacing: 4) {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(spacing: 6) {
+                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
+                            if let first = liveAlbum.tracks.first {
+                                player.play(first, in: liveAlbum.tracks)
+                            }
+                        }
+                        ResonanceHeroActionButton(
+                            title: library.isAlbumFavorite(liveAlbum) ? "Unfavorite" : "Favorite",
+                            systemImage: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart",
+                            tint: settings.accentColor,
+                            prominent: false
+                        ) {
+                            library.toggleFavorite(liveAlbum)
                         }
                     }
-                    ResonanceHeroActionButton(
-                        title: library.isAlbumFavorite(liveAlbum) ? "Unfavorite" : "Favorite",
-                        systemImage: library.isAlbumFavorite(liveAlbum) ? "heart.fill" : "heart",
-                        tint: settings.accentColor,
-                        prominent: false
-                    ) {
-                        library.toggleFavorite(liveAlbum)
+
+                    ArtworkView(
+                        data: liveAlbum.artworkData,
+                        embedded: liveAlbum.artworkIsEmbedded,
+                        size: 176
+                    )
+
+                    VStack(spacing: 6) {
+                        ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
+                            player.playNext(liveAlbum.tracks)
+                        }
+                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                            player.addToQueue(liveAlbum.tracks)
+                        }
                     }
                 }
-
-                ArtworkView(
-                    data: liveAlbum.artworkData,
-                    embedded: liveAlbum.artworkIsEmbedded,
-                    size: 176
-                )
-
-                VStack(spacing: 6) {
-                    ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
-                        player.playNext(liveAlbum.tracks)
-                    }
-                    ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
-                        player.addToQueue(liveAlbum.tracks)
-                    }
+                Text(liveAlbum.artist)
+                    .font(.caption)
+                    .foregroundStyle(settings.themeSecondaryColor)
+            }
+            .resonanceHeroSurface()
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button { showingMetadataEditor = true } label: {
+                    Label("Edit Album Metadata", systemImage: "pencil")
+                }
+                Divider()
+                Button { showingRemovalOptions = true } label: {
+                    Label("Remove or Delete Album", systemImage: "trash")
                 }
             }
-
-            Text(liveAlbum.title)
-                .font(.title3.bold())
-                .lineLimit(1)
-            Text(liveAlbum.artist)
-                .font(.caption)
-                .foregroundStyle(settings.themeSecondaryColor)
+            .resonanceTabSwipeObserver()
         }
-        .resonanceHeroSurface()
-        .contentShape(Rectangle())
-        .contextMenu {
-            Button { showingMetadataEditor = true } label: {
-                Label("Edit Album Metadata", systemImage: "pencil")
-            }
-            Divider()
-            Button { showingRemovalOptions = true } label: {
-                Label("Remove or Delete Album", systemImage: "trash")
-            }
-        }
-        .resonanceTabSwipeObserver()
     }
 
     @ViewBuilder
@@ -169,6 +167,12 @@ struct AlbumDetailView: View {
                 Button {
                     guard layeredNavigation else {
                         dismiss()
+                        return
+                    }
+                    if layeredNavigationState.localArtist != nil {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showArtist()
+                        }
                         return
                     }
                     guard let artist = library.artists.first(where: { candidate in
@@ -317,41 +321,41 @@ struct AllAlbumsTrackListView: View {
     let tracks: [Track]
 
     var body: some View {
-        List {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
                 if let first = tracks.first {
-                    Section {
-                        ResonanceHeroActionButton(
-                            title: "Play All Albums",
-                            systemImage: "play.fill",
-                            tint: settings.accentColor,
-                            prominent: true
-                        ) {
-                            player.play(first, in: tracks)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
+                    ResonanceHeroActionButton(
+                        title: "Play All Albums",
+                        systemImage: "play.fill",
+                        tint: settings.accentColor,
+                        prominent: true
+                    ) {
+                        player.play(first, in: tracks)
                     }
-                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity)
+                    .offset(y: 29)
+                    .padding(.bottom, 29)
                 }
 
                 ForEach(Array(Dictionary(grouping: tracks, by: \.album).keys.sorted()), id: \.self) { albumName in
-                    Section(albumName) {
-                        ForEach(tracks.filter { $0.album == albumName }) { track in
-                            Button { player.play(track, in: tracks) } label: {
-                                TrackListRow(track: track, leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–", showsArtwork: true, large: false, showsAlbum: false)
-                            }
-                            .buttonStyle(.plain)
-                            .trackLibraryActions(track)
-                            .listRowBackground(Color.clear)
+                    Text(albumName)
+                        .font(.headline)
+                        .foregroundStyle(settings.textAccentColor)
+                        .padding(.horizontal)
+                        .padding(.top, 12)
+                        .padding(.bottom, 6)
+
+                    ForEach(tracks.filter { $0.album == albumName }) { track in
+                        Button { player.play(track, in: tracks) } label: {
+                            TrackListRow(track: track, leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–", showsArtwork: true, large: false, showsAlbum: false, showsArtist: false)
                         }
-                        .listRowBackground(Color.clear)
+                        .buttonStyle(.plain)
+                        .trackLibraryActions(track)
+                        .padding(.horizontal)
                     }
-                    .listRowBackground(Color.clear)
                 }
+            }
         }
-        .listStyle(.plain)
-        .listRowBackground(Color.clear)
-        .scrollContentBackground(.hidden)
         .background { ResonanceThemeBackdrop() }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
@@ -419,11 +423,14 @@ struct AllAlbumsTrackListView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 Text(artistName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 5)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(settings.textAccentColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .top)
             .background { ResonanceThemeSurfaceBackdrop() }
             .contentShape(Rectangle())
         }
@@ -439,6 +446,7 @@ struct TrackListRow: View {
     var showsArtwork: Bool
     var large: Bool
     var showsAlbum: Bool
+    var showsArtist: Bool = true
 
     var body: some View {
         HStack(spacing: large ? 12 : 8) {
@@ -481,7 +489,7 @@ struct TrackListRow: View {
                         .font(large ? .subheadline : .caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                } else {
+                } else if showsArtist {
                     Text(track.artist)
                         .font(.caption)
                         .foregroundStyle(.secondary)

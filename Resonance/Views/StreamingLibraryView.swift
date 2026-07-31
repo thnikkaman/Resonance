@@ -1468,34 +1468,36 @@ struct RemoteArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 4) {
-                HStack(alignment: .center, spacing: 16) {
-                    VStack(spacing: 6) {
-                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
-                            Task { await remote.playArtist(artist, using: player) }
+            ResonanceDetailHeroHeader(
+                title: artist.name,
+                reservesTopMiniPlayerClearance: true
+            ) {
+                VStack(spacing: 4) {
+                    HStack(alignment: .center, spacing: 16) {
+                        VStack(spacing: 6) {
+                            ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
+                                Task { await remote.playArtist(artist, using: player) }
+                            }
+                            ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
+                                Task { await remote.playArtist(artist, using: player, shuffle: true) }
+                            }
                         }
-                        ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
-                            Task { await remote.playArtist(artist, using: player, shuffle: true) }
-                        }
-                    }
 
-                    RemoteArtwork(
-                        context: RemoteArtworkContext(artist),
-                        size: 158,
-                    )
+                        RemoteArtwork(
+                            context: RemoteArtworkContext(artist),
+                            size: 158,
+                        )
 
-                    VStack(spacing: 6) {
-                        RemoteDownloadHeroMenu(scope: "Artist", tracks: allTracks)
-                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
-                            Task { await remote.addToQueue(allTracks, using: player) }
+                        VStack(spacing: 6) {
+                            RemoteDownloadHeroMenu(scope: "Artist", tracks: allTracks)
+                            ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                                Task { await remote.addToQueue(allTracks, using: player) }
+                            }
                         }
                     }
                 }
-                Text(artist.name)
-                    .font(.title3.bold())
-                    .lineLimit(1)
+                .resonanceHeroSurface()
             }
-            .resonanceHeroSurface()
 
             VStack(spacing: 2) {
                 Picker("Album sort", selection: $settings.artistAlbumSort) {
@@ -1626,8 +1628,7 @@ struct RemoteArtistDetailView: View {
         .background {
             ResonanceThemeBackdrop()
         }
-        .navigationTitle(artist.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -1811,6 +1812,9 @@ struct RemoteAllAlbumsTrackListView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .offset(y: 29)
+                .listRowSeparatorTint(.clear, edges: .top)
+                .listRowSeparatorTint(.clear, edges: .bottom)
                 .listRowBackground(Color.clear)
             }
             .listRowBackground(Color.clear)
@@ -1820,7 +1824,7 @@ struct RemoteAllAlbumsTrackListView: View {
                     Button {
                         Task { await remote.play(track, in: tracks, using: player) }
                     } label: {
-                        RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id)
+                        RemoteTrackRow(track: track, isPlaying: player.currentTrack?.id == track.id, showsArtist: false)
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
@@ -1856,7 +1860,7 @@ struct RemoteAllAlbumsTrackListView: View {
         .listRowBackground(Color.clear)
         .scrollContentBackground(.hidden)
         .background { ResonanceThemeBackdrop() }
-        .navigationTitle("\(artistName) — All Albums")
+        .navigationTitle("All Albums")
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)
         }
@@ -1924,9 +1928,18 @@ struct RemoteAllAlbumsTrackListView: View {
                 .presentationDetents([.medium, .large])
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            Color.clear
-                .frame(height: 52)
-                .contentShape(Rectangle())
+            VStack(spacing: 0) {
+                Text(artistName)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(settings.textAccentColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .top)
+            .background { ResonanceThemeSurfaceBackdrop() }
+            .contentShape(Rectangle())
         }
         .overlay(alignment: .top) {
             RemoteDownloadOverlay()
@@ -1955,42 +1968,44 @@ struct RemoteAlbumDetailView: View {
     let album: RemoteAlbum
 
     private var albumHero: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(spacing: 10) {
-                    ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
-                        Task { await remote.playAlbum(album, using: player) }
+        ResonanceDetailHeroHeader(
+            title: album.title,
+            reservesTopMiniPlayerClearance: true
+        ) {
+            VStack(spacing: 8) {
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(spacing: 10) {
+                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
+                            Task { await remote.playAlbum(album, using: player) }
+                        }
+                        RemoteDownloadHeroMenu(scope: "Album", tracks: album.tracks)
                     }
-                    RemoteDownloadHeroMenu(scope: "Album", tracks: album.tracks)
+
+                    RemoteArtwork(
+                        context: RemoteArtworkContext(album),
+                        size: 176,
+                        overrideData: artworkData ?? resolvedArtworkData,
+                        showWarningBorder: artworkData != nil || isAutomaticallySelectedArtwork
+                    )
+
+                    VStack(spacing: 10) {
+                        ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
+                            Task { await remote.playNext(album.tracks, using: player) }
+                        }
+                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                            Task { await remote.addToQueue(album.tracks, using: player) }
+                        }
+                    }
                 }
 
-                RemoteArtwork(
-                    context: RemoteArtworkContext(album),
-                    size: 176,
-                    overrideData: artworkData ?? resolvedArtworkData,
-                    showWarningBorder: artworkData != nil || isAutomaticallySelectedArtwork
-                )
-
-                VStack(spacing: 10) {
-                    ResonanceHeroActionButton(title: "Play Next", systemImage: "text.insert", tint: settings.accentColor, prominent: false) {
-                        Task { await remote.playNext(album.tracks, using: player) }
-                    }
-                    ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
-                        Task { await remote.addToQueue(album.tracks, using: player) }
-                    }
-                }
+                Text(album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist)
+                    .font(.caption)
+                    .foregroundStyle(settings.themeSecondaryColor)
+                    .lineLimit(1)
             }
-
-            Text(album.title)
-                .font(.title3.bold())
-                .lineLimit(1)
-            Text(album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist)
-                .font(.caption)
-                .foregroundStyle(settings.themeSecondaryColor)
-                .lineLimit(1)
+            .resonanceHeroSurface()
+            .resonanceTabSwipeObserver()
         }
-        .resonanceHeroSurface()
-        .resonanceTabSwipeObserver()
     }
 
     @ViewBuilder
@@ -2051,8 +2066,7 @@ struct RemoteAlbumDetailView: View {
             .resonanceDetailBottomSpace()
         }
         .background { ResonanceThemeBackdrop() }
-        .navigationTitle(album.title)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -2111,6 +2125,12 @@ struct RemoteAlbumDetailView: View {
                 Button {
                     guard layeredNavigation else {
                         dismiss()
+                        return
+                    }
+                    if layeredNavigationState.remoteArtist != nil {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            layeredNavigationState.showArtist()
+                        }
                         return
                     }
                     guard let artist = remote.artists.first(where: { candidate in
@@ -2585,6 +2605,7 @@ private struct RemoteCollectionRow: View {
 private struct RemoteTrackRow: View {
     let track: RemoteTrackItem
     let isPlaying: Bool
+    var showsArtist: Bool = true
 
     var body: some View {
         HStack(spacing: 10) {
@@ -2604,10 +2625,12 @@ private struct RemoteTrackRow: View {
             )
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).lineLimit(1)
-                Text("\(track.artist) • \(track.album)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if showsArtist {
+                    Text("\(track.artist) • \(track.album)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             if track.isFavorite {
                 Image(systemName: "heart.fill")

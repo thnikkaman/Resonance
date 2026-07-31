@@ -61,6 +61,19 @@ struct LibraryView: View {
                     }
                 }
             }
+            .overlay(alignment: .topLeading) {
+                if library.grouping == .artists || library.grouping == .albumArtists {
+                    Text(
+                        library.grouping == .artists
+                            ? "Local Library"
+                            : "Album Artists"
+                    )
+                    .font(.title3.weight(.bold))
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .allowsHitTesting(false)
+                }
+            }
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
         .toolbarTitleDisplayMode(.inline)
@@ -949,59 +962,57 @@ struct ArtistDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 4) {
-                HStack(alignment: .center, spacing: 16) {
-                    VStack(spacing: 6) {
-                        ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
-                            if let first = allTracks.first { player.play(first, in: allTracks) }
+            ResonanceDetailHeroHeader(
+                title: liveArtist.name,
+                showsMetadataOverride: liveArtist.hasMetadataOverride,
+                reservesTopMiniPlayerClearance: true
+            ) {
+                VStack(spacing: 4) {
+                    HStack(alignment: .center, spacing: 16) {
+                        VStack(spacing: 6) {
+                            ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
+                                if let first = allTracks.first { player.play(first, in: allTracks) }
+                            }
+                            ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
+                                player.shuffleAndPlay(allTracks)
+                            }
                         }
-                        ResonanceHeroActionButton(title: "Shuffle", systemImage: "shuffle", tint: settings.accentColor, prominent: false) {
-                            player.shuffleAndPlay(allTracks)
+
+                        ArtworkView(
+                            data: liveArtist.artworkData,
+                            embedded: liveArtist.artworkIsEmbedded,
+                            size: 158,
+                            showWarningBorder: false
+                        )
+
+                        VStack(spacing: 6) {
+                            ResonanceHeroActionButton(title: "Edit", systemImage: "pencil", tint: settings.accentColor, prominent: false) {
+                                artistToEdit = liveArtist
+                            }
+                            ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
+                                player.addToQueue(allTracks)
+                            }
                         }
                     }
-
-                    ArtworkView(
-                        data: liveArtist.artworkData,
-                        embedded: liveArtist.artworkIsEmbedded,
-                        size: 158,
-                        showWarningBorder: false
-                    )
-
-                    VStack(spacing: 6) {
-                        ResonanceHeroActionButton(title: "Edit", systemImage: "pencil", tint: settings.accentColor, prominent: false) {
-                            artistToEdit = liveArtist
-                        }
-                        ResonanceHeroActionButton(title: "Add to Queue", systemImage: "text.append", tint: settings.accentColor, prominent: false) {
-                            player.addToQueue(allTracks)
-                        }
+                    .disabled(allTracks.isEmpty)
+                }
+                .contentShape(Rectangle())
+                .resonanceHeroSurface()
+                .contextMenu {
+                    Button { artistToEdit = liveArtist } label: {
+                        Label("Edit Artist Metadata", systemImage: "pencil")
                     }
-                }
-                .disabled(allTracks.isEmpty)
-
-                HStack(spacing: 5) {
-                    ScrollableArtistName(liveArtist.name, font: .title3.bold())
-                    if liveArtist.hasMetadataOverride {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.caption)
+                    Divider()
+                    Button {
+                        if let first = allTracks.first { player.play(first, in: allTracks) }
+                    } label: {
+                        Label("Play Artist", systemImage: "play.fill")
                     }
-                }
-            }
-            .contentShape(Rectangle())
-            .resonanceHeroSurface()
-            .contextMenu {
-                Button { artistToEdit = liveArtist } label: {
-                    Label("Edit Artist Metadata", systemImage: "pencil")
-                }
-                Divider()
-                Button {
-                    if let first = allTracks.first { player.play(first, in: allTracks) }
-                } label: {
-                    Label("Play Artist", systemImage: "play.fill")
-                }
-                Button {
-                    player.shuffleAndPlay(allTracks)
-                } label: {
-                    Label("Shuffle Artist", systemImage: "shuffle")
+                    Button {
+                        player.shuffleAndPlay(allTracks)
+                    } label: {
+                        Label("Shuffle Artist", systemImage: "shuffle")
+                    }
                 }
             }
 
@@ -1187,7 +1198,7 @@ struct ArtistDetailView: View {
             // visible when an artist is pushed from the library list.
             ResonanceThemeBackdrop()
         }
-        .navigationTitle(liveArtist.name)
+        .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
