@@ -511,6 +511,11 @@ actor StreamingArtworkCache {
     static let shared = StreamingArtworkCache()
 
     private var cachedData: [String: Data] = [:]
+    private var cacheAccessOrder: [String: UInt64] = [:]
+    private var cacheAccessCounter: UInt64 = 0
+    private var cachedDataBytes = 0
+    private let maximumCachedEntries = 256
+    private let maximumCachedBytes = 32 * 1_048_576
     private var misses = Set<String>()
     private var inFlight: [String: Task<Data?, Never>] = [:]
     private let diskDirectory: URL
@@ -543,12 +548,12 @@ actor StreamingArtworkCache {
         for name in names {
             guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
             let artistKey = Self.key(artist: name, album: nil)
-            cachedData[artistKey] = data
+            cache(data, for: artistKey)
             persist(data, for: artistKey)
             misses.remove(artistKey)
             if let album, !album.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 let albumKey = Self.key(artist: name, album: album)
-                cachedData[albumKey] = data
+                cache(data, for: albumKey)
                 persist(data, for: albumKey)
                 misses.remove(albumKey)
             }
@@ -562,9 +567,12 @@ actor StreamingArtworkCache {
     ) async -> Data? {
         let key = Self.key(artist: artist, album: album)
         guard !key.isEmpty else { return nil }
-        if let cached = cachedData[key] { return cached }
+        if let cached = cachedData[key] {
+            touch(key)
+            return cached
+        }
         if let cached = loadPersistedData(for: key) {
-            cachedData[key] = cached
+            cache(cached, for: key)
             return cached
         }
         if misses.contains(key) { return nil }
@@ -641,6 +649,31 @@ actor StreamingArtworkCache {
     private func persist(_ data: Data, for key: String) {
         let destination = diskURL(for: key)
         try? data.write(to: destination, options: .atomic)
+    }
+
+    private func cache(_ data: Data, for key: String) {
+        guard !data.isEmpty else { return }
+        if let previous = cachedData[key] {
+            cachedDataBytes -= previous.count
+        }
+        cachedData[key] = data
+        cachedDataBytes += data.count
+        touch(key)
+
+        while cachedData.count > maximumCachedEntries || cachedDataBytes > maximumCachedBytes {
+            guard let victim = cacheAccessOrder.min(by: { $0.value < $1.value })?.key else { break }
+            guard let removed = cachedData.removeValue(forKey: victim) else {
+                cacheAccessOrder.removeValue(forKey: victim)
+                continue
+            }
+            cachedDataBytes -= removed.count
+            cacheAccessOrder.removeValue(forKey: victim)
+        }
+    }
+
+    private func touch(_ key: String) {
+        cacheAccessCounter &+= 1
+        cacheAccessOrder[key] = cacheAccessCounter
     }
 
     private func loadPersistedData(for key: String) -> Data? {
