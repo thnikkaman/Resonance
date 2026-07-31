@@ -212,6 +212,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("libraryThumbnailSize") private var libraryThumbnailSizeRaw = LibraryThumbnailSize.medium.rawValue
     @AppStorage("libraryTextSize") private var libraryTextSizeRaw = LibraryTextSize.standard.rawValue
     @AppStorage("groupCompilationArtists") var groupCompilationArtists = false
+    @AppStorage("leftHandedAlphabet") var leftHandedAlphabet = false
     @AppStorage("settingsAppearanceExpanded") var settingsAppearanceExpanded = true
     @AppStorage("settingsPlaybackExpanded") var settingsPlaybackExpanded = true
     @AppStorage("settingsReportedErrorsExpanded") var settingsReportedErrorsExpanded = true

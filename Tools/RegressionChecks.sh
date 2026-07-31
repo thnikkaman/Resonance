@@ -140,6 +140,9 @@ assert 'Models must not perform network requests' in models_contract
 assert 'VerticalArtistIndex' in library_view
 assert 'resonanceArtistIndexKey' in library_view
 assert 'diagnosticSurface: "albums"' in library_view
+assert '@AppStorage("leftHandedAlphabet") var leftHandedAlphabet = false' in settings
+assert 'Toggle("Left-handed alphabet"' in settings_view
+assert 'settings.leftHandedAlphabet ? .leading : .trailing' in library_view
 assert 'album-section-' in library_view
 assert 'private var indexedAlbumSections: [ArtistIndexSection<Album>]' in library_view
 assert 'diagnosticSurface: "library-artist-albums"' in library_view
@@ -175,6 +178,7 @@ assert 'Play Album' in streaming and 'Play All Albums' in streaming
 assert 'VerticalArtistIndex' in streaming
 assert 'RemoteAlbumCollectionView' in streaming
 assert 'streaming-albums' in streaming
+assert 'settings.leftHandedAlphabet ? .leading : .trailing' in streaming
 assert 'private var indexedAlbumSections: [ArtistIndexSection<RemoteAlbum>]' in streaming
 assert 'diagnosticSurface: "streaming-artist-albums"' in streaming
 assert 'artist-album-section-' in streaming

@@ -917,7 +917,7 @@ private struct RemoteArtistCollectionView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .trailing) {
+            ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                 Group {
                     if settings.albumLayout == .grid {
                         ScrollView {
@@ -929,8 +929,8 @@ private struct RemoteArtistCollectionView: View {
                             ) { artist in
                                 artistItem(artist)
                             }
-                            .padding(.leading)
-                            .padding(.trailing, 40)
+                            .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                            .padding(.trailing, settings.leftHandedAlphabet ? 16 : 40)
                             .padding(.top, 84)
                             .padding(.bottom)
                         }
@@ -944,9 +944,9 @@ private struct RemoteArtistCollectionView: View {
                                             .listRowInsets(
                                                 EdgeInsets(
                                                     top: settings.albumLayout == .compact ? 2 : 8,
-                                                    leading: 16,
+                                                    leading: settings.leftHandedAlphabet ? 40 : 16,
                                                     bottom: settings.albumLayout == .compact ? 2 : 8,
-                                                    trailing: 40
+                                                    trailing: settings.leftHandedAlphabet ? 16 : 40
                                                 )
                                             )
                                             .listRowBackground(Color.clear)
@@ -986,7 +986,8 @@ private struct RemoteArtistCollectionView: View {
                         }
                     }
                     .zIndex(2)
-                    .padding(.trailing, 1)
+                    .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                    .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                     .padding(.vertical, 4)
                 }
             }
@@ -1173,7 +1174,7 @@ private struct RemoteAlbumCollectionView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .trailing) {
+            ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                 Group {
                     if settings.albumLayout == .grid {
                         ScrollView {
@@ -1185,8 +1186,8 @@ private struct RemoteAlbumCollectionView: View {
                             ) { album in
                                 albumItem(album)
                             }
-                            .padding(.leading)
-                            .padding(.trailing, 40)
+                            .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                            .padding(.trailing, settings.leftHandedAlphabet ? 16 : 40)
                             .padding(.top, 84)
                             .padding(.bottom)
                         }
@@ -1200,9 +1201,9 @@ private struct RemoteAlbumCollectionView: View {
                                             .listRowInsets(
                                                 EdgeInsets(
                                                     top: settings.albumLayout == .compact ? 2 : 8,
-                                                    leading: 16,
+                                                    leading: settings.leftHandedAlphabet ? 40 : 16,
                                                     bottom: settings.albumLayout == .compact ? 2 : 8,
-                                                    trailing: 40
+                                                    trailing: settings.leftHandedAlphabet ? 16 : 40
                                                 )
                                             )
                                             .listRowBackground(Color.clear)
@@ -1242,7 +1243,8 @@ private struct RemoteAlbumCollectionView: View {
                         }
                     }
                     .zIndex(2)
-                    .padding(.trailing, 1)
+                    .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                    .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                     .padding(.vertical, 4)
                 }
             }
@@ -1517,7 +1519,7 @@ struct RemoteArtistDetailView: View {
             }
 
             ScrollViewReader { proxy in
-                ZStack(alignment: .trailing) {
+                ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                     Group {
                         if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                             ScrollView {
@@ -1595,7 +1597,8 @@ struct RemoteArtistDetailView: View {
                             .listStyle(.plain)
                             .listRowBackground(Color.clear)
                             .scrollContentBackground(.hidden)
-                            .safeAreaPadding(.trailing, 36)
+                            .safeAreaPadding(.leading, settings.leftHandedAlphabet ? 36 : 0)
+                            .safeAreaPadding(.trailing, settings.leftHandedAlphabet ? 0 : 36)
                             .background(Color.clear)
                         }
                     }
@@ -1618,7 +1621,8 @@ struct RemoteArtistDetailView: View {
                             }
                         }
                         .zIndex(2)
-                        .padding(.trailing, 1)
+                        .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                        .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                         .padding(.vertical, 4)
                     }
                 }

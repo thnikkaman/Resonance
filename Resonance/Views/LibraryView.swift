@@ -389,6 +389,16 @@ struct VerticalArtistIndex: View {
     private let bubbleSize: CGFloat = 86
     private let verticalInset: CGFloat = 8
 
+    private var indexAlignment: Alignment {
+        settings.leftHandedAlphabet ? .topLeading : .topTrailing
+    }
+
+    private var bubbleHorizontalOffset: CGFloat {
+        settings.leftHandedAlphabet
+            ? bubbleSize + indexColumnWidth + 10
+            : -(bubbleSize + indexColumnWidth + 10)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let availableHeight = max(1, geometry.size.height - verticalInset * 2)
@@ -396,7 +406,7 @@ struct VerticalArtistIndex: View {
             let indexHeight = rowHeight * CGFloat(keys.count)
             let topInset = max(verticalInset, (geometry.size.height - indexHeight) / 2)
 
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: indexAlignment) {
                 VStack(spacing: 0) {
                     ForEach(keys, id: \.self) { key in
                         Text(key)
@@ -457,7 +467,7 @@ struct VerticalArtistIndex: View {
                         .shadow(color: Color.cyan.opacity(0.28), radius: 8)
                         .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
                         .offset(
-                            x: -(bubbleSize + indexColumnWidth + 10),
+                            x: bubbleHorizontalOffset,
                             y: topInset + CGFloat(selectedRow) * rowHeight + (rowHeight - bubbleSize) / 2
                         )
                         .transition(.opacity.combined(with: .scale(scale: 0.92)))
@@ -465,7 +475,7 @@ struct VerticalArtistIndex: View {
                         .accessibilityHidden(true)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: indexAlignment)
             .contentShape(Rectangle())
             // Hit-test in the full-height index container. The previous build
             // attached the gesture to a positioned VStack, which made y values
@@ -611,7 +621,7 @@ struct ArtistCollectionView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .trailing) {
+            ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                 Group {
                     switch settings.albumLayout {
                     case .grid:
@@ -641,8 +651,8 @@ struct ArtistCollectionView: View {
                                     }
                                 }
                             }
-                            .padding(.leading)
-                            .padding(.trailing, 40)
+                            .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                            .padding(.trailing, settings.leftHandedAlphabet ? 16 : 40)
                             .padding(.top, 84)
                             .padding(.bottom)
                         }
@@ -683,9 +693,9 @@ struct ArtistCollectionView: View {
                                         .listRowInsets(
                                             EdgeInsets(
                                                 top: settings.albumLayout == .compact ? 2 : 8,
-                                                leading: 16,
+                                                leading: settings.leftHandedAlphabet ? 40 : 16,
                                                 bottom: settings.albumLayout == .compact ? 2 : 8,
-                                                trailing: 40
+                                                trailing: settings.leftHandedAlphabet ? 16 : 40
                                             )
                                         )
                                         .listRowBackground(Color.clear)
@@ -711,7 +721,8 @@ struct ArtistCollectionView: View {
                     VerticalArtistIndex(keys: indexedSections.map(\.key)) { key in
                         proxy.scrollTo("artist-section-\(key)", anchor: .top)
                     }
-                    .padding(.trailing, 1)
+                    .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                    .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                     .padding(.vertical, 4)
                 }
             }
@@ -1034,7 +1045,7 @@ struct ArtistDetailView: View {
             }
 
             ScrollViewReader { proxy in
-                ZStack(alignment: .trailing) {
+                ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                     Group {
                         if settings.artistAlbumLayout == .grid && settings.albumLayout == .grid {
                             ScrollView {
@@ -1083,8 +1094,8 @@ struct ArtistDetailView: View {
                                         }
                                     }
                                 }
-                                .padding(.leading)
-                                .padding(.trailing, 40)
+                                .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                                .padding(.trailing, settings.leftHandedAlphabet ? 16 : 40)
                                 .padding(.bottom)
                             }
                             .resonanceBrowseBottomClearance()
@@ -1167,7 +1178,8 @@ struct ArtistDetailView: View {
                             .listStyle(.plain)
                             .listRowBackground(Color.clear)
                             .scrollContentBackground(.hidden)
-                            .safeAreaPadding(.trailing, 36)
+                            .safeAreaPadding(.leading, settings.leftHandedAlphabet ? 36 : 0)
+                            .safeAreaPadding(.trailing, settings.leftHandedAlphabet ? 0 : 36)
                             .resonanceBrowseBottomClearance()
                             .background(Color.clear)
                         }
@@ -1183,7 +1195,8 @@ struct ArtistDetailView: View {
                             }
                         }
                         .zIndex(2)
-                        .padding(.trailing, 1)
+                        .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                        .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                         .padding(.vertical, 4)
                     }
                 }
@@ -1448,9 +1461,9 @@ struct AlbumCollectionView: View {
         .listRowInsets(
             EdgeInsets(
                 top: settings.albumLayout == .compact ? 2 : 8,
-                leading: 16,
+                leading: settings.leftHandedAlphabet ? 40 : 16,
                 bottom: settings.albumLayout == .compact ? 2 : 8,
-                trailing: 40
+                trailing: settings.leftHandedAlphabet ? 16 : 40
             )
         )
         .listRowBackground(Color.clear)
@@ -1459,7 +1472,7 @@ struct AlbumCollectionView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .trailing) {
+            ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing) {
                 Group {
             if settings.albumLayout == .grid {
                 ScrollView {
@@ -1487,8 +1500,8 @@ struct AlbumCollectionView: View {
                             }
                         }
                     }
-                    .padding(.leading)
-                    .padding(.trailing, 40)
+                    .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                    .padding(.trailing, settings.leftHandedAlphabet ? 16 : 40)
                     .padding(.top, 84)
                     .padding(.bottom)
                 }
@@ -1523,7 +1536,8 @@ struct AlbumCollectionView: View {
                     ) { key in
                         proxy.scrollTo("album-section-\(key)", anchor: .top)
                     }
-                    .padding(.trailing, 1)
+                    .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
+                    .padding(.trailing, settings.leftHandedAlphabet ? 0 : 1)
                     .padding(.vertical, 4)
                 }
             }
