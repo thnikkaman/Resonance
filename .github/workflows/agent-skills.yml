@@ -1,0 +1,36 @@
+name: Resonance Agent Skills
+
+on:
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - ".agents/skills/**"
+      - "Tools/ValidateAgentSkills.py"
+      - "Tools/SmokeTestAgentSkills.py"
+      - ".github/workflows/agent-skills.yml"
+  push:
+    branches:
+      - "agent/**"
+    paths:
+      - "AGENTS.md"
+      - ".agents/skills/**"
+      - "Tools/ValidateAgentSkills.py"
+      - "Tools/SmokeTestAgentSkills.py"
+      - ".github/workflows/agent-skills.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agent-skills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate catalog
+        run: python3 Tools/ValidateAgentSkills.py
+      - name: Run deterministic smoke suite
+        run: python3 Tools/SmokeTestAgentSkills.py
