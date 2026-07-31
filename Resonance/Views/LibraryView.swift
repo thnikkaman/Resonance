@@ -593,6 +593,8 @@ struct ArtistCollectionView: View {
     }
 
     var body: some View {
+        let indexedSections = indexedSections
+
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
                 Group {
@@ -882,7 +884,14 @@ struct ArtistDetailView: View {
 
     private var liveArtist: Artist { library.refreshedArtist(artist) }
 
-    private var sortedAlbums: [Album] {
+    // liveArtist re-scans the entire local library by artist-name match, and
+    // sortedAlbums/allTracks/indexedAlbumSections each rebuild from liveArtist
+    // again. body previously called liveArtist ~14 times and allTracks ~9
+    // times per render, each independently repeating that library scan/sort.
+    // body evaluation is synchronous, so tracks cannot change mid-render;
+    // computing these once as local lets at the top of body and shadowing the
+    // names is behaviorally identical to the prior per-access computation.
+    private func sortedAlbums(for liveArtist: Artist) -> [Album] {
         switch settings.artistAlbumSort {
         case .title:
             return liveArtist.albums.sorted {
@@ -907,7 +916,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private var allTracks: [Track] {
+    private func allTracks(for liveArtist: Artist) -> [Track] {
         liveArtist.albums.flatMap(\.tracks).sorted { lhs, rhs in
             let albumComparison = lhs.album.localizedStandardCompare(rhs.album)
             if albumComparison != .orderedSame { return albumComparison == .orderedAscending }
@@ -916,7 +925,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private var indexedAlbumSections: [ArtistIndexSection<Album>] {
+    private func indexedAlbumSections(for sortedAlbums: [Album]) -> [ArtistIndexSection<Album>] {
         let grouped = Dictionary(grouping: sortedAlbums) { resonanceArtistIndexKey($0.title) }
         let order = resonanceArtistIndexOrder(
             for: Array(grouped.keys),
@@ -936,6 +945,11 @@ struct ArtistDetailView: View {
     }
 
     var body: some View {
+        let liveArtist = liveArtist
+        let sortedAlbums = sortedAlbums(for: liveArtist)
+        let allTracks = allTracks(for: liveArtist)
+        let indexedAlbumSections = indexedAlbumSections(for: sortedAlbums)
+
         VStack(spacing: 0) {
             VStack(spacing: 4) {
                 HStack(alignment: .center, spacing: 16) {
@@ -1422,6 +1436,8 @@ struct AlbumCollectionView: View {
     }
 
     var body: some View {
+        let indexedSections = indexedSections
+
         ScrollViewReader { proxy in
             ZStack(alignment: .trailing) {
                 Group {

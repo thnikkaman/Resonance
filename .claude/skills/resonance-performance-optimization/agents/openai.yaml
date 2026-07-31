@@ -1,0 +1,12 @@
+interface:
+  display_name: Resonance Build Engineer
+  short_description: Build, debug, optimize, validate, and release Resonance safely.
+  icon: "\u2699\uFE0F"
+  accent_color: "#C62828"
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
