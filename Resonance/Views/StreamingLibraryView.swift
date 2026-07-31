@@ -1041,6 +1041,7 @@ private struct RemoteArtistTile: View {
 
 private struct RemoteAlbumCollectionView: View {
   @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var player: PlayerController
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
   @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
   let albums: [RemoteAlbum]
@@ -1098,13 +1099,29 @@ private struct RemoteAlbumCollectionView: View {
         }
     }
 
-    private func toggleSelection(_ album: RemoteAlbum) {
-        if selectedIDs.contains(album.id) {
-            selectedIDs.remove(album.id)
-        } else {
-            selectedIDs.insert(album.id)
-        }
+  private func toggleSelection(_ album: RemoteAlbum) {
+    if selectedIDs.contains(album.id) {
+      selectedIDs.remove(album.id)
+    } else {
+      selectedIDs.insert(album.id)
     }
+  }
+
+  @ViewBuilder
+  private func audiobookMenu(for album: RemoteAlbum) -> some View {
+    Button {
+      player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+    } label: {
+      Label(
+        player.isAudiobook(albumArtist: album.artist, album: album.title)
+          ? "Unmark as Audiobook"
+          : "Mark as Audiobook",
+        systemImage: player.isAudiobook(albumArtist: album.artist, album: album.title)
+          ? "book.closed.fill"
+          : "book.closed"
+      )
+    }
+  }
 
     @ViewBuilder
     private func albumTile(_ album: RemoteAlbum) -> some View {
@@ -1161,6 +1178,9 @@ private struct RemoteAlbumCollectionView: View {
         .buttonStyle(.plain)
         .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contentShape(Rectangle())
+        .contextMenu {
+          audiobookMenu(for: album)
+        }
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)
                 .onEnded { _ in
@@ -1461,6 +1481,19 @@ struct RemoteArtistDetailView: View {
         .buttonStyle(ResonanceSwipeAwareButtonStyle())
         .contextMenu {
             Button {
+                player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+            } label: {
+                Label(
+                    player.isAudiobook(albumArtist: album.artist, album: album.title)
+                        ? "Unmark as Audiobook"
+                        : "Mark as Audiobook",
+                    systemImage: player.isAudiobook(albumArtist: album.artist, album: album.title)
+                        ? "book.closed.fill"
+                        : "book.closed"
+                )
+            }
+            Divider()
+            Button {
                 downloads.requestDownload(album.tracks, into: library)
             } label: {
                 Label("Download Album", systemImage: "arrow.down.circle")
@@ -1580,6 +1613,19 @@ struct RemoteArtistDetailView: View {
                                             .buttonStyle(ResonanceSwipeAwareButtonStyle())
                                             .listRowBackground(Color.clear)
                                             .contextMenu {
+                                                Button {
+                                                    player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+                                                } label: {
+                                                    Label(
+                                                        player.isAudiobook(albumArtist: album.artist, album: album.title)
+                                                            ? "Unmark as Audiobook"
+                                                            : "Mark as Audiobook",
+                                                        systemImage: player.isAudiobook(albumArtist: album.artist, album: album.title)
+                                                            ? "book.closed.fill"
+                                                            : "book.closed"
+                                                    )
+                                                }
+                                                Divider()
                                                 Button {
                                                     downloads.requestDownload(album.tracks, into: library)
                                                 } label: {
@@ -2008,6 +2054,20 @@ struct RemoteAlbumDetailView: View {
                     .lineLimit(1)
             }
             .resonanceHeroSurface()
+            .contextMenu {
+                Button {
+                    player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+                } label: {
+                    Label(
+                        player.isAudiobook(albumArtist: album.artist, album: album.title)
+                            ? "Unmark as Audiobook"
+                            : "Mark as Audiobook",
+                        systemImage: player.isAudiobook(albumArtist: album.artist, album: album.title)
+                            ? "book.closed.fill"
+                            : "book.closed"
+                    )
+                }
+            }
             .resonanceTabSwipeObserver()
         }
     }

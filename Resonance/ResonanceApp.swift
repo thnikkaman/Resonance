@@ -32,10 +32,14 @@ struct ResonanceApp: App {
                 .preferredColorScheme(settings.colorScheme)
                 .task(id: scenePhase) {
                     ResonanceDiagnostics.shared.record(
-                        "scene.phase.task",
-                        details: ["phase": String(describing: scenePhase)]
+                      "scene.phase.task",
+                      details: ["phase": String(describing: scenePhase)]
                     )
-                    guard scenePhase == .active else { return }
+                    if scenePhase != .active {
+                        player.prepareForSceneExit()
+                        return
+                    }
+                    player.prepareForSceneActive()
                     ResonanceDiagnostics.shared.record("scene.active.refresh.begin")
                     async let localActivation: Void = library.refreshForActiveState()
                     async let remotePreparation: Void = {

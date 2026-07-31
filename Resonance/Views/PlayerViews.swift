@@ -37,8 +37,8 @@ struct NowPlayingView: View {
   }
 
   var body: some View {
-    VStack(spacing: 10) {
-      VStack(spacing: 10) {
+    VStack(spacing: 18) {
+      VStack(spacing: 14) {
         NowPlayingArtworkPager()
 
         // This is the only tab-navigation hit-test region on Playing. Its
@@ -109,11 +109,12 @@ struct NowPlayingView: View {
       TrackScrubber()
         .frame(maxWidth: 320)
 
-      HStack(spacing: 23) {
+      HStack(spacing: 0) {
         Button(action: player.previous) {
           Image(systemName: "backward.fill")
         }
         .accessibilityLabel("Previous track")
+        .frame(maxWidth: .infinity)
 
         Button {
           player.skip(by: -15)
@@ -121,12 +122,14 @@ struct NowPlayingView: View {
           Image(systemName: "gobackward.15")
         }
         .accessibilityLabel("Rewind 15 seconds")
+        .frame(maxWidth: .infinity)
 
         Button(action: player.toggle) {
           Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
             .font(.system(size: 42))
         }
         .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+        .frame(maxWidth: .infinity)
 
         Button {
           player.skip(by: 15)
@@ -134,16 +137,20 @@ struct NowPlayingView: View {
           Image(systemName: "goforward.15")
         }
         .accessibilityLabel("Jump ahead 15 seconds")
+        .frame(maxWidth: .infinity)
 
         Button(action: player.next) {
           Image(systemName: "forward.fill")
         }
         .accessibilityLabel("Next track")
+        .frame(maxWidth: .infinity)
       }
       .foregroundStyle(nowPlayingPrimaryColor)
       .font(.title2)
+      .frame(maxWidth: 420)
+      .padding(.horizontal, 4)
 
-      HStack(spacing: 24) {
+      HStack(spacing: 0) {
         Button {
           if let track = player.currentTrack { library.toggleFavorite(track) }
         } label: {
@@ -152,6 +159,7 @@ struct NowPlayingView: View {
         }
         .disabled(player.currentTrack == nil)
         .accessibilityLabel(currentTrackIsFavorite ? "Remove from favorites" : "Add to favorites")
+        .frame(maxWidth: .infinity)
 
         Button {
           showingBookmarks = true
@@ -173,12 +181,36 @@ struct NowPlayingView: View {
         }
         .disabled(player.currentTrack == nil)
         .accessibilityLabel("Playback bookmarks")
+        .frame(maxWidth: .infinity)
+
+        if player.isCurrentAudiobook {
+          Menu {
+            ForEach([0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { rate in
+              Button {
+                player.setPlaybackRate(rate)
+              } label: {
+                if abs(player.playbackRate - rate) < 0.01 {
+                  Label("\(rate, specifier: "%g")×", systemImage: "checkmark")
+                } else {
+                  Text("\(rate, specifier: "%g")×")
+                }
+              }
+            }
+          } label: {
+            Text("\(player.playbackRate, specifier: "%g")×")
+              .font(.caption.weight(.bold).monospacedDigit())
+              .foregroundStyle(nowPlayingSecondaryColor)
+          }
+          .accessibilityLabel("Audiobook playback speed")
+          .frame(maxWidth: .infinity)
+        }
 
         Button(action: player.toggleShuffle) {
           Image(systemName: "shuffle")
             .foregroundStyle(player.shuffleEnabled ? settings.accentColor : nowPlayingSecondaryColor)
         }
         .accessibilityLabel(player.shuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
+        .frame(maxWidth: .infinity)
 
         Button(action: player.cycleRepeatMode) {
           Image(systemName: player.repeatMode.systemImage)
@@ -193,6 +225,7 @@ struct NowPlayingView: View {
             }
         }
         .accessibilityLabel(player.repeatMode.rawValue)
+        .frame(maxWidth: .infinity)
 
         Button {
           showingQueue = true
@@ -200,6 +233,7 @@ struct NowPlayingView: View {
           Image(systemName: "list.bullet")
         }
         .accessibilityLabel("Show playback queue")
+        .frame(maxWidth: .infinity)
 
         Menu {
           ForEach(SleepTimerOption.allCases) { option in
@@ -219,8 +253,11 @@ struct NowPlayingView: View {
               player.sleepTimerOption == .off ? nowPlayingSecondaryColor : settings.accentColor)
         }
         .accessibilityLabel("Sleep timer: \(player.sleepTimerLabel)")
+        .frame(maxWidth: .infinity)
       }
       .font(.title3)
+      .frame(maxWidth: 420)
+      .padding(.horizontal, 4)
 
       HStack(spacing: 8) {
         Image(systemName: "speaker.fill")
@@ -257,10 +294,8 @@ struct NowPlayingView: View {
       .tint(settings.accentColor)
     }
     .padding(.horizontal, 16)
-    // Temporary visual test: move the complete Playing content down by about
-    // 20% of the iPhone viewport so the artwork clears the navigation bar.
-    .padding(.top, 120)
-    .padding(.bottom, 8)
+    .padding(.top, 16)
+    .padding(.bottom, 16)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .background {
       ResonanceThemeBackdrop()
@@ -673,6 +708,18 @@ private struct PlaybackBookmarksView: View {
   @Environment(\.dismiss) private var dismiss
   @EnvironmentObject private var player: PlayerController
 
+  private var currentAudiobookPositions: [AudiobookPlaybackBookmark] {
+    guard let currentTrack = player.currentTrack, player.isCurrentAudiobook else { return [] }
+    let albumKey = player.audiobookAlbumKey(for: currentTrack)
+    return player.audiobookBookmarks.filter { $0.albumKey == albumKey }
+  }
+
+  private func audiobookTitle(_ albumKey: String) -> String {
+    let parts = albumKey.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2 else { return albumKey }
+    return "\(parts[1]) — \(parts[0])"
+  }
+
   var body: some View {
     NavigationStack {
       List {
@@ -691,6 +738,40 @@ private struct PlaybackBookmarksView: View {
               "Bookmarks are saved for this track and remain available after restarting Resonance.")
           }
         )
+
+        if !currentAudiobookPositions.isEmpty {
+          Section("Recent Audiobook Positions") {
+            ForEach(currentAudiobookPositions) { bookmark in
+              Button {
+                player.playAudiobookBookmark(bookmark)
+                dismiss()
+              } label: {
+                HStack {
+                  Image(systemName: "book.closed.fill")
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(format(bookmark.time))
+                      .font(.headline.monospacedDigit())
+                    Text(audiobookTitle(bookmark.albumKey))
+                      .font(.caption)
+                      .lineLimit(1)
+                      .foregroundStyle(.secondary)
+                    if let track = player.queue.first(where: { $0.id == bookmark.trackID }) {
+                      Text(track.title)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                    }
+                  }
+                  Spacer()
+                  Image(systemName: "arrow.right.circle")
+                    .foregroundStyle(.secondary)
+                }
+              }
+              .buttonStyle(.plain)
+              .disabled(!player.queue.contains { $0.id == bookmark.trackID })
+            }
+          }
+        }
 
         Section("Saved Positions") {
           if player.currentTrackBookmarks.isEmpty {
@@ -724,6 +805,7 @@ private struct PlaybackBookmarksView: View {
             .onDelete(perform: player.removeBookmarks)
           }
         }
+
       }
       .navigationTitle("Playback Bookmarks")
       .navigationBarTitleDisplayMode(.inline)

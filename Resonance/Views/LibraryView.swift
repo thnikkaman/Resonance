@@ -947,6 +947,16 @@ struct ArtistDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private func audiobookMenu(for album: Album) -> some View {
+        let marked = player.isAudiobook(albumArtist: album.artist, album: album.title)
+        Button {
+            player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+        } label: {
+            Label(marked ? "Unmark as Audiobook" : "Mark as Audiobook", systemImage: marked ? "book.closed.fill" : "book.closed")
+        }
+    }
+
     private var allTracks: [Track] {
         liveArtist.albums.flatMap(\.tracks).sorted { lhs, rhs in
             let albumComparison = lhs.album.localizedStandardCompare(rhs.album)
@@ -1091,6 +1101,7 @@ struct ArtistDetailView: View {
                                         Button { albumToEdit = album } label: {
                                             Label("Edit Album Metadata", systemImage: "pencil")
                                         }
+                                        audiobookMenu(for: album)
                                         Divider()
                                         Button { albumToRemove = album } label: {
                                             Label("Remove or Delete Album", systemImage: "trash")
@@ -1163,6 +1174,7 @@ struct ArtistDetailView: View {
                                                 Button { albumToEdit = album } label: {
                                                     Label("Edit Album Metadata", systemImage: "pencil")
                                                 }
+                                                audiobookMenu(for: album)
                                                 Divider()
                                                 Button { albumToRemove = album } label: {
                                                     Label("Remove or Delete Album", systemImage: "trash")
@@ -1371,6 +1383,7 @@ private struct AllAlbumsTile: View {
 struct AlbumCollectionView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var player: PlayerController
     @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
     @EnvironmentObject private var layeredNavigation: ResonanceLayerNavigation
     @State private var albumToEdit: Album?
@@ -1393,6 +1406,22 @@ struct AlbumCollectionView: View {
     private var indexedSectionsKey: String {
         let identity = albums.map { "\($0.id)|\($0.title)" }.joined(separator: ";")
         return "\(library.sortDirection.rawValue)|\(identity)"
+    }
+
+    @ViewBuilder
+    private func audiobookMenu(for album: Album) -> some View {
+        Button {
+            player.toggleAudiobook(albumArtist: album.artist, album: album.title)
+        } label: {
+            Label(
+                player.isAudiobook(albumArtist: album.artist, album: album.title)
+                    ? "Unmark as Audiobook"
+                    : "Mark as Audiobook",
+                systemImage: player.isAudiobook(albumArtist: album.artist, album: album.title)
+                    ? "book.closed.fill"
+                    : "book.closed"
+            )
+        }
     }
 
     private func makeIndexedSections() -> [ArtistIndexSection<Album>] {
@@ -1454,6 +1483,7 @@ struct AlbumCollectionView: View {
             Button { albumToEdit = album } label: {
                 Label("Edit Album Metadata", systemImage: "pencil")
             }
+            audiobookMenu(for: album)
             Divider()
             Button { albumToRemove = album } label: {
                 Label("Remove or Delete Album", systemImage: "trash")
@@ -1495,6 +1525,7 @@ struct AlbumCollectionView: View {
                             Button { albumToEdit = album } label: {
                                 Label("Edit Album Metadata", systemImage: "pencil")
                             }
+                            audiobookMenu(for: album)
                             Divider()
                             Button { albumToRemove = album } label: {
                                 Label("Remove or Delete Album", systemImage: "trash")

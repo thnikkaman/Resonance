@@ -47,9 +47,11 @@ struct AlbumDetailView: View {
                 HStack(alignment: .center, spacing: 16) {
                     VStack(spacing: 6) {
                         ResonanceHeroActionButton(title: "Play", systemImage: "play.fill", tint: settings.accentColor, prominent: true) {
-                            if let first = liveAlbum.tracks.first {
-                                player.play(first, in: liveAlbum.tracks)
-                            }
+                            player.resumeAudiobookAlbum(
+                                liveAlbum.tracks,
+                                albumArtist: liveAlbum.artist,
+                                album: liveAlbum.title
+                            )
                         }
                         ResonanceHeroActionButton(
                             title: library.isAlbumFavorite(liveAlbum) ? "Unfavorite" : "Favorite",
@@ -85,6 +87,18 @@ struct AlbumDetailView: View {
             .contextMenu {
                 Button { showingMetadataEditor = true } label: {
                     Label("Edit Album Metadata", systemImage: "pencil")
+                }
+                Button {
+                    player.toggleAudiobook(albumArtist: liveAlbum.artist, album: liveAlbum.title)
+                } label: {
+                    Label(
+                        player.isAudiobook(albumArtist: liveAlbum.artist, album: liveAlbum.title)
+                            ? "Unmark as Audiobook"
+                            : "Mark as Audiobook",
+                        systemImage: player.isAudiobook(albumArtist: liveAlbum.artist, album: liveAlbum.title)
+                            ? "book.closed.fill"
+                            : "book.closed"
+                    )
                 }
                 Divider()
                 Button { showingRemovalOptions = true } label: {

@@ -51,6 +51,28 @@ struct PlaybackBookmark: Identifiable, Codable, Hashable, Sendable {
   }
 }
 
+struct AudiobookPlaybackBookmark: Identifiable, Codable, Hashable, Sendable {
+  let id: UUID
+  let albumKey: String
+  let trackID: UUID
+  let time: TimeInterval
+  let createdAt: Date
+
+  init(
+    id: UUID = UUID(),
+    albumKey: String,
+    trackID: UUID,
+    time: TimeInterval,
+    createdAt: Date = Date()
+  ) {
+    self.id = id
+    self.albumKey = albumKey
+    self.trackID = trackID
+    self.time = time
+    self.createdAt = createdAt
+  }
+}
+
 /// High-frequency playback progress is kept separate from the controller's
 /// normal state so catalog and settings views do not invalidate on every timer
 /// tick. Only progress-aware views should observe this object.
@@ -102,7 +124,11 @@ final class PlayerController: NSObject, ObservableObject {
   @Published private(set) var sleepTimerOption: SleepTimerOption = .off
   @Published private(set) var sleepTimerRemaining: TimeInterval = 0
   @Published private(set) var bookmarks: [PlaybackBookmark] = []
+  @Published private(set) var audiobookAlbumKeys: Set<String> = []
+  @Published private(set) var audiobookBookmarks: [AudiobookPlaybackBookmark] = []
+  @Published private(set) var playbackRate = 1.0
   @Published private(set) var playbackEngineStatus = "Ready"
+  private var audiobookSceneExitBookmarkSaved = false
   @Published private(set) var preloadedTrackTitle: String?
   @Published private(set) var preloadDetail = "No track preloaded"
   @Published private(set) var audioFormatStatus = "Stereo output ready"
@@ -216,6 +242,8 @@ final class PlayerController: NSObject, ObservableObject {
 
   override init() {
     bookmarks = Self.loadBookmarks()
+    audiobookAlbumKeys = Self.loadAudiobookAlbumKeys()
+    audiobookBookmarks = Self.loadAudiobookBookmarks()
     super.init()
     configureSession()
     configureRemoteCommands()
@@ -232,6 +260,82 @@ final class PlayerController: NSObject, ObservableObject {
       bookmarks
       .filter { $0.trackID == currentTrack.id }
       .sorted { $0.time < $1.time }
+  }
+
+  var isCurrentAudiobook: Bool {
+    guard let currentTrack else { return false }
+    return audiobookAlbumKeys.contains(
+      Self.audiobookAlbumKey(albumArtist: currentTrack.albumArtist, album: currentTrack.album)
+    )
+  }
+
+  var currentAudiobookBookmarks: [AudiobookPlaybackBookmark] {
+    guard let currentTrack else { return [] }
+    return audiobookBookmarks.filter { $0.trackID == currentTrack.id }
+  }
+
+  static func audiobookAlbumKey(albumArtist: String, album: String) -> String {
+    "\(normalizedAudiobookKeyPart(albumArtist))|\(normalizedAudiobookKeyPart(album))"
+  }
+
+  func audiobookAlbumKey(for track: Track) -> String {
+    Self.audiobookAlbumKey(albumArtist: track.albumArtist, album: track.album)
+  }
+
+  func isAudiobook(albumArtist: String, album: String) -> Bool {
+    audiobookAlbumKeys.contains(Self.audiobookAlbumKey(albumArtist: albumArtist, album: album))
+  }
+
+  func toggleAudiobook(albumArtist: String, album: String) {
+    let key = Self.audiobookAlbumKey(albumArtist: albumArtist, album: album)
+    if audiobookAlbumKeys.contains(key) {
+      audiobookAlbumKeys.remove(key)
+    } else {
+      audiobookAlbumKeys.insert(key)
+    }
+    persistAudiobookAlbumKeys()
+  }
+
+  func resumeBookmark(for albumKey: String, tracks: [Track]) -> AudiobookPlaybackBookmark? {
+    let trackIDs = Set(tracks.map(\.id))
+    return audiobookBookmarks.first { $0.albumKey == albumKey && trackIDs.contains($0.trackID) }
+  }
+
+  func playAudiobookBookmark(_ bookmark: AudiobookPlaybackBookmark) {
+    guard let target = queue.first(where: { $0.id == bookmark.trackID }),
+      audiobookAlbumKeys.contains(bookmark.albumKey)
+    else { return }
+    play(target, in: queue, startTime: bookmark.time)
+  }
+
+  func resumeAudiobookAlbum(
+    _ tracks: [Track],
+    albumArtist: String? = nil,
+    album: String? = nil,
+    presentsNowPlaying: Bool = true
+  ) {
+    guard let first = tracks.first else { return }
+    let albumKey = Self.audiobookAlbumKey(
+      albumArtist: albumArtist ?? first.albumArtist,
+      album: album ?? first.album
+    )
+    guard audiobookAlbumKeys.contains(albumKey),
+      let bookmark = resumeBookmark(for: albumKey, tracks: tracks),
+      let target = tracks.first(where: { $0.id == bookmark.trackID })
+    else {
+      play(first, in: tracks, presentsNowPlaying: presentsNowPlaying)
+      return
+    }
+    play(target, in: tracks, startTime: bookmark.time, presentsNowPlaying: presentsNowPlaying)
+  }
+
+  func setPlaybackRate(_ rate: Double) {
+    guard isCurrentAudiobook else {
+      playbackRate = 1
+      return
+    }
+    playbackRate = min(max(rate, 0.75), 2.0)
+    applyPlaybackRate()
   }
 
   var sleepTimerLabel: String {
@@ -252,7 +356,12 @@ final class PlayerController: NSObject, ObservableObject {
     track.artworkIsEmbedded
   }
 
-  func play(_ track: Track, in tracks: [Track], presentsNowPlaying: Bool = true) {
+  func play(
+    _ track: Track,
+    in tracks: [Track],
+    startTime: TimeInterval = 0,
+    presentsNowPlaying: Bool = true
+  ) {
     guard tracks.contains(track) else { return }
     if presentsNowPlaying {
       requestNowPlayingPresentation()
@@ -268,7 +377,7 @@ final class PlayerController: NSObject, ObservableObject {
       currentQueueIndex = tracks.firstIndex(of: track) ?? 0
     }
 
-    _ = loadAndPlay(track)
+    _ = loadAndPlay(track, startTime: startTime)
   }
 
   func shuffleAndPlay(_ tracks: [Track], presentsNowPlaying: Bool = true) {
@@ -351,13 +460,15 @@ final class PlayerController: NSObject, ObservableObject {
         return
       }
     case .legacy:
+      audioPlayer?.enableRate = true
+      audioPlayer?.rate = Float(playbackRate)
       guard audioPlayer?.play() == true else { return }
     case .remote:
       guard let activeRemotePlayer else { return }
       if remoteGaplessExperimentalEnabled {
-        activeRemotePlayer.playImmediately(atRate: 1)
+        activeRemotePlayer.playImmediately(atRate: Float(playbackRate))
       } else {
-        activeRemotePlayer.play()
+        activeRemotePlayer.playImmediately(atRate: Float(playbackRate))
       }
       if remoteClockHoldPosition != nil {
         remoteClockHoldWasPlaying = true
@@ -369,6 +480,7 @@ final class PlayerController: NSObject, ObservableObject {
     playbackAnchorDate = Date()
     playbackAnchorElapsed = elapsed
     isPlaying = true
+    applyPlaybackRate()
     startPlaybackTimer()
     updateNowPlaying()
   }
@@ -376,6 +488,7 @@ final class PlayerController: NSObject, ObservableObject {
   func pause() {
     guard isPlaying else { return }
     updateElapsedFromClock()
+    saveAudiobookBookmarkIfNeeded()
     switch activeBackend {
     case .gapless: gaplessEngine.pause()
     case .legacy: audioPlayer?.pause()
@@ -393,6 +506,17 @@ final class PlayerController: NSObject, ObservableObject {
     }
     isPlaying = false
     updateNowPlaying()
+  }
+
+  func prepareForSceneExit() {
+    guard isPlaying, !audiobookSceneExitBookmarkSaved else { return }
+    updateElapsedFromClock()
+    saveAudiobookBookmarkIfNeeded()
+    audiobookSceneExitBookmarkSaved = true
+  }
+
+  func prepareForSceneActive() {
+    audiobookSceneExitBookmarkSaved = false
   }
 
   func toggle() {
@@ -565,6 +689,10 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   func stop() {
+    if currentTrack != nil {
+      updateElapsedFromClock()
+      saveAudiobookBookmarkIfNeeded()
+    }
     playbackGeneration += 1
     playbackTimerTask?.cancel()
     playbackTimerTask = nil
@@ -1160,6 +1288,9 @@ final class PlayerController: NSObject, ObservableObject {
     markPlaybackStartupStage("Previous playback backend stopped")
     activeBackend = .none
     isPlaying = false
+    if !audiobookAlbumKeys.contains(audiobookAlbumKey(for: track)) {
+      playbackRate = 1
+    }
     elapsed = max(0, startTime)
     playbackAnchorElapsed = elapsed
     playbackAnchorDate = nil
@@ -1371,6 +1502,8 @@ final class PlayerController: NSObject, ObservableObject {
       newPlayer.delegate = audioDelegate
       newPlayer.isMeteringEnabled = true
       newPlayer.volume = Float(min(max(volume, 0), 1))
+      newPlayer.enableRate = true
+      newPlayer.rate = Float(playbackRate)
       newPlayer.prepareToPlay()
       newPlayer.currentTime = safeSeekPosition(startTime, duration: newPlayer.duration)
       if autoPlay, !newPlayer.play() {
@@ -1442,6 +1575,7 @@ final class PlayerController: NSObject, ObservableObject {
     playbackAnchorElapsed = elapsed
     playbackAnchorDate = autoPlay ? Date() : nil
     isPlaying = autoPlay
+    newPlayer.rate = autoPlay ? Float(playbackRate) : 0
     preloadedTrackID = nil
     preloadedTrackTitle = nil
     remoteSeekInFlight = false
@@ -1907,10 +2041,105 @@ final class PlayerController: NSObject, ObservableObject {
     return decoded
   }
 
+  private static func loadAudiobookAlbumKeys() -> Set<String> {
+    guard let data = UserDefaults.standard.data(forKey: "resonance.audiobookAlbumKeys"),
+      let decoded = try? JSONDecoder().decode([String].self, from: data)
+    else {
+      return []
+    }
+    return Set(decoded)
+  }
+
+  private static func loadAudiobookBookmarks() -> [AudiobookPlaybackBookmark] {
+    guard let data = UserDefaults.standard.data(forKey: "resonance.audiobookBookmarks"),
+      let decoded = try? JSONDecoder().decode([AudiobookPlaybackBookmark].self, from: data)
+    else {
+      return []
+    }
+    return limitAudiobookBookmarksPerAlbum(decoded)
+  }
+
+  private static func limitAudiobookBookmarksPerAlbum(
+    _ bookmarks: [AudiobookPlaybackBookmark]
+  ) -> [AudiobookPlaybackBookmark] {
+    let grouped = Dictionary(grouping: bookmarks, by: \.albumKey)
+    return grouped.values
+      .flatMap { albumBookmarks in
+        albumBookmarks.sorted { $0.createdAt > $1.createdAt }.prefix(5)
+      }
+      .sorted { $0.createdAt > $1.createdAt }
+  }
+
   private func persistBookmarks() {
     if let data = try? JSONEncoder().encode(bookmarks) {
       UserDefaults.standard.set(data, forKey: "resonance.playbackBookmarks")
     }
+  }
+
+  private func persistAudiobookAlbumKeys() {
+    if let data = try? JSONEncoder().encode(Array(audiobookAlbumKeys).sorted()) {
+      UserDefaults.standard.set(data, forKey: "resonance.audiobookAlbumKeys")
+    }
+  }
+
+  private func persistAudiobookBookmarks() {
+    if let data = try? JSONEncoder().encode(audiobookBookmarks) {
+      UserDefaults.standard.set(data, forKey: "resonance.audiobookBookmarks")
+    }
+  }
+
+  private func saveAudiobookBookmarkIfNeeded() {
+    guard let currentTrack,
+      duration > 1,
+      audiobookAlbumKeys.contains(audiobookAlbumKey(for: currentTrack))
+    else { return }
+
+    let roundedTime = min(max(0, elapsed.rounded()), max(0, duration - 0.5))
+    guard roundedTime >= 1, roundedTime < duration - 0.5 else { return }
+    let albumKey = audiobookAlbumKey(for: currentTrack)
+    audiobookBookmarks.insert(
+      AudiobookPlaybackBookmark(
+        albumKey: albumKey,
+        trackID: currentTrack.id,
+        time: roundedTime
+      ),
+      at: 0
+    )
+    let albumBookmarks = audiobookBookmarks
+      .filter { $0.albumKey == albumKey }
+      .sorted { $0.createdAt > $1.createdAt }
+    let retainedIDs = Set(albumBookmarks.prefix(5).map(\.id))
+    audiobookBookmarks = audiobookBookmarks
+      .filter { $0.albumKey != albumKey || retainedIDs.contains($0.id) }
+      .sorted { $0.createdAt > $1.createdAt }
+    persistAudiobookBookmarks()
+  }
+
+  private func applyPlaybackRate() {
+    let effectiveRate = isCurrentAudiobook ? Float(playbackRate) : 1
+    switch activeBackend {
+    case .gapless:
+      gaplessEngine.rate = effectiveRate
+    case .legacy:
+      audioPlayer?.enableRate = true
+      audioPlayer?.rate = effectiveRate
+    case .remote:
+      guard let remotePlayer else { return }
+      if isPlaying {
+        remotePlayer.playImmediately(atRate: effectiveRate)
+      } else {
+        remotePlayer.rate = 0
+      }
+    case .none:
+      break
+    }
+  }
+
+  private static func normalizedAudiobookKeyPart(_ value: String) -> String {
+    value
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+      .lowercased()
   }
 
   private func uniqueTracks(_ tracks: [Track]) -> [Track] {

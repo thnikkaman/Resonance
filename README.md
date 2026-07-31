@@ -1,11 +1,23 @@
-# Resonance Beta v1.0.9 — Multi-Disc Metadata Safety
+# Resonance Beta v2.0 — Audiobook Playback and Multi-Disc Metadata Safety
 
-## Current beta — 1.0.9 (build 261)
+## Current beta — 2.0 (build 267)
 
 The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
 file refreshes, album-detail clearance above the mini-player, unified mini-player docking, standard FLAC front-cover
-artwork parsing, and consistent Artist/Album Artist metadata editing.
+artwork parsing, consistent Artist/Album Artist metadata editing, and user-controlled audiobook playback.
+
+## Audiobook playback — 2026-07-31
+
+Local and personal Streaming albums can be marked **Audiobook** from their album context actions. The album’s main Play
+action resumes the newest saved pause/stop position, while each audiobook album retains its own five most recent
+positions as a recovery history; there is no limit on the number of audiobook albums. Audiobook-only playback speeds are available in Now Playing; ordinary music keeps its existing
+controls. Flags and positions are stored locally under the PlayerController playback state, and the local gapless path
+uses `AVAudioUnitTimePitch` ahead of the existing explicit surround matrix.
+
+Validation passed `Tools/RegressionChecks.sh` source contracts and `git diff --check`; the signed Release build and
+in-place phone installation are part of this release flow. Codex does not launch the physical app. Manual runtime
+acceptance remains user-run.
 
 The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
 refresh, and Settings. The local file-browser/import control is intentionally omitted.
@@ -13,14 +25,31 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v1.0.9` publication tag recorded below. The project’s
-default Xcode settings are version `1.0.9`, build `261`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v2.0` publication tag recorded below. The project’s
+default Xcode settings are version `2.0`, build `267`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Release source build: `1.0.9` (build `261`)
+Release source build: `2.0` (build `267`)
 
-Latest device validation build: `1.0.8` (build `260`). Beta v1.0.9/build 261 is the current published source release and
-has not been installed on `SaiyanDenawa`.
+Latest device validation build: `2.0` (build `267`). The app was installed in place on `SaiyanDenawa` and not launched
+by Codex.
+
+## Resonance Beta v2.0 — 2026-07-31 UTC
+
+Beta 2.0 introduces user-controlled audiobook playback. Albums in the local or personal Streaming library can be
+marked as audiobooks, audiobook Play resumes the newest saved position, and audiobook-only playback-speed controls are
+available. Each audiobook album retains its five newest pause/stop positions with no limit on the number of audiobook
+albums. Every pause or stop creates a new position, and an active audiobook saves one additional position when the app
+leaves the foreground. Manual track bookmarks remain separate. The bookmark viewer shows only the currently playing
+audiobook’s positions, with album/book title and track title visible, and places that section above manual Saved Positions.
+
+The release also preserves the safe multi-disc editor behavior: a blank disc override leaves existing per-track disc
+numbers unchanged. Validation includes source parsing, `git diff --check`, signed arm64 Release compilation, strict code
+signature verification, and in-place installation. Known non-blocking warnings are the empty supported-platforms/no-scheme
+destination warning and harmless AppIntents metadata extraction skip.
+
+The source is published as the GitHub prerelease
+`Resonance-Beta-v2.0`: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
 
 ## Resonance Beta v1.0.9 — 2026-07-31 UTC
 

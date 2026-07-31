@@ -50,10 +50,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 261;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 267;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 1.0.9;') == 2
+assert pbx.count('MARKETING_VERSION = 2.0;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -316,7 +316,7 @@ assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view
 assert 'MiniPlayerEdgeHandle' in root_view
 assert 'ScrollView' not in now_playing
-assert '.padding(.bottom, 8)' in now_playing
+assert '.padding(.bottom, 16)' in now_playing
 assert '.frame(width: pageWidth, height: 260' in views
 assert '.frame(width: 252, height: 252)' in views
 assert 'matrixConfiguration = configureSignalPath' in gapless
@@ -658,6 +658,30 @@ assert 'gapless disabled until relaunch' in player
 assert 'gestureKey' in library_view
 assert 'selectedKey = key' in library_view
 assert 'RemoteArtworkLoader.shared.image' in streaming
+
+# Audiobook resume, five-position recovery, and audiobook-only speed controls.
+assert 'struct AudiobookPlaybackBookmark' in player
+assert 'resonance.audiobookAlbumKeys' in player
+assert 'resonance.audiobookBookmarks' in player
+assert 'func toggleAudiobook' in player
+assert 'func resumeAudiobookAlbum' in player
+assert 'saveAudiobookBookmarkIfNeeded' in player
+assert 'limitAudiobookBookmarksPerAlbum' in player
+assert 'albumBookmarks.prefix(5)' in player
+assert 'audiobookBookmarks.removeAll { $0.albumKey == albumKey && $0.trackID == currentTrack.id }' not in player
+assert 'func prepareForSceneExit()' in player
+assert 'func prepareForSceneActive()' in player
+assert 'player.prepareForSceneExit()' in app_source
+assert 'func setPlaybackRate' in player
+assert 'private let timePitch = AVAudioUnitTimePitch()' in gapless
+assert 'engine.connect(playerNode, to: timePitch' in gapless
+assert 'if player.isCurrentAudiobook' in views
+assert 'Audiobook playback speed' in views
+assert 'player.resumeAudiobookAlbum' in album_detail
+assert 'Mark as Audiobook' in album_detail
+assert 'audiobookMenu(for: album)' in library_view
+assert 'audiobookMenu(for: album)' in streaming
+assert 'player.resumeAudiobookAlbum' in remote
 
 # Coordinate mapping should select the expected first, middle, and last rows.
 def mapped_index(y, top, row_height, count):

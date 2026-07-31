@@ -49,6 +49,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
 
   private let engine = AVAudioEngine()
   private let playerNode = AVAudioPlayerNode()
+  private let timePitch = AVAudioUnitTimePitch()
   private let matrixMixer: AVAudioUnit?
   private let stereoMixer = AVAudioMixerNode()
   private let meterState = AudioMeterState()
@@ -66,6 +67,11 @@ final class GaplessAudioEngine: @unchecked Sendable {
     set { playerNode.volume = min(max(newValue, 0), 1) }
   }
 
+  var rate: Float {
+    get { timePitch.rate }
+    set { timePitch.rate = min(max(newValue, 0.75), 2.0) }
+  }
+
   var isPlaying: Bool { playerNode.isPlaying }
   var isEngineRunning: Bool { engine.isRunning }
   var meterLevel: Double { meterState.value }
@@ -75,6 +81,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
     self.completionHandler = completionHandler
     self.matrixMixer = Self.instantiateMatrixMixer()
     engine.attach(playerNode)
+    engine.attach(timePitch)
     if let matrixMixer {
       engine.attach(matrixMixer)
     }
@@ -291,6 +298,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
     if engine.isRunning { engine.stop() }
     retainedFiles.removeAll()
     engine.disconnectNodeOutput(playerNode)
+    engine.disconnectNodeInput(timePitch)
+    engine.disconnectNodeOutput(timePitch)
     engine.disconnectNodeInput(stereoMixer)
     if let matrixMixer {
       engine.disconnectNodeInput(matrixMixer)
@@ -310,6 +319,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
     for sourceFormat: AVAudioFormat
   ) -> (unit: AVAudioUnit, inputChannels: Int, outputChannels: Int)? {
     engine.disconnectNodeOutput(playerNode)
+    engine.disconnectNodeInput(timePitch)
+    engine.disconnectNodeOutput(timePitch)
     engine.disconnectNodeInput(stereoMixer)
     if let matrixMixer {
       engine.disconnectNodeInput(matrixMixer)
@@ -329,7 +340,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
       standardFormatWithSampleRate: sampleRate,
       channels: outputChannelCount
     ) else {
-      engine.connect(playerNode, to: stereoMixer, format: sourceFormat)
+      engine.connect(playerNode, to: timePitch, format: sourceFormat)
+      engine.connect(timePitch, to: stereoMixer, format: sourceFormat)
       downmixRoutingDescription = "System stereo routing"
       return nil
     }
@@ -343,7 +355,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
     engine.connect(stereoMixer, to: engine.mainMixerNode, format: stereoFormat)
 
     guard sourceFormat.channelCount > 2, let matrixMixer else {
-      engine.connect(playerNode, to: stereoMixer, format: sourceFormat)
+      engine.connect(playerNode, to: timePitch, format: sourceFormat)
+      engine.connect(timePitch, to: stereoMixer, format: sourceFormat)
       stereoMixer.outputVolume = 1
       downmixRoutingDescription = sourceFormat.channelCount == 1
         ? "Mono duplicated to left and right"
@@ -351,7 +364,8 @@ final class GaplessAudioEngine: @unchecked Sendable {
       return nil
     }
 
-    engine.connect(playerNode, to: matrixMixer, format: sourceFormat)
+    engine.connect(playerNode, to: timePitch, format: sourceFormat)
+    engine.connect(timePitch, to: matrixMixer, format: sourceFormat)
     engine.connect(matrixMixer, to: stereoMixer, format: stereoFormat)
     // Multiple source channels are summed into each stereo output. Preserve
     // headroom so full-scale center, LFE, and surround content doesn't clip.

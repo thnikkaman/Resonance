@@ -5,12 +5,25 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active baseline
 
-- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`; Beta v1.0.9/build 261 is published but not installed.
-- Source baseline: `Resonance-Beta-v1.0.9` publication commit `3d455a0` on `agent/alpha-3.7.4-source`.
+- Runtime baseline: signed Beta v2.0/build 267 installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
+- Source baseline: pending `Resonance-Beta-v2.0` publication commit on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
 ## Completed release work
+
+### R-BETA-2.0 — Audiobook playback and bookmark history
+
+- Status: implemented, validated, installed in place, and being published as a GitHub prerelease.
+- Scope: mark local and personal Streaming albums as audiobooks; resume the newest saved position; expose audiobook-only
+  speed controls; retain five pause/stop positions per audiobook album; save one position when an active audiobook exits
+  the foreground; keep manual bookmarks separate; and scope the viewer to the active audiobook with album/book and track titles.
+- Preserved invariants: normal-music controls, explicit 5.1 routing, existing library geometry, in-place app data, and
+  manual bookmark storage.
+- Validation: source parsing, `git diff --check`, signed Release compilation, strict signature verification, and device install.
+- Manual oracle: mark multiple albums, pause/stop several tracks in each, verify five positions per album, reopen the app
+  while an audiobook is playing, and confirm the active audiobook’s positions appear above manual Saved Positions.
+- Rollback: reinstall the prior signed beta without uninstalling.
 
 ### R-BETA-1.0.9 — Safe multi-disc album metadata editing
 
@@ -70,6 +83,34 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - R-PERF: profile before any new performance change; require a named reproduced workload and before/after evidence.
 - R-DEVICE: physical playback, explicit 5.1 routing, background suspension, thermal, and long-idle acceptance require a user-launched device test.
 - R-VIEWPORT: title, toolbar, and mini-player fixes must preserve the accepted browse viewport geometry; do not change content padding, offsets, safe-area insets, or scroll clearance without explicit user instruction.
+
+## Active feature work
+
+### R-AUDIOBOOK-RESUME — Persist audiobook flags, resume positions, and speed controls
+
+- Status: implemented, validated, and installed in place in Beta 2.0; physical runtime acceptance remains user-run.
+- Goal: let users mark local and personal Streaming albums as audiobooks, resume the album from the most recent
+  pause/stop position, retain the five most recent audiobook pause bookmarks per audiobook album, and expose playback
+  speed only for the active audiobook. There is no global limit on the number of audiobook albums.
+- Owners: `PlayerController.swift` and `GaplessAudioEngine.swift` own durable playback state and backend rate
+  application; `AlbumDetailView.swift`, `LibraryView.swift`, and `StreamingLibraryView.swift` expose matching album
+  context actions; `PlayerViews.swift` exposes the audiobook-only speed/history controls.
+- Preserved invariants: explicit 5.1 routing, existing manual per-track bookmarks, normal-music controls and speed,
+  local/remote album ordering, existing navigation geometry, and in-place app data.
+- Smallest causal lever: one normalized album identity and one PlayerController resume API used by both local and
+  remote album Play actions; no duplicate album-specific playback logic.
+- Behavior oracle: mark an album, pause/stop in a later track, play the album’s main Play action, and return to that
+  track/position after switching tracks and relaunching; recent history remains capped at five; explicit track taps
+  still start that track normally; speed controls are absent for normal music.
+- Automated acceptance: regression contracts, `git diff --check`, strict simulator/generic-device preflight, signed
+  Release build, code-signature verification, and in-place `devicectl` install.
+- Manual acceptance: user launches the installed build and tests local plus Streaming albums, pause/stop recovery,
+  five-entry-per-album history across multiple audiobook albums, speed changes, normal music controls, and persistence
+  after relaunch.
+- Rollback: revert the focused audiobook commits without uninstalling the prior app, preserving existing UserDefaults
+  and library data.
+- Evidence: source build `2.0/267`; source parsing, `git diff --check`, signed Release,
+  deep signature verification, and `devicectl` install/info all passed on 2026-07-31. The phone was not launched.
 
 ## Active interface-polish work
 

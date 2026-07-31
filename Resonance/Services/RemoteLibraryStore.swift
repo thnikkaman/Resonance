@@ -1113,8 +1113,13 @@ final class RemoteLibraryStore: ObservableObject {
         guard !prepared.isEmpty else { return }
         if shuffle {
             player.shuffleAndPlay(prepared, presentsNowPlaying: false)
-        } else if let first = prepared.first {
-            player.play(first, in: prepared, presentsNowPlaying: false)
+        } else if prepared.first != nil {
+            player.resumeAudiobookAlbum(
+                prepared,
+                albumArtist: album.artist,
+                album: album.title,
+                presentsNowPlaying: false
+            )
         }
     }
 
