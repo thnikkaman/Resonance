@@ -77,11 +77,11 @@ rollback point before implementation begins.
 
 ### R-250 — Install current toolbar test build
 
-- Status: blocked on refreshed Apple provisioning
-- Artifact: current checkout, unsigned Release build `1.0.7/250`; local code-signature verification passed
-- Device result: SaiyanDenawa remained on `1.0.6/244`; install rejected the expired reused profile
-- Next action: rerun the signed build with `DEVELOPMENT_TEAM=98CWMFS26R CODE_SIGN_STYLE=Automatic`
-  after the Apple developer account can refresh profiles, then install in place and verify with `devicectl`
+- Status: installed; manual acceptance pending
+- Artifact: signed Release build `1.0.7/256` from commit `52c71e2`
+- Device result: SaiyanDenawa reports `com.example.ResonancePrototype` version `1.0.7/build 256`
+- Rule: do not launch the physical app automatically; user performs the Browse Files, Download,
+  navigation, and data-preservation checks
 
 ## Definition of done
 

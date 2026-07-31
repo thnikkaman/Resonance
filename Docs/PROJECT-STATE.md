@@ -83,6 +83,15 @@ The rejected `1.0.7/248` simulator artifact used separate trailing toolbar items
 visibly changed the layout; it was replaced in place by `1.0.7/249`. No custom hit
 region was retained.
 
+## Physical build 256
+
+- Signed Release build `1.0.7/256` used team `98CWMFS26R`, Apple Development signing,
+  and the refreshed automatic provisioning profile.
+- Codesign verification and in-place installation on SaiyanDenawa passed. `devicectl`
+  verified bundle `com.example.ResonancePrototype`, version `1.0.7`, build `256`.
+- The physical app was not launched. Manual acceptance remains: verify Browse Files and
+  Download activation, centered navigation, unchanged right-side controls, and preserved app data.
+
 ## Evidence commands
 
 ```sh
