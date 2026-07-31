@@ -2271,6 +2271,18 @@ pending completion of its iOS update; Codex did not launch the phone app.
 Manual continuation: after the phone reconnects, install this build in place and verify album/all-albums native swipe
 actions, toolbar consistency, navigation, Settings, playback, and library preservation.
 
+## Restore centered hierarchy navigation and direct Browse/Download actions — simulator build 247 — 2026-07-30
+
+Source commit `1c52501` restores the established Library and Streaming toolbar arrangement: leading options and
+playlist controls, centered direct Library ↔ Streaming hierarchy navigation, and stacked trailing refresh/settings
+controls with Browse Files or Download. Browse Files and Download use the existing direct `ResonanceToolbarTextButton`
+actions. Regression checks and `git diff --check` passed. A strict Debug simulator build version `1.0.7/build 247`
+passed and was installed in place on the configured iPhone 17 Pro simulator. The simulator was not launched or
+screenshot-captured by Codex; the physical phone was not changed or launched.
+
+Manual continuation: launch build 247 manually and capture a screenshot. Verify the centered hierarchy buttons,
+leading options/playlist controls, Browse Files importer, Download flow, and unchanged navigation behavior.
+
 ## Restore Streaming root toolbar isolation — simulator build 233 — 2026-07-30
 
 The Streaming root toolbar’s shared-background suppression was restored after the detail-toolbar update accidentally
