@@ -5,8 +5,8 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active baseline
 
-- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`; Beta v1.0.9/build 261 is pending publication/install.
-- Source baseline: Beta v1.0.9/build 261 publication in progress on `agent/alpha-3.7.4-source`.
+- Runtime baseline: signed Beta v1.0.9/build 261 installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
+- Source baseline: `Resonance-Beta-v1.0.9` publication commit `3d455a0` on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
@@ -14,10 +14,11 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-BETA-1.0.9 — Safe multi-disc album metadata editing
 
-- Status: source corrected and release preparation in progress.
+- Status: source corrected, signed, installed in place, committed, and published as a GitHub prerelease.
 - Scope: keep the album-wide Disc Number for Every Track override blank by default so unrelated metadata saves preserve
   existing multi-disc assignments.
 - Validation: `Tools/RegressionChecks.sh`, `git diff --check`, and strict simulator compilation passed.
+- Release: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9; device artifact `1.0.9/261`.
 - Manual oracle: open a multi-disc album, confirm the field is blank, save an unrelated title change, and verify disc 1
   and disc 2 assignments remain intact; enter a value separately to verify intentional album-wide replacement.
 - Rollback: revert the default-value correction and release identity bump.

@@ -31,6 +31,11 @@ the field blank preserves each track’s existing disc number; entering a value 
 Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and strict simulator compilation. The signed physical
 Release build and GitHub publication are recorded below.
 
+The signed Release build for `1.0.9`/build `261` passed deep strict code-signature verification and was installed in
+place on `SaiyanDenawa` without uninstalling or launching the app. The source was committed as `3d455a0`, pushed to
+`agent/alpha-3.7.4-source`, and published as the prerelease
+`Resonance-Beta-v1.0.9`: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9.
+
 ## Resonance Beta v1.0.8 — 2026-07-31 UTC
 
 This beta stages artwork chosen from Search Online Artwork while a metadata editor is open. Canceling the metadata

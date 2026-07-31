@@ -7,8 +7,8 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: pending Beta v1.0.9 publication.
-- GitHub tag/release: pending Beta v1.0.9 prerelease publication.
+- Release commit: `3d455a0` (`Prepare Resonance Beta v1.0.9`).
+- GitHub tag/release: `Resonance-Beta-v1.0.9` prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `1.0.9`, build `261`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
@@ -22,6 +22,8 @@ Last verified: 2026-07-31
 - In-place installation on `SaiyanDenawa` passed; existing app data was preserved.
 - `devicectl` verified version `1.0.9`, build `261`.
 - Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
+
+The v1.0.9 source was published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9.
 
 ## Implemented change
 
@@ -56,10 +58,10 @@ dismissal to the online artwork search. Automatic artwork recommendations during
 
 ## Manual continuation
 
-The album-wide disc-number editor follow-up now initializes its override field blank on every open. Leaving it blank
+The album-wide disc-number editor initializes its override field blank on every open. Leaving it blank
 preserves each track’s existing disc number, including multi-disc albums; entering a value applies that value to every
-track. The source-contract regression check and strict simulator build passed after this correction. The physical phone
-has not been updated with this follow-up and the app was not launched.
+track. Beta v1.0.9 was published after the source-contract regression check, strict simulator/generic-device preflight,
+and signed device build passed. The physical app was not launched by Codex.
 
 On `SaiyanDenawa`, launch Beta v1.0.8 manually and verify:
 
