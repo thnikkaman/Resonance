@@ -1020,7 +1020,8 @@ final class LibraryStore: ObservableObject {
             )
         }
         persistIgnoredLocalPaths()
-        await database.replaceAll(with: tracks.filter { $0.fileURL != nil })
+        let persistedIDs = Set(removed.filter { $0.fileURL != nil }.map(\.id))
+        await database.delete(ids: persistedIDs)
         persistDisplaySnapshot()
     }
 

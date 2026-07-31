@@ -152,6 +152,19 @@ actor LibraryDatabase {
         sqlite3_step(statement)
     }
 
+    func delete(ids: Set<UUID>) {
+        guard let db, !ids.isEmpty else { return }
+        let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+        let sql = "DELETE FROM tracks WHERE id IN (\(placeholders));"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(statement) }
+        for (index, id) in ids.enumerated() {
+            bind(id.uuidString, Int32(index + 1), statement)
+        }
+        sqlite3_step(statement)
+    }
+
     func loadAll(includeArtwork: Bool = true) -> [Track] {
         guard let db else { return [] }
         let sql = """

@@ -375,6 +375,8 @@ final class PlayerController: NSObject, ObservableObject {
     case .remote: activeRemotePlayer?.pause()
     case .none: break
     }
+    playbackTimerTask?.cancel()
+    playbackTimerTask = nil
     playbackAnchorDate = nil
     playbackAnchorElapsed = elapsed
     if activeBackend == .remote {
@@ -590,6 +592,7 @@ final class PlayerController: NSObject, ObservableObject {
     engineChannelCounts.removeAll()
     partialPreloadFrames.removeAll()
     remoteGaplessPreparedURLs.removeAll()
+    purgeRemoteGaplessCache()
     playbackEngineStatus = "Ready"
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
   }
@@ -1510,6 +1513,16 @@ final class PlayerController: NSObject, ObservableObject {
     remotePreloadItem = nil
     remotePreloadTrack = nil
     remotePreloadReady = false
+  }
+
+  private func purgeRemoteGaplessCache() {
+    guard let contents = try? FileManager.default.contentsOfDirectory(
+      at: remoteGaplessCacheDirectory,
+      includingPropertiesForKeys: nil
+    ) else { return }
+    for url in contents {
+      try? FileManager.default.removeItem(at: url)
+    }
   }
 
   /// A queued AVPlayer item can be present before its decoder has been
