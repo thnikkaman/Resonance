@@ -7,8 +7,8 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: pending final Beta v1.0.8 publication commit.
-- GitHub tag/release: pending final `Resonance-Beta-v1.0.8` publication.
+- Release commit: `Resonance-Beta-v1.0.8` tagged publication commit.
+- GitHub tag/release: `Resonance-Beta-v1.0.8` prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `1.0.8`, build `260`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
@@ -36,6 +36,15 @@ dismissal to the online artwork search. Automatic artwork recommendations during
 - `Tools/PreflightBuild.sh` passed simulator and generic-device strict compilation.
 - Signed Release build, code-signature verification, in-place install, and device bundle inspection passed.
 - Known non-blocking warning: AppIntents metadata extraction is skipped because the target has no AppIntents framework dependency.
+
+## Beta v1.0.8 release scope
+
+- Artwork selected inside a metadata editor remains staged until that editor’s Save; Cancel discards it.
+- Automatic artwork recommendations during local ingestion and remote catalog acquisition remain unchanged.
+- Track, album, and artist editors expose both Artist and Album Artist and write the fields to the affected files.
+- Read-only track names, counts, and reset/status information follow the artwork picker.
+- Online artwork search supports Done, outside-tap, submit, and scroll keyboard dismissal.
+- Final signed Release build and in-place install verified `1.0.8`/`260` on `SaiyanDenawa`; the app was not launched.
 
 ## Manual continuation
 

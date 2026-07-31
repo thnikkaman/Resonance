@@ -13,7 +13,7 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is the Beta v1.0.8 publication commit recorded below. The project’s
+`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v1.0.8` publication tag recorded below. The project’s
 default Xcode settings are version `1.0.8`, build `260`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
@@ -36,6 +36,13 @@ compilation, deep strict code-signature verification, and in-place installation 
 `1.0.8`/build `260`; the app was not launched by Codex. Manual acceptance remains: launch the installed beta, test
 metadata Save versus Cancel for artwork, edit both Artist fields in track/album/artist forms, verify read-only content
 is below artwork, and dismiss the artwork-search keyboard.
+
+## GitHub publication — Resonance Beta v1.0.8 — 2026-07-31
+
+The development branch is published at `Resonance-Beta-v1.0.8` as a GitHub prerelease. The repository’s `main` branch
+is historical release-ZIP storage and has no common history with this development branch, so no pull request was
+created. The release source includes the staged artwork-selection behavior, consistent Artist/Album Artist editing,
+read-only metadata ordering, and keyboard dismissal described above.
 
 ## Resonance Beta v1.0.7 — 2026-07-30 UTC
 

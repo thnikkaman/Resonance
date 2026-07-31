@@ -6,7 +6,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 ## Active baseline
 
 - Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`.
-- Source baseline: final Beta v1.0.8 publication commit on `agent/alpha-3.7.4-source`.
+- Source baseline: `Resonance-Beta-v1.0.8` tagged publication commit on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
@@ -14,10 +14,11 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-BETA-1.0.8 — Metadata editing and artwork-search polish
 
-- Status: implemented, signed, installed in place, and ready for GitHub prerelease publication.
+- Status: implemented, signed, installed in place, and published as a GitHub prerelease.
 - Scope: stage artwork-search choices until metadata-editor Save; expose Artist and Album Artist in all metadata forms;
   place read-only album/artist information below artwork; add artwork-search keyboard dismissal.
-- Source: `OnlineArtworkSearchView.swift`, `SmartLibraryViews.swift`, `LibraryStore.swift`, `AlbumDetailView.swift`.
+- Source: `OnlineArtworkSearchView.swift`, `SmartLibraryViews.swift`, `LibraryStore.swift`, `AlbumDetailView.swift`;
+  tag: `Resonance-Beta-v1.0.8`.
 - Validation: `Tools/RegressionChecks.sh`, `git diff --check`, strict simulator compilation, signed Release build,
   deep code-signature verification, and `devicectl` in-place install passed.
 - Manual oracle: launch Beta v1.0.8, test artwork Save versus Cancel, edit both Artist fields in every form, verify
