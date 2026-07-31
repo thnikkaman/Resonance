@@ -220,16 +220,27 @@ enum ArtworkSearchService {
             throw firstError
         }
 
-        return await withTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
-            for releaseGroup in releaseGroups.prefix(25) {
-                group.addTask {
-                    await coverArtSuggestions(for: releaseGroup)
+        let candidateGroups = Array(releaseGroups.prefix(25))
+        var suggestions: [ArtworkSearchSuggestion] = []
+        let batchSize = 4
+        for batchStart in stride(from: 0, to: candidateGroups.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, candidateGroups.count)
+            let batch = candidateGroups[batchStart..<batchEnd]
+            let batchSuggestions = await withTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
+                for releaseGroup in batch {
+                    group.addTask {
+                        await coverArtSuggestions(for: releaseGroup)
+                    }
                 }
+                var result: [ArtworkSearchSuggestion] = []
+                for await groupResult in group {
+                    result.append(contentsOf: groupResult)
+                }
+                return result
             }
-            var suggestions: [ArtworkSearchSuggestion] = []
-            for await result in group { suggestions.append(contentsOf: result) }
-            return suggestions
+            suggestions.append(contentsOf: batchSuggestions)
         }
+        return suggestions
     }
 
     private static func coverArtSuggestions(for releaseGroup: MusicBrainzReleaseGroup) async -> [ArtworkSearchSuggestion] {
