@@ -82,7 +82,9 @@ final class PlayerController: NSObject, ObservableObject {
   // them off PlayerController.objectWillChange prevents every visible track
   // row from rebuilding at the 120 ms playback cadence.
   private(set) var meterLevel = 0.0
-  @Published private(set) var queue: [Track] = []
+  @Published private(set) var queue: [Track] = [] {
+    didSet { artworkSourceRevision &+= 1 }
+  }
   @Published private(set) var currentQueueIndex = 0
   @Published var shuffleEnabled = false
   @Published var repeatMode: RepeatMode = .off
@@ -116,7 +118,12 @@ final class PlayerController: NSObject, ObservableObject {
 
   private enum ActiveBackend { case none, gapless, legacy, remote }
 
-  private var sourceQueue: [Track] = []
+  private var sourceQueue: [Track] = [] {
+    didSet { artworkSourceRevision &+= 1 }
+  }
+  private var artworkSourceRevision = 0
+  private var indexedArtworkSourceRevision = -1
+  private var artworkSourcesByAlbum: [String: Track] = [:]
   private var activeBackend: ActiveBackend = .none
   private var audioPlayer: AVAudioPlayer?
   private var remotePlayer: AVPlayer?
@@ -1912,11 +1919,21 @@ final class PlayerController: NSObject, ObservableObject {
   }
 
   private func artworkSource(for track: Track) -> Track? {
-    let candidates = queue + sourceQueue
-    return candidates.first {
-      $0.artworkData != nil && $0.album.caseInsensitiveCompare(track.album) == .orderedSame
-        && $0.albumArtist.caseInsensitiveCompare(track.albumArtist) == .orderedSame
+    if indexedArtworkSourceRevision != artworkSourceRevision {
+      artworkSourcesByAlbum.removeAll(keepingCapacity: true)
+      for candidate in queue + sourceQueue where candidate.artworkData != nil {
+        let key = artworkSourceKey(album: candidate.album, albumArtist: candidate.albumArtist)
+        if artworkSourcesByAlbum[key] == nil {
+          artworkSourcesByAlbum[key] = candidate
+        }
+      }
+      indexedArtworkSourceRevision = artworkSourceRevision
     }
+    return artworkSourcesByAlbum[artworkSourceKey(album: track.album, albumArtist: track.albumArtist)]
+  }
+
+  private func artworkSourceKey(album: String, albumArtist: String) -> String {
+    "\(album.lowercased())\u{1F}\(albumArtist.lowercased())"
   }
 
   private var shouldPreloadNextTrack: Bool {
