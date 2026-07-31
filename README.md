@@ -1,26 +1,41 @@
-# Resonance Beta v1.0.7 — Settings Interaction and Toolbar Polish
+# Resonance Beta v1.0.8 — Metadata Editing and Artwork Search Polish
 
-## Current beta — 1.0.7 (build 259)
+## Current beta — 1.0.8 (build 260)
 
 The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
-file refreshes, album-detail clearance above the mini-player, unified mini-player docking, and standard FLAC front-cover
-artwork parsing.
+file refreshes, album-detail clearance above the mini-player, unified mini-player docking, standard FLAC front-cover
+artwork parsing, and consistent Artist/Album Artist metadata editing.
 
 The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
 refresh, and Settings. The local file-browser/import control is intentionally omitted.
 
-## Verified source and release artifact identity — 2026-07-30
+## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is commit `6aa68ae`. The project’s
-default Xcode settings are version `1.0.7`, build `259`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; the release source is the Beta v1.0.8 publication commit recorded below. The project’s
+default Xcode settings are version `1.0.8`, build `260`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Release source build: `1.0.7` (build `259`)
+Release source build: `1.0.8` (build `260`)
 
-Latest device validation build: `1.0.7` (build `259`). It was signed with team `98CWMFS26R`, verified with deep strict
+Latest device validation build: `1.0.8` (build `260`). It was signed with team `98CWMFS26R`, verified with deep strict
 code-signature checks, and installed in place on `SaiyanDenawa` without uninstalling or launching the app.
+
+## Resonance Beta v1.0.8 — 2026-07-31 UTC
+
+This beta stages artwork chosen from Search Online Artwork while a metadata editor is open. Canceling the metadata
+editor discards the selection; the editor’s Save commits it. Automatic artwork recommendations during library
+ingestion remain unchanged. Metadata editors now expose both Artist and Album Artist fields consistently: track edits
+write one file, album edits write every track in the album, and artist edits write every represented track. Read-only
+track names, counts, and reset/status information appear below the artwork picker. The artwork-search keyboard can be
+dismissed with Done, by tapping outside the field, by submitting, or by scrolling.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, strict simulator compilation, signed arm64 Release
+compilation, deep strict code-signature verification, and in-place installation on `SaiyanDenawa`. The device reports
+`1.0.8`/build `260`; the app was not launched by Codex. Manual acceptance remains: launch the installed beta, test
+metadata Save versus Cancel for artwork, edit both Artist fields in track/album/artist forms, verify read-only content
+is below artwork, and dismiss the artwork-search keyboard.
 
 ## Resonance Beta v1.0.7 — 2026-07-30 UTC
 

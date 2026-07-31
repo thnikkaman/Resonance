@@ -5,12 +5,24 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active baseline
 
-- Runtime baseline: signed Beta v1.0.7/build 259 installed in place on `SaiyanDenawa`.
-- Source baseline: commit `6aa68ae` on `agent/alpha-3.7.4-source`.
+- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`.
+- Source baseline: final Beta v1.0.8 publication commit on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
 ## Completed release work
+
+### R-BETA-1.0.8 — Metadata editing and artwork-search polish
+
+- Status: implemented, signed, installed in place, and ready for GitHub prerelease publication.
+- Scope: stage artwork-search choices until metadata-editor Save; expose Artist and Album Artist in all metadata forms;
+  place read-only album/artist information below artwork; add artwork-search keyboard dismissal.
+- Source: `OnlineArtworkSearchView.swift`, `SmartLibraryViews.swift`, `LibraryStore.swift`, `AlbumDetailView.swift`.
+- Validation: `Tools/RegressionChecks.sh`, `git diff --check`, strict simulator compilation, signed Release build,
+  deep code-signature verification, and `devicectl` in-place install passed.
+- Manual oracle: launch Beta v1.0.8, test artwork Save versus Cancel, edit both Artist fields in every form, verify
+  read-only content follows artwork, and dismiss the artwork-search keyboard.
+- Rollback: reinstall Beta v1.0.7/build 259 without uninstalling.
 
 ### R-TOOLBAR-ACTIONS — Preserve stacked Browse Files and Download actions
 
