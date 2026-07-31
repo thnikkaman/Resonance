@@ -116,6 +116,29 @@ enum ArtworkSearchService {
         }
     }
 
+    static func searchMusicBrainzArchive(query: String) async throws -> [ArtworkSearchSuggestion] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+
+        var components = URLComponents(string: "https://musicbrainz.org/ws/2/release-group")!
+        components.queryItems = [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "fmt", value: "json"),
+            URLQueryItem(name: "limit", value: "50")
+        ]
+        let payload: MusicBrainzReleaseGroupResponse = try await decode(
+            components.url!,
+            userAgent: true
+        )
+        let suggestions = await coverArtSuggestions(for: Array(payload.releaseGroups.prefix(25)))
+        var seen = Set<String>()
+        return suggestions
+            .filter { seen.insert($0.imageURL.absoluteString).inserted }
+            .sorted {
+                $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+    }
+
     static func imageData(from url: URL) async throws -> Data {
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 20)
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -221,11 +244,15 @@ enum ArtworkSearchService {
         }
 
         let candidateGroups = Array(releaseGroups.prefix(25))
+        return await coverArtSuggestions(for: candidateGroups)
+    }
+
+    private static func coverArtSuggestions(for releaseGroups: [MusicBrainzReleaseGroup]) async -> [ArtworkSearchSuggestion] {
         var suggestions: [ArtworkSearchSuggestion] = []
         let batchSize = 4
-        for batchStart in stride(from: 0, to: candidateGroups.count, by: batchSize) {
-            let batchEnd = min(batchStart + batchSize, candidateGroups.count)
-            let batch = candidateGroups[batchStart..<batchEnd]
+        for batchStart in stride(from: 0, to: releaseGroups.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, releaseGroups.count)
+            let batch = releaseGroups[batchStart..<batchEnd]
             let batchSuggestions = await withTaskGroup(of: [ArtworkSearchSuggestion].self) { group in
                 for releaseGroup in batch {
                     group.addTask {

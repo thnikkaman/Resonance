@@ -360,6 +360,7 @@ assert 'artwork.local.thumbnail' in artwork
 assert 'UIImage(data: data)' not in artwork
 assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artwork_search
 assert 'searchReport' in artwork_search
+assert 'searchMusicBrainzArchive' in artwork_search
 assert 'searchQueries' in artwork_search
 assert 'musicBrainzQueries' in artwork_search
 assert 'albumTitleVariants' in artwork_search
@@ -382,6 +383,8 @@ assert 'queryParts(artist: artist, albumArtist: albumArtist, album: albumVariant
 assert 'recommendedSuggestionID' in artwork_picker
 assert '.stroke(isSelected ? .red' in artwork_picker
 assert 'onImageAvailabilityChanged' in artwork_picker
+assert 'Search MusicBrainz artwork' in artwork_picker
+assert 'PhotosPicker' not in artwork_picker
 assert 'showingArtworkSearch' in album_detail
 assert 'rememberArtwork' in remote_download
 assert 'resolvedArtworkData' in streaming

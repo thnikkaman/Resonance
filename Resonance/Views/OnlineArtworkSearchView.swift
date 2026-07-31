@@ -1,6 +1,4 @@
 import SwiftUI
-import PhotosUI
-import UIKit
 
 struct OnlineArtworkSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -33,66 +31,61 @@ struct OnlineArtworkSearchSheet: View {
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
-    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var archiveSearchQuery = ""
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Searching album art…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if suggestions.isEmpty || suggestions.allSatisfy({ unavailableSuggestionIDs.contains($0.id) }) {
-                    VStack(spacing: 14) {
-                        PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                            Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        ContentUnavailableView(
-                            "No Artwork Found",
-                            systemImage: "photo.on.rectangle.angled",
-                            description: Text(noArtworkDescription)
-                        )
-                        Button("Try Again") {
-                            Task { await search() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                                Label("Choose Artwork from Photos", systemImage: "photo.badge.plus")
+            VStack(spacing: 0) {
+                archiveSearchBar
+                Group {
+                    if isLoading {
+                        ProgressView("Searching album art…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if suggestions.isEmpty || suggestions.allSatisfy({ unavailableSuggestionIDs.contains($0.id) }) {
+                        VStack(spacing: 14) {
+                            ContentUnavailableView(
+                                "No Artwork Found",
+                                systemImage: "photo.on.rectangle.angled",
+                                description: Text(noArtworkDescription)
+                            )
+                            Button("Try Again") {
+                                Task { await search() }
                             }
                             .buttonStyle(.borderedProminent)
-                            if !unavailableProviders.isEmpty {
-                                Text("Unavailable sources: \(unavailableProviders.joined(separator: ", "))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                                ForEach(suggestions.filter { !unavailableSuggestionIDs.contains($0.id) }) { suggestion in
-                                    OnlineArtworkSuggestionCard(
-                                        suggestion: suggestion,
-                                        isSelected: selectedSuggestionID == suggestion.id,
-                                        isRecommended: recommendedSuggestionID == suggestion.id,
-                                        isSaving: isSaving,
-                                        onSelect: { selectedSuggestionID = suggestion.id },
-                                        onImageAvailabilityChanged: { id, available in
-                                            guard !available else { return }
-                                            unavailableSuggestionIDs.insert(id)
-                                            let next = suggestions.first {
-                                                $0.id != id && !unavailableSuggestionIDs.contains($0.id)
-                                            }
-                                            if recommendedSuggestionID == id { recommendedSuggestionID = next?.id }
-                                            if selectedSuggestionID == id { selectedSuggestionID = next?.id }
-                                        },
-                                        onApplyToApp: chooseForApp,
-                                        onSaveToFiles: saveToFiles
-                                    )
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                if !unavailableProviders.isEmpty {
+                                    Text("Unavailable sources: \(unavailableProviders.joined(separator: ", "))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
+                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                                    ForEach(suggestions.filter { !unavailableSuggestionIDs.contains($0.id) }) { suggestion in
+                                        OnlineArtworkSuggestionCard(
+                                            suggestion: suggestion,
+                                            isSelected: selectedSuggestionID == suggestion.id,
+                                            isRecommended: recommendedSuggestionID == suggestion.id,
+                                            isSaving: isSaving,
+                                            onSelect: { selectedSuggestionID = suggestion.id },
+                                            onImageAvailabilityChanged: { id, available in
+                                                guard !available else { return }
+                                                unavailableSuggestionIDs.insert(id)
+                                                let next = suggestions.first {
+                                                    $0.id != id && !unavailableSuggestionIDs.contains($0.id)
+                                                }
+                                                if recommendedSuggestionID == id { recommendedSuggestionID = next?.id }
+                                                if selectedSuggestionID == id { selectedSuggestionID = next?.id }
+                                            },
+                                            onApplyToApp: chooseForApp,
+                                            onSaveToFiles: saveToFiles
+                                        )
+                                    }
+                                }
+                                .padding()
                             }
-                            .padding()
                         }
                     }
                 }
@@ -112,18 +105,6 @@ struct OnlineArtworkSearchSheet: View {
                 Button("OK", role: .cancel) { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "The artwork could not be loaded.")
-            }
-            .onChange(of: selectedPhoto) { _, item in
-                guard let item else { return }
-                Task {
-                    guard let data = try? await item.loadTransferable(type: Data.self),
-                          UIImage(data: data) != nil else {
-                        errorMessage = "The selected photo could not be read as artwork."
-                        return
-                    }
-                    dismiss()
-                    onApplyToApp(data)
-                }
             }
             .task { await search() }
         }
@@ -149,6 +130,48 @@ struct OnlineArtworkSearchSheet: View {
             isLoading = false
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func searchArchive() async {
+        let query = archiveSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            errorMessage = "Enter an artist, album, or other MusicBrainz search term."
+            return
+        }
+        isLoading = true
+        suggestions.removeAll()
+        unavailableSuggestionIDs.removeAll()
+        unavailableProviders.removeAll()
+        do {
+            suggestions = try await ArtworkSearchService.searchMusicBrainzArchive(query: query)
+            selectedSuggestionID = suggestions.first?.id
+            recommendedSuggestionID = suggestions.first?.id
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private var archiveSearchBar: some View {
+        HStack(spacing: 8) {
+            TextField("Search MusicBrainz artwork", text: $archiveSearchQuery)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .onSubmit { Task { await searchArchive() } }
+            Button {
+                Task { await searchArchive() }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .accessibilityLabel("Search MusicBrainz artwork")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background { ResonanceThemeSurfaceBackdrop() }
     }
 
     private var noArtworkDescription: String {
