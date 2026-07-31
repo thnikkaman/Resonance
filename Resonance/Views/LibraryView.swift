@@ -567,6 +567,7 @@ struct ArtistCollectionView: View {
     @State private var artistToRemove: Artist?
     @State private var artistToEdit: Artist?
     @State private var presentedArtist: Artist?
+    @State private var cachedIndexedSections: [ArtistIndexSection<Artist>] = []
     let artists: [Artist]
 
     private var gridColumns: [GridItem] {
@@ -577,6 +578,15 @@ struct ArtistCollectionView: View {
     }
 
     private var indexedSections: [ArtistIndexSection<Artist>] {
+        cachedIndexedSections
+    }
+
+    private var indexedSectionsKey: String {
+        let identity = artists.map { "\($0.id)|\($0.name)" }.joined(separator: ";")
+        return "\(library.sortDirection.rawValue)|\(identity)"
+    }
+
+    private func makeIndexedSections() -> [ArtistIndexSection<Artist>] {
         let grouped = Dictionary(grouping: artists) { resonanceArtistIndexKey($0.name) }
         let preferredOrder = resonanceArtistIndexOrder(
             for: Array(grouped.keys),
@@ -698,6 +708,9 @@ struct ArtistCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
+        }
+        .task(id: indexedSectionsKey) {
+            cachedIndexedSections = makeIndexedSections()
         }
         .alert(
             "Remove artist?",
@@ -878,9 +891,14 @@ struct ArtistDetailView: View {
     @State private var showingPlaylistPicker = false
     @State private var presentedAlbum: Album?
     @State private var showingAllAlbums = false
+    @State private var cachedLiveArtist: Artist?
     let artist: Artist
 
-    private var liveArtist: Artist { library.refreshedArtist(artist) }
+    private var liveArtist: Artist { cachedLiveArtist ?? artist }
+
+    private var liveArtistKey: String {
+        "\(artist.id)|\(library.browseRevision)"
+    }
 
     private var sortedAlbums: [Album] {
         switch settings.artistAlbumSort {
@@ -1167,6 +1185,9 @@ struct ArtistDetailView: View {
                 .scrollIndicators(.hidden)
             }
         }
+        .task(id: liveArtistKey) {
+            cachedLiveArtist = library.refreshedArtist(artist)
+        }
         .background {
             // This destination owns the page backdrop so the theme remains
             // visible when an artist is pushed from the library list.
@@ -1336,6 +1357,7 @@ struct AlbumCollectionView: View {
     @State private var albumToEdit: Album?
     @State private var albumToRemove: Album?
     @State private var presentedAlbum: Album?
+    @State private var cachedIndexedSections: [ArtistIndexSection<Album>] = []
     let albums: [Album]
 
     private var columns: [GridItem] {
@@ -1346,6 +1368,15 @@ struct AlbumCollectionView: View {
     }
 
     private var indexedSections: [ArtistIndexSection<Album>] {
+        cachedIndexedSections
+    }
+
+    private var indexedSectionsKey: String {
+        let identity = albums.map { "\($0.id)|\($0.title)" }.joined(separator: ";")
+        return "\(library.sortDirection.rawValue)|\(identity)"
+    }
+
+    private func makeIndexedSections() -> [ArtistIndexSection<Album>] {
         let grouped = Dictionary(grouping: albums) { resonanceArtistIndexKey($0.title) }
         let preferredOrder = resonanceArtistIndexOrder(
             for: Array(grouped.keys),
@@ -1491,6 +1522,9 @@ struct AlbumCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
+        }
+        .task(id: indexedSectionsKey) {
+            cachedIndexedSections = makeIndexedSections()
         }
         .sheet(item: $albumToEdit) { album in
             AlbumMetadataEditorSheet(album: album)

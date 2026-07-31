@@ -90,7 +90,10 @@ final class LibraryStore: ObservableObject {
     static let sharedMusicFolderName = "Resonance Music"
 
     @Published private(set) var tracks: [Track] = [] {
-        didSet { invalidateBrowseCaches() }
+        didSet {
+            invalidateBrowseCaches()
+            browseRevision &+= 1
+        }
     }
     @Published var isScanning = false
     @Published var searchText = ""
@@ -105,11 +108,18 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var recentPlayDates: [UUID: Date] = [:]
     @Published private(set) var playlists: [UserPlaylist] = []
     @Published private(set) var metadataOverrides: [UUID: TrackMetadataOverride] = [:] {
-        didSet { invalidateBrowseCaches() }
+        didSet {
+            invalidateBrowseCaches()
+            browseRevision &+= 1
+        }
     }
     @Published private(set) var artistMetadataOverrides: [String: ArtistMetadataOverride] = [:] {
-        didSet { invalidateBrowseCaches() }
+        didSet {
+            invalidateBrowseCaches()
+            browseRevision &+= 1
+        }
     }
+    @Published private(set) var browseRevision = 0
 
     private let database = LibraryDatabase()
     private let reader = MetadataReader()
