@@ -246,6 +246,7 @@ struct AlbumDetailView: View {
                         album: liveAlbum.title,
                         artist: liveAlbum.tracks.first?.artist ?? liveAlbum.artist,
                         albumArtist: liveAlbum.artist,
+                        discNumber: liveAlbum.tracks.first?.discNumber ?? 1,
                         releaseYear: liveAlbum.releaseYear,
                         artworkData: data,
                         replaceArtwork: true

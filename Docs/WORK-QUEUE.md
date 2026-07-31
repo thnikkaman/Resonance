@@ -62,6 +62,17 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active interface-polish work
 
+### R-ALBUM-DISC-NUMBER — Edit album disc number in one operation
+
+- Status: implemented and simulator-compiled; physical runtime acceptance remains pending.
+- Owner: `SmartLibraryViews.swift` album editor and `LibraryStore.swift` album metadata save boundary.
+- Goal: expose one editable Disc Number field and apply it to every track in the selected album.
+- Preserved invariants: track titles, track numbers, Artist, Album Artist, artwork behavior, and targeted refresh.
+- Manual oracle: enter a disc number in an album editor, Save, and confirm every affected file has that disc number;
+  Cancel must leave all files unchanged.
+- Rollback: revert the album-save signature and editor field changes.
+- Evidence: `Tools/RegressionChecks.sh`, `git diff --check`, and the strict simulator build passed.
+
 ### R-MINI-PLAYER-TOP-POSITION — Align top-docked mini-player below module headers
 
 - Status: implemented and installed in the simulator; active-track visual confirmation remains pending.

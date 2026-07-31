@@ -705,6 +705,7 @@ struct AlbumMetadataEditorSheet: View {
     @State private var albumTitle: String
     @State private var artist: String
     @State private var albumArtist: String
+    @State private var discNumber: String
     @State private var releaseYear: String
     @State private var artworkData: Data?
     @State private var replaceArtwork = false
@@ -717,6 +718,7 @@ struct AlbumMetadataEditorSheet: View {
         _albumTitle = State(initialValue: album.title)
         _artist = State(initialValue: album.tracks.first?.artist ?? album.artist)
         _albumArtist = State(initialValue: album.tracks.first?.albumArtist ?? album.artist)
+        _discNumber = State(initialValue: String(max(1, album.tracks.first?.discNumber ?? 1)))
         _releaseYear = State(initialValue: album.releaseYear > 0 ? String(album.releaseYear) : "")
         _artworkData = State(initialValue: album.artworkData)
     }
@@ -734,6 +736,12 @@ struct AlbumMetadataEditorSheet: View {
                     MetadataTextField(label: "Album Title", prompt: "Enter album title", text: $albumTitle)
                     MetadataTextField(label: "Artist", prompt: "Enter performing artist", text: $artist)
                     MetadataTextField(label: "Album Artist", prompt: "Enter album artist", text: $albumArtist)
+                    MetadataTextField(
+                        label: "Disc Number for Every Track",
+                        prompt: "Enter disc number",
+                        text: $discNumber,
+                        keyboardType: .numberPad
+                    )
                     MetadataTextField(
                         label: "Release Year",
                         prompt: "Enter release year",
@@ -819,8 +827,9 @@ struct AlbumMetadataEditorSheet: View {
                         library.updateAlbumMetadataInBackground(
                             trackIDs: album.tracks.map(\.id),
                             album: albumTitle,
-                        artist: artist,
-                        albumArtist: albumArtist,
+                            artist: artist,
+                            albumArtist: albumArtist,
+                            discNumber: Int(discNumber) ?? 1,
                             releaseYear: Int(releaseYear) ?? 0,
                             artworkData: artworkData,
                             replaceArtwork: replaceArtwork
