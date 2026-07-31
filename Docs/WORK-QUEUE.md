@@ -26,13 +26,16 @@ rollback point before implementation begins.
 
 ### R-ARCH — Preserve ownership boundaries
 
-- Status: implemented in project documentation
+- Status: implemented in project and scoped module contracts
 - Owner: project maintenance
-- Scope: `AGENTS.md`, `Docs/ARCHITECTURE.md`, `Docs/PROJECT-STATE.md`, and this queue
+- Scope: root `AGENTS.md`, `Resonance/Views/AGENTS.md`,
+  `Resonance/Services/AGENTS.md`, `Resonance/Models/AGENTS.md`,
+  `Docs/ARCHITECTURE.md`, `Docs/PROJECT-STATE.md`, and this queue
 - Oracle: every future change identifies one owning module, one causal lever, and an
-  explicit acceptance path
-- Validation: `Tools/RegressionChecks.sh` checks the contract files exist; state check
-  reports actual source and artifact identities
+  explicit acceptance path; views own layout while services own durable behavior and
+  models own identity/compatibility
+- Validation: `Tools/RegressionChecks.sh` checks the contract files and ownership
+  assertions; state check reports actual source and artifact identities
 
 ### R-PERF — Profile before the next performance change
 
@@ -62,4 +65,3 @@ An implementation item is complete only when:
 4. The named runtime acceptance is either performed and recorded or explicitly left pending.
 5. README/handoff/state documentation are updated without inventing evidence.
 6. Generated logs, private data, credentials, and build outputs remain outside the commit.
-

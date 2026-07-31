@@ -4,6 +4,12 @@ This document describes the boundaries that make changes safe. It is intentional
 shorter than the historical release log in `README.md`; it records ownership and
 invariants, not every past experiment.
 
+Scoped contracts live beside the code they govern: `Resonance/Views/AGENTS.md`,
+`Resonance/Services/AGENTS.md`, and `Resonance/Models/AGENTS.md`. Read the root
+contract plus the closest scoped contract for a single-module change; read every
+affected scoped contract for a cross-module change. These files explain local rules,
+while this document remains the canonical cross-module ownership map.
+
 ## Runtime layers
 
 | Layer | Primary owner | Responsibility | Must not own |
@@ -52,4 +58,3 @@ Before editing, write the change in `Docs/WORK-QUEUE.md` with:
 
 If a change crosses two ownership boundaries, record the interface or state transition
 explicitly instead of duplicating logic in both modules.
-

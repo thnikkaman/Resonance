@@ -7,6 +7,9 @@ test -f AGENTS.md
 test -f Docs/ARCHITECTURE.md
 test -f Docs/PROJECT-STATE.md
 test -f Docs/WORK-QUEUE.md
+test -f Resonance/Views/AGENTS.md
+test -f Resonance/Services/AGENTS.md
+test -f Resonance/Models/AGENTS.md
 Tools/ProjectStateCheck.sh --source-only >/dev/null
 
 find Resonance -name '*.swift' -print0 | xargs -0 -n1 swiftc -frontend -swift-version 6 -parse
@@ -37,6 +40,9 @@ album_detail = (root / 'Resonance/Views/AlbumDetailView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
 app_source = (root / 'Resonance/ResonanceApp.swift').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
+views_contract = (root / 'Resonance/Views/AGENTS.md').read_text()
+services_contract = (root / 'Resonance/Services/AGENTS.md').read_text()
+models_contract = (root / 'Resonance/Models/AGENTS.md').read_text()
 now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
     'private struct NowPlayingArtworkPager', 1
 )[0]
@@ -119,6 +125,16 @@ assert 'subsonic-response' in remote
 assert 'sourceID' in remote
 assert 'uniqueTracks(resolved)' in remote
 assert 'resonanceNormalizedRemoteKey' in remote
+
+# Scoped ownership contracts keep presentation, durable behavior, and model identity
+# from drifting into each other.
+assert 'Views are the authority for layout' in views_contract
+assert 'Views must not become network clients' in views_contract
+assert 'LibraryStore.swift' in services_contract
+assert 'PlayerController.swift' in services_contract
+assert 'Services must not import SwiftUI' in services_contract
+assert 'stable track representation' in models_contract
+assert 'Models must not perform network requests' in models_contract
 
 # Browse parity and adaptive artist index.
 assert 'VerticalArtistIndex' in library_view

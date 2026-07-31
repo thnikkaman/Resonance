@@ -42,6 +42,14 @@ capture by default.
 
 Keep behavior in its owning module. Consult `Docs/ARCHITECTURE.md` before moving code.
 
+Before editing a file, read this root contract and the closest scoped contract. For
+changes that cross directories, read every affected scoped contract and record the
+interface or state transition in `Docs/WORK-QUEUE.md`:
+
+- `Resonance/Views/AGENTS.md` — layout, presentation, accessibility, and transient UI state.
+- `Resonance/Services/AGENTS.md` — durable behavior, stores, persistence, playback, downloads, and providers.
+- `Resonance/Models/AGENTS.md` — model identity, serialization, compatibility, and ordering inputs.
+
 - `RootView.swift` owns tab composition, navigation layers, safe areas, and gesture arbitration.
 - `LibraryView.swift` and `SmartLibraryViews.swift` own local browsing and local editing presentation.
 - `StreamingLibraryView.swift` owns remote browsing presentation and alphabet gestures.
@@ -64,4 +72,3 @@ Views must not become alternate stores, playback engines, persistence layers, or
 - Treat simulator playback, performance, and audio traces as control-flow evidence only; audible, thermal, background, and 5.1 claims require the physical device.
 - Use named workloads and an equivalence oracle for performance work. Do not optimize from static inspection alone.
 - Keep build logs, `.build/`, diagnostics, screenshots, and simulator artifacts untracked.
-
