@@ -868,7 +868,7 @@ final class LibraryStore: ObservableObject {
         album: String,
         artist: String,
         albumArtist: String,
-        discNumber: Int,
+        discNumber: Int?,
         releaseYear: Int,
         artworkData: Data?,
         replaceArtwork: Bool
@@ -883,7 +883,7 @@ final class LibraryStore: ObservableObject {
                 albumArtist: albumArtist.trimmingCharacters(in: .whitespacesAndNewlines),
                 album: album.trimmingCharacters(in: .whitespacesAndNewlines),
                 trackNumber: track.trackNumber,
-                discNumber: max(1, discNumber),
+                discNumber: discNumber.map { max(1, $0) } ?? track.discNumber,
                 releaseYear: max(0, releaseYear)
             )
             return MetadataWriteRequest(
@@ -931,7 +931,7 @@ final class LibraryStore: ObservableObject {
         album: String,
         artist: String,
         albumArtist: String,
-        discNumber: Int,
+        discNumber: Int?,
         releaseYear: Int,
         artworkData: Data?,
         replaceArtwork: Bool

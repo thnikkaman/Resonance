@@ -947,6 +947,7 @@ struct ArtistDetailView: View {
         liveArtist.albums.flatMap(\.tracks).sorted { lhs, rhs in
             let albumComparison = lhs.album.localizedStandardCompare(rhs.album)
             if albumComparison != .orderedSame { return albumComparison == .orderedAscending }
+            if lhs.discNumber != rhs.discNumber { return lhs.discNumber < rhs.discNumber }
             if lhs.trackNumber != rhs.trackNumber { return lhs.trackNumber < rhs.trackNumber }
             return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
         }

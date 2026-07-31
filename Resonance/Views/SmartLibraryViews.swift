@@ -718,7 +718,10 @@ struct AlbumMetadataEditorSheet: View {
         _albumTitle = State(initialValue: album.title)
         _artist = State(initialValue: album.tracks.first?.artist ?? album.artist)
         _albumArtist = State(initialValue: album.tracks.first?.albumArtist ?? album.artist)
-        _discNumber = State(initialValue: String(max(1, album.tracks.first?.discNumber ?? 1)))
+        _discNumber = State(initialValue: {
+            guard let value = album.tracks.first?.discNumber, value > 0 else { return "" }
+            return String(value)
+        }())
         _releaseYear = State(initialValue: album.releaseYear > 0 ? String(album.releaseYear) : "")
         _artworkData = State(initialValue: album.artworkData)
     }
@@ -829,7 +832,7 @@ struct AlbumMetadataEditorSheet: View {
                             album: albumTitle,
                             artist: artist,
                             albumArtist: albumArtist,
-                            discNumber: Int(discNumber) ?? 1,
+                            discNumber: Int(discNumber),
                             releaseYear: Int(releaseYear) ?? 0,
                             artworkData: artworkData,
                             replaceArtwork: replaceArtwork

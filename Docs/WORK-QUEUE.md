@@ -67,7 +67,8 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Status: implemented and simulator-compiled; physical runtime acceptance remains pending.
 - Owner: `SmartLibraryViews.swift` album editor and `LibraryStore.swift` album metadata save boundary.
 - Goal: expose one editable Disc Number field and apply it to every track in the selected album.
-- Preserved invariants: track titles, track numbers, Artist, Album Artist, artwork behavior, and targeted refresh.
+- Preserved invariants: track titles, track numbers, Artist, Album Artist, artwork behavior, targeted refresh, and
+  disc-first/track-second ordering in album and All Albums lists.
 - Manual oracle: enter a disc number in an album editor, Save, and confirm every affected file has that disc number;
   Cancel must leave all files unchanged.
 - Rollback: revert the album-save signature and editor field changes.
