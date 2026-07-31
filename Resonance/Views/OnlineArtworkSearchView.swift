@@ -6,6 +6,7 @@ struct OnlineArtworkSearchSheet: View {
     let artist: String
     let albumArtist: String?
     let album: String?
+    let stagesSelection: Bool
     let onApplyToApp: (Data) -> Void
     let onSaveToFiles: (Data) async -> String?
 
@@ -13,12 +14,14 @@ struct OnlineArtworkSearchSheet: View {
         artist: String,
         albumArtist: String? = nil,
         album: String?,
+        stagesSelection: Bool = false,
         onApplyToApp: @escaping (Data) -> Void,
         onSaveToFiles: @escaping (Data) async -> String?
     ) {
         self.artist = artist
         self.albumArtist = albumArtist
         self.album = album
+        self.stagesSelection = stagesSelection
         self.onApplyToApp = onApplyToApp
         self.onSaveToFiles = onSaveToFiles
     }
@@ -66,6 +69,7 @@ struct OnlineArtworkSearchSheet: View {
                                     ForEach(suggestions.filter { !unavailableSuggestionIDs.contains($0.id) }) { suggestion in
                                         OnlineArtworkSuggestionCard(
                                             suggestion: suggestion,
+                                            stagesSelection: stagesSelection,
                                             isSelected: selectedSuggestionID == suggestion.id,
                                             isRecommended: recommendedSuggestionID == suggestion.id,
                                             isSaving: isSaving,
@@ -204,6 +208,7 @@ struct OnlineArtworkSearchSheet: View {
 
 private struct OnlineArtworkSuggestionCard: View {
     let suggestion: ArtworkSearchSuggestion
+    let stagesSelection: Bool
     let isSelected: Bool
     let isRecommended: Bool
     let isSaving: Bool
@@ -250,14 +255,14 @@ private struct OnlineArtworkSuggestionCard: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
 
-            Button("Apply to App") {
+            Button(stagesSelection ? "Use Artwork" : "Apply to App") {
                 guard let imageData else { return }
                 onApplyToApp(imageData)
             }
             .buttonStyle(.borderedProminent)
             .disabled(imageData == nil || isSaving)
 
-            Button("Save to Files") {
+            Button(stagesSelection ? "Use Artwork for Metadata" : "Save to Files") {
                 guard let imageData else { return }
                 onSaveToFiles(imageData)
             }

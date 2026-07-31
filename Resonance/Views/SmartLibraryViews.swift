@@ -673,26 +673,14 @@ struct TrackMetadataEditorSheet: View {
                     artist: artist,
                     albumArtist: albumArtist,
                     album: album,
+                    stagesSelection: true,
                     onApplyToApp: { data in
                         artworkData = data
                         replaceArtwork = true
-                        library.applyArtworkToApp(for: track.id, data: data)
                     },
                     onSaveToFiles: { data in
                         artworkData = data
                         replaceArtwork = true
-                        library.updateTrackMetadataInBackground(
-                            trackID: track.id,
-                            title: title,
-                            artist: artist,
-                            albumArtist: albumArtist.isEmpty ? artist : albumArtist,
-                            album: album,
-                            trackNumber: Int(trackNumber) ?? 0,
-                            discNumber: Int(discNumber) ?? 1,
-                            releaseYear: Int(releaseYear) ?? 0,
-                            artworkData: data,
-                            replaceArtwork: true
-                        )
                         return nil
                     }
                 )
@@ -851,22 +839,14 @@ struct AlbumMetadataEditorSheet: View {
                     artist: albumArtist,
                     albumArtist: albumArtist,
                     album: albumTitle,
+                    stagesSelection: true,
                     onApplyToApp: { data in
                         artworkData = data
                         replaceArtwork = true
-                        library.applyArtworkToApp(forAlbumTrackIDs: album.tracks.map(\.id), data: data)
                     },
                     onSaveToFiles: { data in
                         artworkData = data
                         replaceArtwork = true
-                        library.updateAlbumMetadataInBackground(
-                            trackIDs: album.tracks.map(\.id),
-                            album: albumTitle,
-                            albumArtist: albumArtist,
-                            releaseYear: Int(releaseYear) ?? 0,
-                            artworkData: data,
-                            replaceArtwork: true
-                        )
                         return nil
                     }
                 )
@@ -1097,23 +1077,16 @@ struct ArtistMetadataEditorSheet: View {
                 OnlineArtworkSearchSheet(
                     artist: artistName,
                     album: nil,
+                    stagesSelection: true,
                     onApplyToApp: { data in
                         artworkData = data
                         replaceArtwork = true
                         clearArtworkOverride = false
-                        library.applyArtworkToApp(for: artist, data: data)
                     },
                     onSaveToFiles: { data in
                         artworkData = data
                         replaceArtwork = true
                         clearArtworkOverride = false
-                        library.updateArtistMetadataInBackground(
-                            artist: artist,
-                            name: artistName,
-                            artworkData: data,
-                            replaceArtwork: true,
-                            clearArtworkOverride: false
-                        )
                         return nil
                     }
                 )

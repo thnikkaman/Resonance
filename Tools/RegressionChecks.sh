@@ -385,6 +385,8 @@ assert '.stroke(isSelected ? .red' in artwork_picker
 assert 'onImageAvailabilityChanged' in artwork_picker
 assert 'Search MusicBrainz artwork' in artwork_picker
 assert 'PhotosPicker' not in artwork_picker
+assert 'stagesSelection' in artwork_picker
+assert 'stagesSelection: true' in smart
 assert 'showingArtworkSearch' in album_detail
 assert 'rememberArtwork' in remote_download
 assert 'resolvedArtworkData' in streaming
