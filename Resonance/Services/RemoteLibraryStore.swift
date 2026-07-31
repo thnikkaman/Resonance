@@ -349,6 +349,15 @@ final class RemoteLibraryStore: ObservableObject {
         case albums
         case artists
         case albumArtists
+
+        var label: String {
+            switch self {
+            case .filtered: "filtered"
+            case .albums: "albums"
+            case .artists: "artists"
+            case .albumArtists: "albumArtists"
+            }
+        }
     }
 
     private struct BrowseCache: Sendable {
@@ -370,6 +379,9 @@ final class RemoteLibraryStore: ObservableObject {
 
     private var trackRevision = 0
     private var browseCache: BrowseCache?
+    private var browsePrewarmTask: Task<BrowseCache, Never>?
+    private var browsePrewarmTaskKey: BrowseCacheKey?
+    private var browsePrewarmTaskNeed: BrowseNeed?
     private var didLoadCachedStartupState = false
 
     private struct CachedStartupState: Sendable {
@@ -467,24 +479,70 @@ final class RemoteLibraryStore: ObservableObject {
         browseData(groupCompilationArtists: groupCompilationArtists, need: .albumArtists).albumArtists ?? []
     }
 
-    func prewarmBrowseCache(groupCompilationArtists: Bool) async {
+    func prewarmBrowseCache(
+        groupCompilationArtists: Bool,
+        grouping: RemoteBrowseGrouping
+    ) async {
         let revision = trackRevision
         let direction = sortDirection.rawValue
         let input = tracks
         guard !input.isEmpty else { return }
 
-        let cache = await Task.detached(priority: .utility) {
+        let need: BrowseNeed
+        switch grouping {
+        case .artists: need = .artists
+        case .albumArtists: need = .albumArtists
+        case .albums: need = .albums
+        default: need = .filtered
+        }
+        let key = BrowseCacheKey(
+            trackRevision: revision,
+            sortDirection: direction,
+            groupCompilationArtists: groupCompilationArtists
+        )
+        if let browseCache,
+           browseCache.key == key,
+           browseCache.contains(need) {
+            return
+        }
+
+        if let browsePrewarmTask,
+           browsePrewarmTaskKey == key,
+           browsePrewarmTaskNeed == need {
+            let cache = await browsePrewarmTask.value
+            guard trackRevision == revision,
+                  sortDirection.rawValue == direction else { return }
+            self.browseCache = cache
+            return
+        }
+
+        let startedAt = Date()
+
+        let task = Task.detached(priority: .utility) {
             Self.makeBrowseCache(
                 tracks: input,
                 trackRevision: revision,
                 sortDirectionRawValue: direction,
-                groupCompilationArtists: groupCompilationArtists
+                groupCompilationArtists: groupCompilationArtists,
+                need: need
             )
-        }.value
+        }
+        browsePrewarmTask = task
+        browsePrewarmTaskKey = key
+        browsePrewarmTaskNeed = need
+        let cache = await task.value
 
         guard trackRevision == revision,
               sortDirection.rawValue == direction else { return }
         browseCache = cache
+        ResonanceDiagnostics.shared.recordDeferred(
+            "remote.browse.prewarm",
+            details: [
+                "durationMs": String(Int((Date().timeIntervalSince(startedAt) * 1000).rounded())),
+                "trackCount": String(input.count),
+                "projection": need.label
+            ]
+        )
     }
 
     private func browseData(
@@ -526,7 +584,8 @@ final class RemoteLibraryStore: ObservableObject {
         tracks: [RemoteTrackItem],
         trackRevision: Int,
         sortDirectionRawValue: String,
-        groupCompilationArtists: Bool
+        groupCompilationArtists: Bool,
+        need: BrowseNeed
     ) -> BrowseCache {
         let sorted = tracks.sorted {
             ($0.artist, $0.album, $0.discNumber, $0.trackNumber, $0.title) <
@@ -550,19 +609,7 @@ final class RemoteLibraryStore: ObservableObject {
             &cache,
             tracks: tracks,
             sortDirectionRawValue: sortDirectionRawValue,
-            need: .albums
-        )
-        populate(
-            &cache,
-            tracks: tracks,
-            sortDirectionRawValue: sortDirectionRawValue,
-            need: .artists
-        )
-        populate(
-            &cache,
-            tracks: tracks,
-            sortDirectionRawValue: sortDirectionRawValue,
-            need: .albumArtists
+            need: need
         )
         return cache
     }

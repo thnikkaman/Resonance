@@ -468,10 +468,9 @@ assert 'requeueDownload' in remote_download
 assert 'Requeue' in streaming
 assert 'ignoredLocalPaths' in library_store
 assert 'deletingFiles: Bool' in library_store
-assert 'Download Artist' in streaming
-assert 'Download Artists' in streaming
-assert 'Download Album' in streaming
-assert 'Download Albums' in streaming
+assert 'Label("Download", systemImage: "arrow.down.circle")' in streaming
+assert 'Button("Download Entire Library")' in streaming
+assert 'Button("Select Individual Artists")' in streaming
 assert 'DownloadSelectionBubble' in streaming
 assert 'downloadSelectionMode' in streaming
 assert streaming.count('LongPressGesture(minimumDuration: 0.45, maximumDistance: 12)') == 2
@@ -563,7 +562,7 @@ assert 'NavigationStack {\n                AlbumDetailView(album: album)' in lib
 assert 'NavigationStack {\n                    RemoteArtistDetailView(artist: artist)' in streaming
 assert 'NavigationStack {\n                    RemoteAlbumDetailView(album: album)' in streaming
 assert 'Label("Back", systemImage: "chevron.left")' in library_view
-assert 'Label("Back", systemImage: "chevron.left")' in album_detail
+assert 'ResonanceToolbarTextButton' in album_detail
 assert 'Streaming artist view and sort options' in streaming
 assert library_view.count('.resonanceDetailTabNavigation()') == 1
 assert album_detail.count('.resonanceDetailTabNavigation()') == 2

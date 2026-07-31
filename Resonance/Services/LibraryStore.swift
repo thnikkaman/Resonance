@@ -241,89 +241,77 @@ final class LibraryStore: ObservableObject {
         defer { isBootstrapping = false }
         ensureSharedMusicFolder()
 
-        // The display cache can include tens of megabytes of artwork sidecars.
-        // Decode it off the main actor so the first SwiftUI frame can present
-        // the startup shell before cached Library content is hydrated.
+        // Publish the persisted display snapshot first. This is the quickest
+        // cache path and avoids showing the empty-library indexing state while
+        // SQLite and artwork blobs are being reconciled in the background.
         let cachedTracks = await Task.detached(priority: .utility) {
             Self.loadDisplaySnapshot()
         }.value
-        if tracks.isEmpty, !cachedTracks.isEmpty {
+        if !cachedTracks.isEmpty {
             tracks = cachedTracks.map(applyMetadataOverride)
-        }
-
-        if !tracks.isEmpty {
-            let cachedTracks = tracks
-            let stored = await database.loadAll(includeArtwork: false)
-            if !stored.isEmpty {
-                let cachedByID = Dictionary(uniqueKeysWithValues: cachedTracks.map { ($0.id, $0) })
-                tracks = stored.map { storedTrack in
-                    var merged = applyMetadataOverride(storedTrack)
-                    if let cached = cachedByID[storedTrack.id], let artworkData = cached.artworkData {
-                        merged.artworkData = artworkData
-                        merged.artworkIsEmbedded = cached.artworkIsEmbedded
-                    }
-                    return merged
-                }
-                persistDisplaySnapshot()
-            }
             let currentTracks = tracks
             knownModificationDates = await Task.detached(priority: .utility) {
                 Self.modificationDates(for: currentTracks)
             }.value
-            sharedFolderTrackCount = tracks.reduce(into: 0) { count, track in
-                guard let url = track.fileURL, !track.isRemote else { return }
-                if url.standardizedFileURL.path.hasPrefix(sharedMusicFolderURL.standardizedFileURL.path + "/") {
-                    count += 1
-                }
-            }
-            scanStatus = "Cached library ready — \(tracks.count) tracks"
-            scheduleArtworkRecoveryIfNeeded()
-            return
-        }
-
-        // Publish the lightweight persisted index first. Artwork blobs can be
-        // large and decoding them all before assigning `tracks` made Library
-        // appear empty during startup.
-        let stored = await database.loadAll(includeArtwork: false).filter { track in
-            guard let url = track.fileURL else { return true }
-            return !ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
-        }
-        tracks = stored.map(applyMetadataOverride)
-        persistDisplaySnapshot()
-        knownModificationDates = await Task.detached(priority: .utility) {
-            Self.modificationDates(for: stored)
-        }.value
-
-        if tracks.isEmpty {
-            // There is no persisted library to trust on first launch, so the
-            // initial scan is still required to discover transferred files.
-            await scanDocuments(forceMetadataRefresh: false)
-            tracks = Self.demoTracks
-            scanStatus = "Shared folder ready — no transferred music found"
-        } else {
-            // The local library changes rarely. Treat the database snapshot as
-            // authoritative at startup and leave an explicit scan action for
-            // users who have transferred new or changed files.
-            sharedFolderTrackCount = stored.reduce(into: 0) { count, track in
-                guard let url = track.fileURL, !track.isRemote else { return }
-                if url.standardizedFileURL.path.hasPrefix(sharedMusicFolderURL.standardizedFileURL.path + "/") {
-                    count += 1
-                }
-            }
             scanStatus = "Cached library ready — \(tracks.count) tracks"
 
-            // Hydrate cached artwork without blocking the first visible
-            // Library frame. File inventory is deliberately not checked here;
-            // explicit Refresh, imports, and completed downloads are the
-            // supported paths that update the local index.
             Task { [weak self] in
                 guard let self else { return }
+                let stored = await self.database.loadAll(includeArtwork: false).filter { track in
+                    guard let url = track.fileURL else { return true }
+                    return !self.ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
+                }
+                guard !stored.isEmpty else { return }
+                self.reconcilePersistedIndex(stored, preservingArtworkFrom: cachedTracks)
+                self.knownModificationDates = await Task.detached(priority: .utility) {
+                    Self.modificationDates(for: stored)
+                }.value
                 let hydrated = await self.database.loadAll(includeArtwork: true)
                 self.mergeCachedArtwork(from: hydrated)
                 self.persistDisplaySnapshot()
             }
             scheduleArtworkRecoveryIfNeeded()
+            return
         }
+
+        // If the display snapshot is absent, use the lightweight database
+        // index before falling back to a real Documents scan.
+        let stored = await database.loadAll(includeArtwork: false).filter { track in
+            guard let url = track.fileURL else { return true }
+            return !ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
+        }
+        if !stored.isEmpty {
+            tracks = stored.map(applyMetadataOverride)
+            persistDisplaySnapshot()
+            knownModificationDates = await Task.detached(priority: .utility) {
+                Self.modificationDates(for: stored)
+            }.value
+            scanStatus = "Cached library ready — \(tracks.count) tracks"
+            scheduleArtworkRecoveryIfNeeded()
+            return
+        }
+
+        // There is no persisted library to trust on first launch, so the
+        // initial scan is still required to discover transferred files.
+        await scanDocuments(forceMetadataRefresh: false)
+        tracks = Self.demoTracks
+        scanStatus = "Shared folder ready — no transferred music found"
+    }
+
+    private func reconcilePersistedIndex(
+        _ stored: [Track],
+        preservingArtworkFrom cachedTracks: [Track]
+    ) {
+        let cachedByID = Dictionary(uniqueKeysWithValues: cachedTracks.map { ($0.id, $0) })
+        tracks = stored.map { storedTrack in
+            var merged = applyMetadataOverride(storedTrack)
+            if let cached = cachedByID[storedTrack.id], let artworkData = cached.artworkData {
+                merged.artworkData = artworkData
+                merged.artworkIsEmbedded = cached.artworkIsEmbedded
+            }
+            return merged
+        }
+        scanStatus = "Cached library ready — \(tracks.count) tracks"
     }
 
     private func mergeCachedArtwork(from cachedTracks: [Track]) {

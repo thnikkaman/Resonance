@@ -224,7 +224,6 @@ struct SettingsView: View {
                         Image(systemName: "qrcode.viewfinder")
                             .font(.title3)
                     }
-                    .buttonStyle(.bordered)
                     .accessibilityLabel("Scan server address QR code")
                 }
 
@@ -269,11 +268,8 @@ struct SettingsView: View {
                     Task { await remote.testConnection(using: settings) }
                 } label: {
                     Label(remote.isLoading ? "Testing…" : "Test Connection", systemImage: "network")
-                        .foregroundStyle(settings.contrastingAccentTextColor)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(settings.accentColor)
                 .disabled(
                     remote.isLoading
                     || settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -532,8 +528,8 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
-        .safeAreaPadding(.top, 84)
         .tint(settings.accentColor)
+        .buttonStyle(ResonanceSettingsActionButtonStyle())
         .scrollContentBackground(.hidden)
         .listRowBackground(Color.clear)
         .listSectionSpacing(4)
@@ -569,7 +565,19 @@ struct SettingsView: View {
         )
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(action: closeSettings) { Label("Close Settings", systemImage: "chevron.left") }
+                ResonanceToolbarTextButton(
+                    title: "Back",
+                    systemImage: "chevron.left",
+                    width: 76,
+                    action: closeSettings
+                )
+            }
+            .resonanceHideSharedBackground()
+            ToolbarItem(placement: .principal) {
+                ResonanceHierarchyNavigationLabel(
+                    title: "Settings",
+                    systemImage: "gearshape"
+                )
             }
         }
         .onAppear {
@@ -938,7 +946,8 @@ private struct SettingsCategory<Content: View>: View {
             } label: {
                 HStack {
                     Text(title)
-                        .font(.system(size: 34, weight: .bold))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(settings.textAccentColor)
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -950,8 +959,10 @@ private struct SettingsCategory<Content: View>: View {
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 1.5)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(.vertical, 4)
+            .background {
+                ResonanceSettingsCardSurface(cornerRadius: 18)
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(settings.accentColor.opacity(0.22), lineWidth: 1)
@@ -968,6 +979,63 @@ private struct SettingsCategory<Content: View>: View {
                 )
             }
         }
+    }
+}
+
+private struct ResonanceSettingsCardSurface: View {
+    @EnvironmentObject private var settings: AppSettings
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        Group {
+            switch settings.heroButtonStyle {
+            case .softGlass:
+                shape
+                    .fill(.ultraThinMaterial)
+                    .overlay { shape.fill(settings.accentColor.opacity(0.08)) }
+            case .matteCrystal:
+                shape
+                    .fill(settings.themeSurfaceColor.opacity(0.38))
+                    .overlay {
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.08),
+                                Color.clear,
+                                settings.accentColor.opacity(0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .clipShape(shape)
+                    }
+            case .innerGlow:
+                shape.fill(settings.accentColor.opacity(0.04))
+            case .minimalTransparent:
+                Color.clear
+            }
+        }
+    }
+}
+
+private struct ResonanceSettingsActionButtonStyle: ButtonStyle {
+    @EnvironmentObject private var settings: AppSettings
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(settings.textAccentColor)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 34)
+            .background {
+                ResonanceSettingsCardSurface(cornerRadius: 10)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(settings.accentColor.opacity(0.48), lineWidth: 1)
+            }
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 

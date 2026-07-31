@@ -266,13 +266,17 @@ struct NowPlayingView: View {
       ResonanceThemeBackdrop()
     }
     .navigationTitle("Now Playing")
-    .navigationBarTitleDisplayMode(.inline)
+      .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarLeading) {
-        Button(action: openLibrary) {
-          Label("Library", systemImage: "chevron.left")
-        }
+        ResonanceToolbarTextButton(
+          title: "Back",
+          systemImage: "chevron.left",
+          width: 76,
+          action: openLibrary
+        )
       }
+      .resonanceHideSharedBackground()
       ToolbarItem(placement: .principal) {
         Button {
           openCurrentAlbum()
@@ -281,23 +285,27 @@ struct NowPlayingView: View {
         }
         .accessibilityLabel("Album, move up")
       }
-      ToolbarItemGroup(placement: .topBarTrailing) {
-        if player.currentTrack != nil {
-          Button {
-            showingPlaylistPicker = true
-          } label: {
-            Image(systemName: "text.badge.plus")
+      ToolbarItem(placement: .topBarTrailing) {
+        HStack(spacing: 4) {
+          if player.currentTrack != nil {
+            ResonanceToolbarIconButton(
+              accessibilityLabel: library.playlists.isEmpty ? "Add a playlist" : "Add current track to playlist",
+              systemImage: "text.badge.plus"
+            ) {
+              showingPlaylistPicker = true
+            }
           }
-          .accessibilityLabel(
-            library.playlists.isEmpty ? "Add a playlist" : "Add current track to playlist")
-        }
 
-        Button {
-          showingQueue = true
-        } label: {
-          Label("Queue", systemImage: "list.bullet")
+          ResonanceToolbarTextButton(
+            title: "Queue",
+            systemImage: "list.bullet",
+            width: 76
+          ) {
+            showingQueue = true
+          }
         }
       }
+      .resonanceHideSharedBackground()
     }
     .sheet(isPresented: $showingQueue) {
       PlaybackQueueView()

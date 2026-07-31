@@ -38,12 +38,15 @@ struct ResonanceApp: App {
                     guard scenePhase == .active else { return }
                     ResonanceDiagnostics.shared.record("scene.active.refresh.begin")
                     async let localActivation: Void = library.refreshForActiveState()
-                    async let remoteActivation: Void = remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
+                    async let remotePreparation: Void = {
+                        await remoteLibrary.activateCachedCatalogAndCheckForChanges(using: settings)
+                        await remoteLibrary.prewarmBrowseCache(
+                            groupCompilationArtists: settings.groupCompilationArtists,
+                            grouping: remoteLibrary.grouping
+                        )
+                    }()
                     await localActivation
-                    await remoteActivation
-                    await remoteLibrary.prewarmBrowseCache(
-                        groupCompilationArtists: settings.groupCompilationArtists
-                    )
+                    await remotePreparation
                     remoteDownloads.resumePersistedDownloads(from: remoteLibrary.tracks, into: library)
                     ResonanceDiagnostics.shared.record("scene.active.refresh.end")
                 }

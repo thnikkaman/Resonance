@@ -273,6 +273,7 @@ private struct ResonanceLayeredNavigationView: View {
   @EnvironmentObject private var gestureCoordinator: ResonanceGestureCoordinator
   @EnvironmentObject private var miniPlayerNavigation: ResonanceMiniPlayerNavigation
   @StateObject private var navigation = ResonanceLayerNavigation()
+  @State private var hasPresentedStreaming = false
 
   var body: some View {
     ZStack {
@@ -436,7 +437,10 @@ private struct ResonanceLayeredNavigationView: View {
           ResonanceLayeredMiniPlayerOverlay(navigation: navigation)
         }
       }
-      .onChange(of: navigation.root) { _, _ in
+      .onChange(of: navigation.root) { _, root in
+        if root == .streaming {
+          hasPresentedStreaming = true
+        }
         navigation.showRoot()
       }
         }
@@ -453,20 +457,27 @@ private struct ResonanceLayeredNavigationView: View {
   @ViewBuilder
   private var rootSurface: some View {
     ZStack {
-      if navigation.root == .library {
+      if navigation.root == .library || !hasPresentedStreaming {
         NavigationStack {
           LibraryView(
             openStreaming: navigation.showStreamingRoot,
             openSettings: navigation.showSettings
           )
         }
-      } else {
+        .opacity(navigation.root == .library ? 1 : 0)
+        .allowsHitTesting(navigation.root == .library)
+        .accessibilityHidden(navigation.root != .library)
+      }
+      if navigation.root == .streaming || hasPresentedStreaming {
         NavigationStack {
           StreamingLibraryView(
             openLibrary: navigation.showLibraryRoot,
             openSettings: navigation.showSettings
           )
         }
+        .opacity(navigation.root == .streaming ? 1 : 0)
+        .allowsHitTesting(navigation.root == .streaming)
+        .accessibilityHidden(navigation.root != .streaming)
       }
     }
     .environment(\.resonanceLayeredNavigationActive, true)
@@ -576,17 +587,11 @@ private struct ResonanceLayerHeader: View {
       case .artist:
         EmptyView()
       case .allAlbums:
-        layerButton(title: "Artist") {
-          navigation.showArtist()
-        }
+        EmptyView()
       case .album:
-        layerButton(title: "Artist") {
-          navigation.showArtist()
-        }
+        EmptyView()
       case .player:
-        layerButton(title: "Album") {
-          navigation.showAlbum()
-        }
+        EmptyView()
       case .settings:
         EmptyView()
       }
@@ -611,26 +616,92 @@ private struct ResonanceLayerHeader: View {
 struct ResonanceHierarchyNavigationLabel: View {
   @EnvironmentObject private var settings: AppSettings
   let title: String
+  let systemImage: String
+
+  init(title: String, systemImage: String = "arrow.up") {
+    self.title = title
+    self.systemImage = systemImage
+  }
+
+  private var shape: Capsule { Capsule() }
+
+  @ViewBuilder
+  private var surface: some View {
+    switch settings.heroButtonStyle {
+    case .softGlass:
+      shape.fill(.ultraThinMaterial)
+        .overlay { shape.fill(settings.accentColor.opacity(0.10)) }
+    case .matteCrystal:
+      shape.fill(settings.themeSurfaceColor.opacity(0.42))
+        .overlay {
+          LinearGradient(
+            colors: [Color.white.opacity(0.10), Color.clear, settings.accentColor.opacity(0.08)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          )
+          .clipShape(shape)
+        }
+    case .innerGlow:
+      shape.fill(settings.accentColor.opacity(0.045))
+    case .minimalTransparent:
+      Color.clear
+    }
+  }
+
+  @ViewBuilder
+  private var outline: some View {
+    switch settings.heroButtonStyle {
+    case .softGlass:
+      shape.stroke(settings.accentColor.opacity(0.55), lineWidth: 1)
+    case .matteCrystal:
+      shape.stroke(settings.accentColor.opacity(0.68), lineWidth: 1)
+    case .innerGlow:
+      ZStack {
+        shape.stroke(settings.accentColor.opacity(0.32), lineWidth: 5).blur(radius: 3)
+        shape.stroke(settings.accentColor.opacity(0.78), lineWidth: 1)
+      }
+    case .minimalTransparent:
+      Color.clear
+    }
+  }
 
   var body: some View {
     HStack(spacing: 10) {
       Text(title)
-      Image(systemName: "arrow.up")
+      Image(systemName: systemImage)
         .font(.system(size: 16, weight: .light))
     }
     .font(.subheadline.weight(.semibold))
     .padding(.horizontal, 14)
     .frame(height: 34)
     .background {
-      ResonanceThemeSurfaceBackdrop()
-        .clipShape(Capsule())
+      surface
     }
     .overlay {
-      Capsule()
-        .stroke(settings.textAccentColor.opacity(0.35), lineWidth: 1)
+      outline
+    }
+    .overlay(alignment: .bottom) {
+      if settings.heroButtonStyle == .minimalTransparent {
+        Capsule(style: .continuous)
+          .fill(settings.accentColor.opacity(0.80))
+          .frame(width: 24, height: 1.5)
+          .padding(.bottom, 3)
+      }
     }
     .foregroundStyle(settings.textAccentColor)
     .contentShape(Capsule())
+    .fixedSize(horizontal: true, vertical: true)
+  }
+}
+
+extension ToolbarContent {
+  @ToolbarContentBuilder
+  func resonanceHideSharedBackground() -> some ToolbarContent {
+    if #available(iOS 26.0, *) {
+      self.sharedBackgroundVisibility(.hidden)
+    } else {
+      self
+    }
   }
 }
 
@@ -1506,7 +1577,7 @@ struct ResonanceHeroActionButton: View {
     private var styledLabel: some View {
         label
             .foregroundStyle(
-                prominent && settings.applyThemeColorToText
+                prominent
                     ? settings.contrastingAccentTextColor
                     : settings.textAccentColor
             )
@@ -1607,7 +1678,7 @@ struct ResonanceHeroMenuLabel: View {
     var body: some View {
         label
             .foregroundStyle(
-                prominent && settings.applyThemeColorToText
+                prominent
                     ? settings.contrastingAccentTextColor
                     : settings.textAccentColor
             )
@@ -1624,11 +1695,72 @@ struct ResonanceHeroMenuLabel: View {
     }
 }
 
+
 struct ResonanceToolbarIconButton: View {
     let accessibilityLabel: String
     let systemImage: String
     let action: () -> Void
     @EnvironmentObject private var settings: AppSettings
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+    }
+
+    @ViewBuilder
+    private var surface: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    shape.fill(settings.accentColor.opacity(0.10))
+                }
+        case .matteCrystal:
+            shape
+                .fill(settings.themeSurfaceColor.opacity(0.42))
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.10),
+                            Color.clear,
+                            settings.accentColor.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(shape)
+                }
+        case .innerGlow:
+            shape.fill(settings.accentColor.opacity(0.045))
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.stroke(settings.accentColor.opacity(0.55), lineWidth: 1)
+        case .matteCrystal:
+            shape.stroke(settings.accentColor.opacity(0.68), lineWidth: 1)
+        case .innerGlow:
+            ZStack {
+                shape.stroke(settings.accentColor.opacity(0.32), lineWidth: 5)
+                    .blur(radius: 3)
+                shape.stroke(settings.accentColor.opacity(0.78), lineWidth: 1)
+            }
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    private var underline: some View {
+        Capsule(style: .continuous)
+            .fill(settings.accentColor.opacity(0.80))
+            .frame(width: 24, height: 1.5)
+            .padding(.bottom, 3)
+    }
 
     var body: some View {
         Button(action: action) {
@@ -1636,14 +1768,17 @@ struct ResonanceToolbarIconButton: View {
                 .font(.caption.weight(.semibold))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-            .frame(width: 32, height: 30)
+            .frame(width: 32, height: 34)
             .background {
-                ResonanceThemeSurfaceBackdrop()
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                surface
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(settings.textAccentColor.opacity(0.3), lineWidth: 1)
+                outline
+            }
+            .overlay(alignment: .bottom) {
+                if settings.heroButtonStyle == .minimalTransparent {
+                    underline
+                }
             }
             .foregroundStyle(settings.textAccentColor)
             .buttonStyle(.plain)
@@ -1657,19 +1792,172 @@ struct ResonanceToolbarIconLabel: View {
     let systemImage: String
     @EnvironmentObject private var settings: AppSettings
 
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+    }
+
+    @ViewBuilder
+    private var surface: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    shape.fill(settings.accentColor.opacity(0.10))
+                }
+        case .matteCrystal:
+            shape
+                .fill(settings.themeSurfaceColor.opacity(0.42))
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.10),
+                            Color.clear,
+                            settings.accentColor.opacity(0.08)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(shape)
+                }
+        case .innerGlow:
+            shape.fill(settings.accentColor.opacity(0.045))
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.stroke(settings.accentColor.opacity(0.55), lineWidth: 1)
+        case .matteCrystal:
+            shape.stroke(settings.accentColor.opacity(0.68), lineWidth: 1)
+        case .innerGlow:
+            ZStack {
+                shape.stroke(settings.accentColor.opacity(0.32), lineWidth: 5)
+                    .blur(radius: 3)
+                shape.stroke(settings.accentColor.opacity(0.78), lineWidth: 1)
+            }
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    private var underline: some View {
+        Capsule(style: .continuous)
+            .fill(settings.accentColor.opacity(0.80))
+            .frame(width: 24, height: 1.5)
+            .padding(.bottom, 3)
+    }
+
     var body: some View {
         Image(systemName: systemImage)
             .font(.caption.weight(.semibold))
-            .frame(width: 32, height: 30)
+            // Keep passive labels used by NavigationLink/Menu at the same
+            // geometry as ResonanceToolbarIconButton.
+            .frame(width: 32, height: 34)
             .background {
-                ResonanceThemeSurfaceBackdrop()
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                surface
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(settings.textAccentColor.opacity(0.3), lineWidth: 1)
+                outline
+            }
+            .overlay(alignment: .bottom) {
+                if settings.heroButtonStyle == .minimalTransparent {
+                    underline
+                }
             }
             .foregroundStyle(settings.textAccentColor)
+    }
+}
+
+struct ResonanceToolbarTextButton: View {
+    let title: String
+    let systemImage: String
+    let width: CGFloat
+    let action: () -> Void
+    @EnvironmentObject private var settings: AppSettings
+
+    init(
+        title: String,
+        systemImage: String,
+        width: CGFloat = 112,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.width = width
+        self.action = action
+    }
+
+    private var shape: Capsule { Capsule() }
+
+    @ViewBuilder
+    private var surface: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.fill(.ultraThinMaterial)
+                .overlay { shape.fill(settings.accentColor.opacity(0.10)) }
+        case .matteCrystal:
+            shape.fill(settings.themeSurfaceColor.opacity(0.42))
+                .overlay {
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.10), Color.clear, settings.accentColor.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .clipShape(shape)
+                }
+        case .innerGlow:
+            shape.fill(settings.accentColor.opacity(0.045))
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var outline: some View {
+        switch settings.heroButtonStyle {
+        case .softGlass:
+            shape.stroke(settings.accentColor.opacity(0.55), lineWidth: 1)
+        case .matteCrystal:
+            shape.stroke(settings.accentColor.opacity(0.68), lineWidth: 1)
+        case .innerGlow:
+            ZStack {
+                shape.stroke(settings.accentColor.opacity(0.32), lineWidth: 5).blur(radius: 3)
+                shape.stroke(settings.accentColor.opacity(0.78), lineWidth: 1)
+            }
+        case .minimalTransparent:
+            Color.clear
+        }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: systemImage)
+                Text(title)
+            }
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .frame(width: width, height: 30)
+            .background { surface }
+            .overlay { outline }
+            .overlay(alignment: .bottom) {
+                if settings.heroButtonStyle == .minimalTransparent {
+                    Capsule(style: .continuous)
+                        .fill(settings.accentColor.opacity(0.80))
+                        .frame(width: 32, height: 1.5)
+                        .padding(.bottom, 3)
+                }
+            }
+            .foregroundStyle(settings.textAccentColor)
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(title)
     }
 }
 

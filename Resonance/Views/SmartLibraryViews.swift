@@ -397,7 +397,6 @@ private struct TrackLibraryActionsModifier: ViewModifier {
                     Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
                 }
                 .tint(.indigo)
-
                 Button {
                     player.addToQueue([track])
                 } label: {
@@ -412,6 +411,15 @@ private struct TrackLibraryActionsModifier: ViewModifier {
                     Label("Edit Metadata", systemImage: "pencil")
                 }
                 .tint(.blue)
+                Button {
+                    showingPlaylistPicker = true
+                } label: {
+                    Label(
+                        library.playlists.isEmpty ? "Add a Playlist" : "Add to Playlist",
+                        systemImage: "text.badge.plus"
+                    )
+                }
+                .tint(.purple)
             }
             .contextMenu {
                 Button {

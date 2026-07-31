@@ -101,13 +101,7 @@ struct AlbumDetailView: View {
     private func trackRow(_ track: Track) -> some View {
         let leadingNumber = track.trackNumber > 0 ? "\(track.trackNumber)" : "–"
         Button { player.play(track, in: liveAlbum.tracks) } label: {
-            TrackListRow(
-                track: track,
-                leadingNumber: leadingNumber,
-                showsArtwork: true,
-                large: false,
-                showsAlbum: false
-            )
+            TrackListRow(track: track, leadingNumber: leadingNumber, showsArtwork: true, large: false, showsAlbum: false)
         }
         .buttonStyle(.plain)
         .trackLibraryActions(track)
@@ -128,9 +122,7 @@ struct AlbumDetailView: View {
             .listStyle(.plain)
             .listRowBackground(Color.clear)
             .scrollContentBackground(.hidden)
-            .background {
-                ResonanceThemeSurfaceBackdrop()
-            }
+            .background { ResonanceThemeSurfaceBackdrop() }
             .resonanceDetailBottomSpace()
         }
         .background {
@@ -144,28 +136,35 @@ struct AlbumDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !layeredNavigation {
-                    Button { dismiss() } label: {
-                        Label("Back", systemImage: "chevron.left")
+                    ResonanceToolbarTextButton(
+                        title: "Back",
+                        systemImage: "chevron.left",
+                        width: 76,
+                        action: { dismiss() }
+                    )
+                }
+            }
+            .resonanceHideSharedBackground()
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Album view settings",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingLibraryOptions = true
                     }
-                }
-            }
-            ToolbarItemGroup(placement: .topBarLeading) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Album view settings",
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    showingLibraryOptions = true
-                }
 
-                NavigationLink {
-                    PlaylistCollectionView()
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    NavigationLink {
+                        PlaylistCollectionView()
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open playlists")
+                    .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
                 }
-                .buttonStyle(.plain)
-                .help("Open playlists")
-                .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
+            .resonanceHideSharedBackground()
             ToolbarItem(placement: .principal) {
                 Button {
                     guard layeredNavigation else {
@@ -194,17 +193,19 @@ struct AlbumDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
-                    Button { showingMetadataEditor = true } label: {
-                        Image(systemName: "pencil")
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Edit album metadata",
+                        systemImage: "pencil"
+                    ) {
+                        showingMetadataEditor = true
                     }
-                    .accessibilityLabel("Edit album metadata")
 
-                    Button {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: library.playlists.isEmpty ? "Add a playlist" : "Add album to playlist",
+                        systemImage: "text.badge.plus"
+                    ) {
                         showingPlaylistPicker = true
-                    } label: {
-                        Image(systemName: "text.badge.plus")
                     }
-                    .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add album to playlist")
 
                     ResonanceToolbarIconButton(
                         accessibilityLabel: "Open Settings",
@@ -214,6 +215,7 @@ struct AlbumDetailView: View {
                     }
                 }
             }
+            .resonanceHideSharedBackground()
         }
         .sheet(isPresented: $showingLibraryOptions) {
             LibraryOptionsSheet()
@@ -307,65 +309,85 @@ struct AllAlbumsTrackListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.resonanceLayeredNavigationActive) private var layeredNavigation
     @EnvironmentObject private var player: PlayerController
+    @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
+    @State private var showingLibraryOptions = false
     let artistName: String
     let tracks: [Track]
 
     var body: some View {
         List {
-            if let first = tracks.first {
-                Section {
-                    Button { player.play(first, in: tracks) } label: {
-                        Label("Play All Albums", systemImage: "play.fill")
-                            .foregroundStyle(settings.contrastingAccentTextColor)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.accentColor)
-                    .listRowBackground(Color.clear)
-                }
-                .listRowBackground(Color.clear)
-            }
-
-            ForEach(Array(Dictionary(grouping: tracks, by: \.album).keys.sorted()), id: \.self) { albumName in
-                Section(albumName) {
-                    ForEach(tracks.filter { $0.album == albumName }) { track in
-                        Button { player.play(track, in: tracks) } label: {
-                            TrackListRow(
-                                track: track,
-                                leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–",
-                                showsArtwork: true,
-                                large: false,
-                                showsAlbum: false
-                            )
+                if let first = tracks.first {
+                    Section {
+                        ResonanceHeroActionButton(
+                            title: "Play All Albums",
+                            systemImage: "play.fill",
+                            tint: settings.accentColor,
+                            prominent: true
+                        ) {
+                            player.play(first, in: tracks)
                         }
-                        .buttonStyle(.plain)
-                        .trackLibraryActions(track)
+                        .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
                     }
                     .listRowBackground(Color.clear)
                 }
-                .listRowBackground(Color.clear)
-            }
+
+                ForEach(Array(Dictionary(grouping: tracks, by: \.album).keys.sorted()), id: \.self) { albumName in
+                    Section(albumName) {
+                        ForEach(tracks.filter { $0.album == albumName }) { track in
+                            Button { player.play(track, in: tracks) } label: {
+                                TrackListRow(track: track, leadingNumber: track.trackNumber > 0 ? "\(track.trackNumber)" : "–", showsArtwork: true, large: false, showsAlbum: false)
+                            }
+                            .buttonStyle(.plain)
+                            .trackLibraryActions(track)
+                            .listRowBackground(Color.clear)
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                    .listRowBackground(Color.clear)
+                }
         }
         .listStyle(.plain)
         .listRowBackground(Color.clear)
         .scrollContentBackground(.hidden)
-        .background {
-            ResonanceThemeBackdrop()
-        }
+        .background { ResonanceThemeBackdrop() }
         .navigationTitle("All Albums")
         .navigationBarTitleDisplayMode(.inline)
         .resonanceDetailTabNavigation()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 if !layeredNavigation {
-                    Button { dismiss() } label: {
-                        Label("Back", systemImage: "chevron.left")
-                    }
+                    ResonanceToolbarTextButton(
+                        title: "Back",
+                        systemImage: "chevron.left",
+                        width: 76,
+                        action: { dismiss() }
+                    )
                 }
             }
+            .resonanceHideSharedBackground()
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Library view and sort options",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingLibraryOptions = true
+                    }
+
+                    NavigationLink {
+                        PlaylistCollectionView()
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open playlists")
+                    .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
+                }
+            }
+            .resonanceHideSharedBackground()
             ToolbarItem(placement: .principal) {
                 Button {
                     if layeredNavigation {
@@ -380,6 +402,19 @@ struct AllAlbumsTrackListView: View {
                 }
                 .accessibilityLabel("Artist, move up")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open Settings",
+                    systemImage: "gearshape"
+                ) {
+                    layeredNavigationState.showSettings()
+                }
+            }
+            .resonanceHideSharedBackground()
+        }
+        .sheet(isPresented: $showingLibraryOptions) {
+            LibraryOptionsSheet()
+                .presentationDetents([.medium, .large])
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
@@ -393,6 +428,7 @@ struct AllAlbumsTrackListView: View {
             .contentShape(Rectangle())
         }
     }
+
 }
 
 struct TrackListRow: View {

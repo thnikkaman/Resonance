@@ -1886,3 +1886,394 @@ Manual continuation: launch build 211 on SaiyanDenawa. Verify cached local Libra
 confirm artwork survives relaunch and cache refresh; exercise local artist/album/song/favorites/recent views; test FLAC
 and MP3 metadata/artwork saves and unsupported-format handling; inspect mixed-artist browse grouping; and confirm local
 and remote playback, Streaming responsiveness, downloads, navigation, and themes remain unchanged. Do not uninstall first.
+
+## Streaming browse projection prewarm — working tree, 2026-07-30
+
+Research of the remaining Streaming transition delay found that build 214 prepared artists, album artists, and albums
+before showing the selected browse mode. The page also had a race where its snapshot task could synchronously rebuild a
+projection on the main actor before the background prewarm completed. The current patch prepares only the selected
+projection, coalesces already-cached requests, and makes the Streaming snapshot task await that same utility-priority
+preparation. A credential-free `remote.browse.prewarm` diagnostic records duration, track count, and projection name.
+
+Validation passed the 10-test performance-skill suite, `Tools/RegressionChecks.sh`, `git diff --check`, and
+`Tools/PreflightBuild.sh` for simulator and generic-device Swift 6 strict builds. XcodeBuildMCP built, installed, and
+launched the configured iPhone 17 Pro simulator; Streaming Artists rendered with alphabet sections, the browse-options
+sheet opened, and Albums rendered with Various Artists grouping. The simulator app was stopped afterward. The physical
+device was not installed or launched, so the warm 8,071-track device latency improvement remains pending manual Release
+profiling.
+
+## Physical installation — Streaming projection patch, build 215 — 2026-07-30
+
+The current working tree was signed as arm64 Release version 1.0.6/build 215 with development team `98CWMFS26R`.
+Deep strict code-signature verification passed, and `xcrun devicectl device install app` installed it in place on
+`SaiyanDenwa` without uninstalling the existing app. `devicectl device info apps` verified
+`com.example.ResonancePrototype` version 1.0.6/build 215. The physical app was not launched. The only build warning
+was the known harmless AppIntents metadata-skip warning because the target has no AppIntents framework dependency.
+
+Manual continuation: launch build 215 on `SaiyanDenwa` and compare warm Streaming first-frame latency with the cached
+8,071-track catalog during playback and multi-track downloads. Verify artist/album ordering, alphabet navigation,
+download progress, playback, tab switching, and relaunch persistence. Do not uninstall first.
+
+## Streaming activation regression repair — build 216 — 2026-07-30
+
+Device diagnostics from build 215 showed no local library scan during Streaming activation, but the remote browse
+projection was rebuilt twice on each Streaming presentation for the cached 8,071-track catalog, taking approximately
+1.1–1.8 seconds per build. The regression came from the startup optimization that conditionally constructed only the
+active root NavigationStack; switching away from and back to Streaming destroyed and recreated the Streaming view,
+restarting its activation tasks. The browse-prewarm path also lacked in-flight task coalescing.
+
+The repair keeps Library-only startup construction, creates Streaming lazily on first use, then retains it across root
+tab switches. Remote browse prewarm requests for the same catalog revision/projection now share one utility-priority
+task. Audio, local-library scanning, catalog refresh behavior, and download behavior were not changed.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build with
+development team `98CWMFS26R` passed strict deep code-signature verification and installed in place on `SaiyanDenwa`;
+`devicectl` verified `com.example.ResonancePrototype` version 1.0.6/build 216. The physical app was not launched.
+The known no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual continuation: launch build 216 on `SaiyanDenwa`, open Streaming, wait for the first catalog display, switch to
+Library and back to Streaming repeatedly, and confirm it does not show local-library indexing or rebuild the catalog
+on each return. Confirm Streaming remains responsive during playback and downloads, then test artist/album grouping,
+alphabet navigation, selection/download actions, and relaunch persistence. Do not uninstall first.
+
+## Cache-first launch repair — build 217 — 2026-07-30
+
+The local startup path now publishes the lightweight persisted display snapshot first, before waiting on SQLite or
+artwork hydration. Cached tracks therefore become visible immediately; SQLite metadata and artwork are reconciled
+afterward in the background. A full Documents scan is reserved for a genuinely empty persisted library. Remote
+catalog activation and browse projection prewarm run concurrently with local bootstrap instead of waiting for local
+startup to finish.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build with
+development team `98CWMFS26R` passed strict deep code-signature verification and installed in place on `SaiyanDenwa`;
+`devicectl` verified `com.example.ResonancePrototype` version 1.0.6/build 217. The physical app was not launched.
+The known no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual continuation: launch build 217 on `SaiyanDenwa` and verify a cached Library appears without a prolonged
+“Indexing music…” state. Open Streaming for the first time after launch and verify cached remote content appears
+without a prolonged “Preparing Streaming…” state. Repeat after relaunch, then verify artwork hydration, playback,
+alphabet navigation, downloads, and tab switching. Do not uninstall first.
+
+## Local cache presentation repair — build 218 — 2026-07-30
+
+Device relaunch diagnostics showed a valid persisted local display snapshot and zero `library.scan.begin` or
+`library.scan.end` events across repeated launches. The recurring “Indexing music…” text was therefore a misleading
+empty-state placeholder while cached bootstrap waited on SQLite, not evidence of a repeated full Documents scan.
+
+Build 218 presents the display snapshot immediately, reconciles the SQLite index and artwork in the background, and
+labels the remaining cache wait as “Loading cached library…”. “Indexing music…” is now reserved for an actual local
+Documents scan. Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release build,
+and strict deep code-signature verification passed. The update installed in place on `SaiyanDenwa`; `devicectl`
+verified `com.example.ResonancePrototype` version 1.0.6/build 218. The physical app was not launched.
+
+Manual continuation: launch build 218 on `SaiyanDenwa`, close and reopen Resonance several times, and confirm the
+cached Library appears without a prolonged “Indexing music…” state. Verify Streaming, playback, artwork hydration,
+alphabet navigation, downloads, and tab switching remain responsive. Do not uninstall first.
+
+## Background Streaming preparation — build 219 — 2026-07-30
+
+The first Streaming presentation no longer waits on a view-owned activation and browse-prewarm cycle. Launch-time
+remote activation and detached browse projection remain the background preparation path; Streaming now consumes only
+completed browse snapshots and renders immediately while a missing projection is being prepared. This removes the
+duplicate first-tab wait and avoids synchronous fallback grouping of the full remote catalog on the main actor.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict
+deep code-signature verification passed. Build 219 installed in place on `SaiyanDenwa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 219. The physical app was not launched.
+
+Manual continuation: launch build 219, switch to Streaming immediately after launch, and confirm the tab changes
+without locking up while the catalog warms. Repeat after relaunch, switch between Artists, Albums, and Library, and
+verify scrolling, playback, downloads, and normal tab gestures remain responsive. Do not uninstall first.
+
+## Theme-linked navigation and Settings icons — build 220 — 2026-07-30
+
+Shared toolbar icon buttons and icon labels now use the same four persisted visual treatments as hero actions:
+Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent. They use the active theme accent for their surface,
+edge, glow, or underline while retaining contrast-aware navigation text. Changing Hero buttons in Settings therefore
+updates the Library, Streaming, detail-screen, playlist, and Settings toolbar icons through the shared component.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict
+deep code-signature verification passed. Build 220 installed in place on `SaiyanDenwa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 220. The physical app was not launched.
+
+Manual continuation: launch build 220 and switch Hero buttons among all four styles in Settings. Confirm the Library,
+Streaming, artist, album, playlist, and Settings navigation icons update immediately and remain readable in Gallery
+Light, Nocturne Glass, and material themes. Verify each icon still activates the correct action. Do not uninstall first.
+
+## Unified library navigation — build 221 — 2026-07-30
+
+Hierarchy navigation buttons now use the same persisted Hero Button treatments as the rest of the app: Soft Glass,
+Matte Crystal, Inner Glow, and Minimal Transparent. The top-level Library/Streaming switch now occupies the centered
+navigation slot used by the other module navigation controls: Library presents **Streaming →**, while Streaming presents
+**← Local**. The existing options, playlist, refresh, download, scan, add, and Settings controls remain in their toolbar
+groups.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict deep
+code-signature verification passed. Build 221 installed in place on `SaiyanDenawa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 221. The physical app was not launched.
+
+Manual continuation: launch build 221 on `SaiyanDenawa`, switch Hero buttons among all four styles and several themes,
+and verify the upward Album/Artist/Library hierarchy controls update consistently. Confirm Library shows **Streaming →**
+and Streaming shows **← Local**, each opens the correct destination, and the remaining toolbar controls stay in their
+expected locations. Do not uninstall first.
+
+## Streaming download toolbar and centered navigation — simulator build 222 — 2026-07-30
+
+The top-level Library navigation uses compact inline toolbar placement so the Local Library’s **Streaming →** control is
+centered beneath the camera area. Streaming now puts its browse, grouping, sort, and view options behind a themed left
+toolbar settings button. Its right toolbar keeps refresh and Settings in the first row, with a labeled **Download** button
+below. With no selection, Download asks whether to download the entire remote library or switch to individual artist
+selection; selected artists or albums download directly.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator through XcodeBuildMCP. The simulator and physical phone were not launched or changed beyond installation.
+
+Manual continuation: launch the installed simulator app, verify the centered **Streaming →** control, open Streaming
+options from the left settings icon, and confirm the right-side Download button is below the refresh/Settings row. Test
+the no-selection prompt’s whole-library and individual-artist paths, then select artists and confirm Download queues the
+selected content. Do not uninstall first.
+
+## Standalone navigation buttons — simulator build 223 — 2026-07-30
+
+Hierarchy navigation controls no longer render inside rounded Hero Button containers; the title and directional arrow now
+stand alone while retaining themed contrast. The Streaming download control is explicitly widened to 112 points and
+keeps its label on one line so **Download** remains fully visible.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; neither simulator nor physical phone was launched.
+
+Manual continuation: launch the simulator app, inspect Library/Streaming and detail-level upward navigation in each Hero
+Button style, and confirm the buttons have no surrounding containers. Verify the full Download label is visible and the
+button still opens the whole-library or individual-artist choice when nothing is selected.
+
+## Independent toolbar controls — simulator build 224 — 2026-07-30
+
+The previous screenshot showed that the system’s shared liquid-glass toolbar background was grouping the left options
+and right refresh/Settings/Download controls. Build 224 hides that shared background on the top-level Library and
+Streaming toolbar groups, leaving each themed control visually independent. The hierarchy navigation labels retain their
+standalone rounded treatment.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; the physical phone was not changed or launched.
+
+Manual continuation: launch the simulator and confirm the left options controls, right refresh/Settings controls, and
+Download button no longer sit inside a shared outer glass container. Confirm the navigation buttons retain their intended
+rounded treatment and Download remains fully visible.
+
+## Navigation border and toolbar spacing polish — simulator build 225 — 2026-07-30
+
+Hierarchy navigation buttons now restore the Hero Button theme surface and border, including the matching Inner Glow and
+Minimal Transparent treatments. The right Streaming toolbar is offset slightly downward, keeps visible spacing between
+Settings and Download, and renders the full **Download** word beside its arrow icon.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; the physical phone was not changed.
+
+Manual continuation: launch the simulator and verify the themed navigation borders, right-side vertical alignment, spacing
+between Settings and Download, and the complete Download label in each supported theme.
+
+## Themed Download control and final toolbar alignment — simulator build 226 — 2026-07-30
+
+The Streaming Download button now uses the same Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent treatments
+as the themed toolbar and navigation controls. The right-side toolbar stack is lowered slightly further while retaining
+clear spacing between its Settings row and Download.
+
+Regression checks, the configured iPhone 17 Pro simulator build, simulator installation, and a final simulator screenshot
+passed. The physical phone was not changed.
+
+Manual continuation: switch through the available themes and Hero Button styles, confirm Download follows each treatment,
+and verify the right-side controls remain vertically aligned with comfortable Settings-to-Download spacing.
+
+## Toolbar height matched to hierarchy navigation — simulator build 227 — 2026-07-30
+
+The shared themed toolbar icon buttons now use the same 34-point control height as the hierarchy navigation buttons.
+This aligns the right-side Settings/refresh controls with the centered Local/Streaming navigation control without changing
+the Download spacing or themed text-button treatment.
+
+Regression checks, simulator build/install, and a final simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: inspect both Library and Streaming in the simulator and verify the right-side icon row has the same
+vertical height and centerline as the hierarchy navigation button, with Download still separated below it.
+
+## Streaming toolbar baseline alignment — simulator build 228 — 2026-07-30
+
+The Streaming right-side toolbar stack now applies the same alignment baseline as the Library toolbar: its Settings and
+refresh row is lowered to match the centered hierarchy navigation control, while the themed Download button remains in a
+separate row below with its existing spacing.
+
+Regression checks, simulator build/install, and a final screenshot in the Electronic theme passed. The physical phone was
+not changed.
+
+Manual continuation: compare Library and Streaming directly in several themes and confirm the right-side Settings/refresh
+row shares the navigation button’s height and centerline, with Download below rather than in the first row.
+
+## Centered Local-to-Streaming navigation — simulator build 230 — 2026-07-30
+
+The Library toolbar now balances its leading slot to the trailing control width, eliminating the principal-toolbar offset
+that placed **Streaming →** left of center. The hierarchy label is non-compressing, so the complete title remains visible
+while centered under the camera area. Streaming’s **Local ←** layout remains centered as well.
+
+Regression checks, simulator build/install, and a final screenshot confirmed the centered, fully visible control. The
+physical phone was not changed.
+
+Manual continuation: compare **Streaming →** in Library with **Local ←** in Streaming across the available themes and
+confirm both are centered and fully readable.
+
+## Local file browser moved to second toolbar row — simulator build 231 — 2026-07-30
+
+The Local Library’s file-import control now appears in the second right-side toolbar row as a themed **Browse Files**
+button with its folder icon. Scan and Settings remain in the first row, matching Streaming’s first-row controls and
+second-row Download placement. The centered **Streaming →** navigation remains intact.
+
+Regression checks, simulator build/install, and a final Local Library screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: tap Browse Files to confirm the file importer opens, verify Scan and Settings remain in the first
+row, and compare the Local and Streaming second-row controls across themes.
+
+## Detail toolbar cleanup and All Tracks options — simulator build 232 — 2026-07-30
+
+Local and Streaming artist/album detail toolbars now hide the system shared outer toolbar background, leaving their themed
+controls independent like the root Library and Streaming toolbars. The local and remote All Tracks/All Albums track
+modules now expose a left view-options button and a right Settings button, with the matching options sheet available from
+each module.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+## Direct Streaming playlist navigation and unified leading toolbar spacing — simulator build 234 — 2026-07-30
+
+Streaming’s root playlist control now uses a direct `NavigationLink`, matching Local Library instead of opening an
+intermediate context menu. Artist, album, and All Tracks modules now use the same leading options-to-playlists HStack
+with 4-point spacing; Back remains separate, and All Tracks modules expose matching right-side Settings controls.
+
+Regression checks, simulator build/install, and `git diff --check` passed. The physical phone was not changed.
+
+Manual continuation: tap Playlists from Streaming and verify it opens the playlist page directly. Compare options and
+playlist spacing across Library, Streaming, local/remote artist and album details, and both All Tracks modules.
+
+Manual continuation: open local and Streaming artist and album details and confirm no outer glass container surrounds the
+toolbar controls. Open each All Tracks module, verify the left options and right Settings controls, and confirm the
+options sheets open normally.
+
+## Artist and album toolbar icon theme completion — simulator build 235 — 2026-07-30
+
+The remaining interactive pencil and add-to-playlist controls on local artist and album detail pages now use the shared
+themed toolbar icon component. Their sizing, surface, border, tint, and contrast therefore follow the configured Hero
+Button style alongside Settings and the other detail-page controls. The Playing toolbar changes from the preceding work
+remain included, with a text-labeled Back control and themed Queue/playlist actions.
+
+Regression checks, simulator build/install/launch, and a simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: open local and Streaming artist and album details in each available Hero Button style. Confirm the
+artist pencil, add-to-playlist, download, and Settings controls share the same themed treatment, then verify Now Playing
+Back, playlist, and Queue controls remain readable and actionable.
+
+## Remove redundant detail hierarchy bubbles — simulator build 236 — 2026-07-30
+
+The centered hierarchy pills above the navigation controls were removed from the Playing and local/remote album detail
+modules. Those screens retain their explicit left Back controls, so the redundant Artist/Album bubble no longer occupies
+the top navigation area. Library, Streaming, artist detail, and other hierarchy navigation remain unchanged.
+
+Regression checks, simulator build/install/launch, and a follow-up simulator screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: open Playing and both local and Streaming album detail screens. Confirm there is no centered bubble
+above the navigation controls, while Back, Settings, playlist, album options, playback, and track-list interactions still
+work.
+
+## Restore detail navigation and remove the camera-area header bubble — simulator build 237 — 2026-07-30
+
+The previous cleanup removed the actual centered Artist/Album navigation controls along with the duplicate bubble. The
+controls are restored in the Playing and local/remote album toolbars. The separate global layered-navigation header is
+now suppressed only for the album and Playing layers, removing the bubble above and slightly behind the camera area while
+preserving the in-toolbar navigation.
+
+Regression checks, simulator build/install/launch, and a follow-up simulator screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: open Playing and local/Streaming album detail. Confirm the centered Album/Artist navigation control
+is present in the navigation bar, the extra bubble above the camera area is gone, and Back navigation still works.
+
+## Remove remaining All Albums camera-area bubble — simulator build 238 — 2026-07-30
+
+The global layered-navigation header is now also suppressed for the All Albums module. Its own in-module Artist
+navigation remains available, while the duplicate bubble above and behind the camera area is removed consistently with
+Playing and album detail.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: open All Albums from a local and Streaming artist, confirm the in-module Artist navigation remains,
+and verify the extra camera-area bubble is absent.
+
+## Match playlist toolbar icon height universally — simulator build 239 — 2026-07-30
+
+The shared `ResonanceToolbarIconLabel` used by playlist NavigationLinks and menus now uses the same 34-point height as
+`ResonanceToolbarIconButton`. Playlist icons therefore match Settings and other themed toolbar controls across the
+Library, Streaming, artist, album, All Tracks, and related modules without screen-specific sizing overrides.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: compare playlist and Settings controls in each module and across all Hero Button styles; verify
+playlist navigation and menus remain tappable and visually aligned.
+
+## Match Streaming leading toolbar spacing — simulator build 240 — 2026-07-30
+
+The Streaming root playlist NavigationLink now uses the same plain button style as the corresponding Library, artist,
+album, and All Tracks links. This removes the platform NavigationLink padding that made the Streaming playlist icon sit
+farther from the library-options icon.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: compare the options-to-playlist spacing on Library, Streaming, artist, album, and All Tracks modules
+and verify the playlist link still opens normally.
+
+## Settings module theme overhaul — simulator build 241 — 2026-07-30
+
+Settings now follows the shared module chrome: its leading control is the themed text-labeled **Back** button, its
+centered title uses the themed Settings hierarchy treatment, and the legacy extra top padding was removed. Settings
+category cards now use Hero Button style-aware surfaces and borders with compact typography rather than the oversized
+legacy headers. Settings action buttons inherit a shared themed card treatment, including QR setup and Test Connection,
+while explicit destructive actions retain their destructive styling.
+
+All settings behavior and persisted category expansion remain unchanged. Regression checks, simulator build/install/launch,
+and a simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: open Settings and compare it with Library and Streaming in every Hero Button style. Verify the themed
+Back/title chrome, compact category cards, Appearance controls, QR scanner, Test Connection, diagnostics actions, keyboard
+dismissal, persisted expansion, and scrolling above the tab bar.
+
+## Album and All Albums action standardization — simulator build 242 — 2026-07-30
+
+Album and All Albums toolbars now use the shared themed Back control and consistent playlist-link geometry. Their Play All
+actions use the shared Hero action treatment instead of system-bordered buttons. Local track swipe actions now expose
+theme-colored Play Next, Add to Queue, Edit Metadata, and Add to Playlist controls. Streaming album and All Albums track
+swipes expose theme-colored Play Next, Add to Queue, Download, and server-playlist actions where supported.
+
+Fixed indigo, teal, blue, and green swipe tints were removed in favor of the active Resonance accent, so the action
+surfaces follow the selected theme consistently. Regression checks, simulator build/install/launch, and a simulator
+screenshot passed. The physical phone was not changed.
+
+Manual continuation: open local and Streaming albums and All Albums. Swipe tracks from both sides and verify the action
+labels, icons, spacing, and active-theme color; test Play Next, Add to Queue, Download, Edit Metadata, and Add to Playlist.
+
+## Revert experimental themed swipe actions — 2026-07-30
+
+The experimental custom swipe surface was reverted after simulator review showed the action cards could appear behind or
+over the track text. Album and All Albums rows are back on the stable native `.swipeActions` implementation. The shared
+toolbar, Hero Button, navigation, Settings, and Play All theme standardization remains in place.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, Swift 6 strict preflight, signed arm64 Release compilation, and strict
+code-signature verification passed. The simulator build was installed and launched. The physical phone install is
+pending completion of its iOS update; Codex did not launch the phone app.
+
+Manual continuation: after the phone reconnects, install this build in place and verify album/all-albums native swipe
+actions, toolbar consistency, navigation, Settings, playback, and library preservation.
+
+## Restore Streaming root toolbar isolation — simulator build 233 — 2026-07-30
+
+The Streaming root toolbar’s shared-background suppression was restored after the detail-toolbar update accidentally
+dropped that modifier. The existing root icon, Download, spacing, and alignment layout was otherwise left unchanged.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.

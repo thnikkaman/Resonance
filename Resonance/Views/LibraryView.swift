@@ -21,8 +21,11 @@ struct LibraryView: View {
     var body: some View {
         VStack(spacing: 0) {
             Group {
-                if (library.isBootstrapping || library.isScanning) && library.tracks.isEmpty {
+                if library.isScanning && library.tracks.isEmpty {
                     ProgressView("Indexing music…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if library.isBootstrapping && library.tracks.isEmpty {
+                    ProgressView("Loading cached library…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     switch library.grouping {
@@ -60,18 +63,13 @@ struct LibraryView: View {
             }
         }
         .navigationTitle(library.grouping == .artists ? "Library" : library.grouping.rawValue)
+        .toolbarTitleDisplayMode(.inline)
         .background {
             ResonanceThemeBackdrop()
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Open Streaming library",
-                        systemImage: "arrow.right.circle",
-                        action: openStreaming
-                    )
-
                     ResonanceToolbarIconButton(
                         accessibilityLabel: library.grouping == .albums
                             ? "Album view settings"
@@ -92,32 +90,51 @@ struct LibraryView: View {
                     .help("Open playlists")
                     .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
                 }
+                .frame(width: 112, alignment: .leading)
+            }
+            .resonanceHideSharedBackground()
+
+            ToolbarItem(placement: .principal) {
+                Button(action: openStreaming) {
+                    ResonanceHierarchyNavigationLabel(
+                        title: "Streaming",
+                        systemImage: "arrow.right"
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Open Streaming library")
+                .accessibilityLabel("Streaming, move right")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 4) {
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Scan Resonance Music folder",
-                        systemImage: "arrow.clockwise"
-                    ) {
-                        Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
-                    }
-                    .disabled(library.isScanning)
+                VStack(alignment: .trailing, spacing: 10) {
+                    HStack(spacing: 4) {
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Scan Resonance Music folder",
+                            systemImage: "arrow.clockwise"
+                        ) {
+                            Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
+                        }
+                        .disabled(library.isScanning)
 
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Add music to library",
-                        systemImage: "plus"
+                        ResonanceToolbarIconButton(
+                            accessibilityLabel: "Open Settings",
+                            systemImage: "gearshape",
+                            action: openSettings
+                        )
+                    }
+
+                    ResonanceToolbarTextButton(
+                        title: "Browse Files",
+                        systemImage: "folder.badge.plus"
                     ) {
                         importing = true
                     }
-
-                    ResonanceToolbarIconButton(
-                        accessibilityLabel: "Open Settings",
-                        systemImage: "gearshape",
-                        action: openSettings
-                    )
                 }
+                .padding(.top, 6)
+                .offset(y: 18)
             }
+            .resonanceHideSharedBackground()
         }
         .sheet(isPresented: $showingLibraryOptions) {
             LibraryOptionsSheet()
@@ -1165,23 +1182,27 @@ struct ArtistDetailView: View {
                     }
                 }
             }
-            ToolbarItemGroup(placement: .topBarLeading) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Artist view settings",
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    showingLibraryOptions = true
-                }
+            .resonanceHideSharedBackground()
+            ToolbarItem(placement: .topBarLeading) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Artist view settings",
+                        systemImage: "slider.horizontal.3"
+                    ) {
+                        showingLibraryOptions = true
+                    }
 
-                NavigationLink {
-                    PlaylistCollectionView()
-                } label: {
-                    ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    NavigationLink {
+                        PlaylistCollectionView()
+                    } label: {
+                        ResonanceToolbarIconLabel(systemImage: "music.note.list")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open playlists")
+                    .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
                 }
-                .buttonStyle(.plain)
-                .help("Open playlists")
-                .accessibilityLabel("Open playlist manager, \(library.playlists.count) playlists")
             }
+            .resonanceHideSharedBackground()
             ToolbarItem(placement: .principal) {
                 Button {
                     if layeredNavigation {
@@ -1198,17 +1219,19 @@ struct ArtistDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 4) {
-                    Button { artistToEdit = liveArtist } label: {
-                        Image(systemName: "pencil")
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Edit artist metadata",
+                        systemImage: "pencil"
+                    ) {
+                        artistToEdit = liveArtist
                     }
-                    .accessibilityLabel("Edit artist metadata")
 
-                    Button {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: library.playlists.isEmpty ? "Add a playlist" : "Add artist to playlist",
+                        systemImage: "text.badge.plus"
+                    ) {
                         showingPlaylistPicker = true
-                    } label: {
-                        Image(systemName: "text.badge.plus")
                     }
-                    .accessibilityLabel(library.playlists.isEmpty ? "Add a playlist" : "Add artist to playlist")
 
                     ResonanceToolbarIconButton(
                         accessibilityLabel: "Open Settings",
@@ -1218,6 +1241,7 @@ struct ArtistDetailView: View {
                     }
                 }
             }
+            .resonanceHideSharedBackground()
         }
         .sheet(isPresented: $showingLibraryOptions) {
             LibraryOptionsSheet()
