@@ -292,32 +292,29 @@ struct StreamingLibraryView: View {
                 .accessibilityLabel("Local, move left")
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 4) {
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Refresh streaming library",
-                            systemImage: "arrow.clockwise"
-                        ) {
-                            Task { await remote.refresh(using: settings) }
-                        }
-                        .disabled(remote.isLoading || settings.streamHost.isEmpty)
-
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Open Settings",
-                            systemImage: "gearshape",
-                            action: openSettings
-                        )
-                    }
-
-                    ResonanceToolbarTextButton(
-                        title: "Download",
-                        systemImage: "arrow.down.circle",
-                        action: handleDownloadTap
-                    )
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Refresh streaming library",
+                    systemImage: "arrow.clockwise"
+                ) {
+                    Task { await remote.refresh(using: settings) }
                 }
-                .padding(.top, 6)
-                .offset(y: 18)
+                .disabled(remote.isLoading || settings.streamHost.isEmpty)
+
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open Settings",
+                    systemImage: "gearshape",
+                    action: openSettings
+                )
+            }
+            .resonanceHideSharedBackground()
+
+            ToolbarItem(placement: .topBarTrailing) {
+                ResonanceToolbarTextButton(
+                    title: "Download",
+                    systemImage: "arrow.down.circle",
+                    action: handleDownloadTap
+                )
             }
             .resonanceHideSharedBackground()
         }

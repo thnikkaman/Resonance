@@ -106,33 +106,30 @@ struct LibraryView: View {
                 .accessibilityLabel("Streaming, move right")
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 4) {
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Scan Resonance Music folder",
-                            systemImage: "arrow.clockwise"
-                        ) {
-                            Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
-                        }
-                        .disabled(library.isScanning)
-
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Open Settings",
-                            systemImage: "gearshape",
-                            action: openSettings
-                        )
-                    }
-
-                    ResonanceToolbarTextButton(
-                        title: "Browse Files",
-                        systemImage: "folder.badge.plus"
-                    ) {
-                        importing = true
-                    }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Scan Resonance Music folder",
+                    systemImage: "arrow.clockwise"
+                ) {
+                    Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
                 }
-                .padding(.top, 6)
-                .offset(y: 18)
+                .disabled(library.isScanning)
+
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Open Settings",
+                    systemImage: "gearshape",
+                    action: openSettings
+                )
+            }
+            .resonanceHideSharedBackground()
+
+            ToolbarItem(placement: .topBarTrailing) {
+                ResonanceToolbarTextButton(
+                    title: "Browse Files",
+                    systemImage: "folder.badge.plus"
+                ) {
+                    importing = true
+                }
             }
             .resonanceHideSharedBackground()
         }
