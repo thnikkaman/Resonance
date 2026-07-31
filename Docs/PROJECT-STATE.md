@@ -9,14 +9,14 @@ Last verified: 2026-07-30
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
 - Implementation baseline commit: `3cc3d35` (`Document restored navigation toolbar state`)
 - Documentation commits may sit on top; use `Tools/ProjectStateCheck.sh` for the exact current checkout commit.
-- Synchronized remote tip: `86ed0e0` (`Add scoped Resonance module contracts`)
+- Remote branch: `origin/agent/alpha-3.7.4-source`; it is pushed from this checkout.
 - Tracked tree: clean; pre-existing untracked build outputs, logs, diagnostics, and simulator artifacts are not release files.
 - Project default settings: version `1.0.6`, build `210`, Swift language mode `5.0`.
 
 The implementation baseline contains ten intentional commits through the toolbar
-restoration. The latest app-code change is `1c52501`; `3cc3d35`, `5bea18b`, and
-`86ed0e0` are continuity/documentation commits layered on top. The local branch and
-`origin/agent/alpha-3.7.4-source` are synchronized at `86ed0e0`.
+restoration. The latest app-code change is `1c52501`; commits after it are
+continuity/documentation records. Use `Tools/ProjectStateCheck.sh` and `git log` for
+the exact current checkout and remote-synchronization evidence.
 Do not infer that the project default build changed merely because an override artifact
 has a newer version/build.
 
@@ -28,7 +28,7 @@ has a newer version/build.
 - Installed build: `247`
 - Artifact build command used `MARKETING_VERSION=1.0.7 CURRENT_PROJECT_VERSION=247`.
 - The handoff identifies the toolbar artifact source as commit `1c52501`; the checkout
-  now adds the continuity commits `3cc3d35`, `5bea18b`, and `86ed0e0` on top.
+  now adds continuity/documentation commits on top.
 - Installation was verified with `xcrun simctl listapps` and bundle `Info.plist` inspection.
 - The simulator app was not launched or screenshot-captured by Codex in this verification.
 
