@@ -118,8 +118,8 @@ struct LibraryView: View {
             .resonanceHideSharedBackground()
 
             ToolbarItem(placement: .topBarTrailing) {
-                ResonanceToolbarTextButton(
-                    title: "Browse Files",
+                ResonanceToolbarIconButton(
+                    accessibilityLabel: "Browse Files",
                     systemImage: "folder.badge.plus"
                 ) {
                     importing = true

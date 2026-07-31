@@ -286,29 +286,28 @@ struct StreamingLibraryView: View {
             }
             .resonanceHideSharedBackground()
 
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Refresh streaming library",
-                    systemImage: "arrow.clockwise"
-                ) {
-                    Task { await remote.refresh(using: settings) }
-                }
-                .disabled(remote.isLoading || settings.streamHost.isEmpty)
-
-                ResonanceToolbarIconButton(
-                    accessibilityLabel: "Open Settings",
-                    systemImage: "gearshape",
-                    action: openSettings
-                )
-            }
-            .resonanceHideSharedBackground()
-
             ToolbarItem(placement: .topBarTrailing) {
-                ResonanceToolbarTextButton(
-                    title: "Download",
-                    systemImage: "arrow.down.circle",
-                    action: handleDownloadTap
-                )
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Download",
+                        systemImage: "arrow.down.circle",
+                        action: handleDownloadTap
+                    )
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Refresh streaming library",
+                        systemImage: "arrow.clockwise"
+                    ) {
+                        Task { await remote.refresh(using: settings) }
+                    }
+                    .disabled(remote.isLoading || settings.streamHost.isEmpty)
+
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape",
+                        action: openSettings
+                    )
+                }
             }
             .resonanceHideSharedBackground()
         }
