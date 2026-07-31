@@ -18,9 +18,10 @@ The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
 default Xcode settings remain version `1.0.6`, build `210`.
 
 The currently installed iPhone 17 Pro simulator artifact is version `1.0.7`,
-build `247`. It was built with explicit `MARKETING_VERSION=1.0.7` and
-`CURRENT_PROJECT_VERSION=247` overrides from the toolbar restoration source
-(`1c52501`), then documented by the follow-up README commit. The two identities
+build `249`. It was built with explicit `MARKETING_VERSION=1.0.7` and
+`CURRENT_PROJECT_VERSION=249` overrides from the restored toolbar source
+(`1c52501`), then installed in place after the rejected `1.0.7/build 248`
+separate-toolbar-item layout was removed. The two identities
 are intentionally different and must be reported separately. See
 `Docs/PROJECT-STATE.md` and run `Tools/ProjectStateCheck.sh` before making
 source or runtime claims.
@@ -36,6 +37,26 @@ Authoritative continuation source: the `Resonance-Beta-v1.0.6` tag on `agent/alp
 checked out at `/Users/brian/Resonance/Resonance-Alpha-3.7.4`. This preserves the current
 layered navigation, animations, Streaming toolbar/options, and synchronized custom accent-color controls. The
 simulator artifact for this source is `.build/color-picker/Build/Products/Debug-iphonesimulator/Resonance.app`.
+
+## Toolbar layout correction — simulator build 249 — 2026-07-30
+
+The Library and Streaming roots are back to the established stacked toolbar
+arrangement: leading options/playlists, centered Streaming/Local hierarchy
+navigation, and refresh/settings above the second-row Browse Files/Download action.
+The existing SwiftUI button actions remain unchanged; no custom hit region or
+navigation redesign was added. The intermediate build 248 separate-toolbar-item
+experiment was rejected because it visibly moved the controls and compressed the
+centered navigation.
+
+Regression checks, `git diff --check`, and the strict simulator/generic-device
+preflight passed. Simulator build `1.0.7/249` succeeded and was installed in place
+on the configured iPhone 17 Pro simulator. The simulator was not launched or
+screenshot-captured by Codex, and the physical phone was not changed.
+
+Manual continuation: launch build 249 manually. Confirm the toolbar matches the
+prior arrangement, then tap Browse Files and Download to verify their existing
+importer/download flows. Also verify the centered Streaming/Local navigation and
+leading options/playlists controls. Do not uninstall first.
 
 ## Experimental build 110 — metadata-save regression repair
 

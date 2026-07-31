@@ -702,7 +702,41 @@ extension ToolbarContent {
     } else {
       self
     }
-  }
+    }
+}
+
+private struct ResonanceSecondaryToolbarActionModifier: ViewModifier {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .topTrailing) {
+            ResonanceToolbarTextButton(
+                title: title,
+                systemImage: systemImage,
+                action: action
+            )
+            .padding(.top, -4)
+            .padding(.trailing, 12)
+        }
+    }
+}
+
+extension View {
+    func resonanceSecondaryToolbarAction(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        modifier(
+            ResonanceSecondaryToolbarActionModifier(
+                title: title,
+                systemImage: systemImage,
+                action: action
+            )
+        )
+    }
 }
 
 private struct ResonanceFrameDiagnosticsModifier: ViewModifier {

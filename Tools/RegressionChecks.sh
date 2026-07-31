@@ -214,6 +214,17 @@ assert 'streaming.option.compilationGrouping.changed' in streaming
 assert 'compilationAlbumIdentity' in remote
 assert 'albumArtists(groupCompilationArtists:' in remote
 assert 'RemotePlaylistCollectionView' in streaming
+assert 'ToolbarItem(placement: .principal)' in library_view
+assert 'title: "Streaming"' in library_view
+assert 'ToolbarItem(placement: .principal)' in streaming
+assert 'title: "Local"' in streaming
+assert 'title: "Browse Files"' in library_view
+assert 'title: "Download"' in streaming
+assert 'resonanceSecondaryToolbarAction' in library_view
+assert 'resonanceSecondaryToolbarAction' in streaming
+assert '.padding(.top, -4)' in root_view
+assert '.offset(y: 18)' not in library_view
+assert '.offset(y: 18)' not in streaming
 assert 'var albumArtists: [RemoteArtist]?' in remote
 assert 'cache.albumArtists = artists' in remote
 assert 'recordDeferred' in diagnostics

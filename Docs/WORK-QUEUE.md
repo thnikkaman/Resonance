@@ -7,18 +7,38 @@ rollback point before implementation begins.
 
 ## Active baseline
 
-- Runtime baseline: installed simulator artifact `1.0.7/247`.
+- Runtime baseline: installed simulator artifact `1.0.7/249`.
 - Source baseline: checkout `3cc3d35`, with toolbar code from `1c52501`.
 - Physical device: unchanged and not launched by Codex.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
 ## Queue
 
-### R-247 — Manual simulator acceptance
+### R-TOOLBAR-ACTIONS — Preserve stacked Browse Files and Download actions
+
+- Status: pending user-run validation
+- Owner: `LibraryView.swift` and `StreamingLibraryView.swift` toolbar presentation
+- Goal: preserve the established stacked right-side toolbar layout and the existing
+  Browse Files/Download button actions while preserving centered navigation and leading controls
+- Preserved invariants: no hierarchy/navigation removal, no leading/trailing control
+  redesign, existing file importer state, existing download prompt/selection flow,
+  and existing toolbar styling
+- Smallest causal lever: restore the known-good nested trailing `VStack` and leave
+  the existing `ResonanceToolbarTextButton` action closures unchanged
+- Acceptance oracle: source retains principal `Streaming`/`Local` navigation labels;
+  trailing controls remain stacked with the existing offset; regression checks and
+  strict preflight pass
+- Manual acceptance: user launches the resulting simulator build and taps Browse Files,
+  Download, and both centered navigation controls without layout regression
+- Rollback: revert the focused toolbar and regression-check changes, preserving all
+  catalog, playback, theme, and navigation source
+
+### R-249 — Manual simulator acceptance
 
 - Status: pending user-run validation
 - Owner: user/runtime acceptance
-- Scope: restored Library/Streaming toolbar arrangement
+- Scope: restored Library/Streaming toolbar arrangement after rejecting the 248
+  separate-toolbar-item layout
 - Oracle: centered hierarchy controls, leading options/playlist controls, Browse Files
   importer, Download flow, and unchanged navigation behavior
 - Evidence required: user-captured screenshot and interaction result
@@ -54,6 +74,14 @@ rollback point before implementation begins.
   long-idle behavior
 - Rule: simulator evidence cannot close this item; Codex must not launch the physical app
   automatically
+
+### R-250 — Install current toolbar test build
+
+- Status: blocked on refreshed Apple provisioning
+- Artifact: current checkout, unsigned Release build `1.0.7/250`; local code-signature verification passed
+- Device result: SaiyanDenawa remained on `1.0.6/244`; install rejected the expired reused profile
+- Next action: rerun the signed build with `DEVELOPMENT_TEAM=98CWMFS26R CODE_SIGN_STYLE=Automatic`
+  after the Apple developer account can refresh profiles, then install in place and verify with `devicectl`
 
 ## Definition of done
 

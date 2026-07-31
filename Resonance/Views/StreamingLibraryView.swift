@@ -251,6 +251,11 @@ struct StreamingLibraryView: View {
         .toolbarTitleDisplayMode(.inline)
         .navigationBarTitleDisplayMode(.large)
         .background(alignment: .center) { ResonanceThemeBackdrop() }
+        .resonanceSecondaryToolbarAction(
+            title: "Download",
+            systemImage: "arrow.down.circle",
+            action: handleDownloadTap
+        )
         .onChange(of: selectedArtistIDs) { _, ids in
             if ids.isEmpty && selectedAlbumIDs.isEmpty { downloadSelectionMode = false }
         }
@@ -292,32 +297,22 @@ struct StreamingLibraryView: View {
                 .accessibilityLabel("Local, move left")
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 4) {
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Refresh streaming library",
-                            systemImage: "arrow.clockwise"
-                        ) {
-                            Task { await remote.refresh(using: settings) }
-                        }
-                        .disabled(remote.isLoading || settings.streamHost.isEmpty)
-
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Open Settings",
-                            systemImage: "gearshape",
-                            action: openSettings
-                        )
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Refresh streaming library",
+                        systemImage: "arrow.clockwise"
+                    ) {
+                        Task { await remote.refresh(using: settings) }
                     }
+                    .disabled(remote.isLoading || settings.streamHost.isEmpty)
 
-                    ResonanceToolbarTextButton(
-                        title: "Download",
-                        systemImage: "arrow.down.circle",
-                        action: handleDownloadTap
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape",
+                        action: openSettings
                     )
                 }
-                .padding(.top, 6)
-                .offset(y: 18)
             }
             .resonanceHideSharedBackground()
         }

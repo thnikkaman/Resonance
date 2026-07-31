@@ -67,6 +67,11 @@ struct LibraryView: View {
         .background {
             ResonanceThemeBackdrop()
         }
+        .resonanceSecondaryToolbarAction(
+            title: "Browse Files",
+            systemImage: "folder.badge.plus",
+            action: { importing = true }
+        )
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 HStack(spacing: 4) {
@@ -106,32 +111,22 @@ struct LibraryView: View {
                 .accessibilityLabel("Streaming, move right")
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 4) {
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Scan Resonance Music folder",
-                            systemImage: "arrow.clockwise"
-                        ) {
-                            Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
-                        }
-                        .disabled(library.isScanning)
-
-                        ResonanceToolbarIconButton(
-                            accessibilityLabel: "Open Settings",
-                            systemImage: "gearshape",
-                            action: openSettings
-                        )
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Scan Resonance Music folder",
+                        systemImage: "arrow.clockwise"
+                    ) {
+                        Task { await library.scanSharedMusicFolder(forceMetadataRefresh: false) }
                     }
+                    .disabled(library.isScanning)
 
-                    ResonanceToolbarTextButton(
-                        title: "Browse Files",
-                        systemImage: "folder.badge.plus",
-                        action: { importing = true }
+                    ResonanceToolbarIconButton(
+                        accessibilityLabel: "Open Settings",
+                        systemImage: "gearshape",
+                        action: openSettings
                     )
                 }
-                .padding(.top, 6)
-                .offset(y: 18)
             }
             .resonanceHideSharedBackground()
         }
