@@ -5,7 +5,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active baseline
 
-- Runtime baseline: signed Beta v1.0.9/build 261 installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
+- Runtime baseline: signed Beta v1.0.8/build 260 installed in place on `SaiyanDenawa`; Beta v1.0.9/build 261 is published but not installed.
 - Source baseline: `Resonance-Beta-v1.0.9` publication commit `3d455a0` on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.

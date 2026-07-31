@@ -13,17 +13,18 @@ Last verified: 2026-07-31
 - Project defaults: version `1.0.9`, build `261`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
-## Current beta artifact
+## Current beta source and installed artifact
 
-- Product: Resonance Beta v1.0.9/build 261.
+- Source product: Resonance Beta v1.0.9/build 261.
 - Bundle: `com.example.ResonancePrototype`.
 - Signed arm64 Release build passed with development team `98CWMFS26R`.
 - Deep strict code-signature verification passed.
 - In-place installation on `SaiyanDenawa` passed; existing app data was preserved.
-- `devicectl` verified version `1.0.9`, build `261`.
+- The installed physical artifact remains version `1.0.8`, build `260`; Beta v1.0.9 was not installed during this GitHub publication task.
 - Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
 
-The v1.0.9 source was published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9.
+The v1.0.9 source was published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9. A signed
+physical-device build/install remains a separate explicit step.
 
 ## Implemented change
 

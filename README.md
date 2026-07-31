@@ -19,8 +19,8 @@ and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
 Release source build: `1.0.9` (build `261`)
 
-Latest device validation build: `1.0.9` (build `261`). It was signed with team `98CWMFS26R`, verified with deep strict
-code-signature checks, and installed in place on `SaiyanDenawa` without uninstalling or launching the app.
+Latest device validation build: `1.0.8` (build `260`). Beta v1.0.9/build 261 is the current published source release and
+has not been installed on `SaiyanDenawa`.
 
 ## Resonance Beta v1.0.9 — 2026-07-31 UTC
 
@@ -28,11 +28,10 @@ The album-wide Disc Number for Every Track field now opens blank on every album.
 disc number, so saving an unrelated album title or metadata change cannot rewrite a multi-disc album as disc 1. Leaving
 the field blank preserves each track’s existing disc number; entering a value intentionally applies it to every track.
 
-Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and strict simulator compilation. The signed physical
-Release build and GitHub publication are recorded below.
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/ProjectStateCheck.sh --source-only`, and strict
+simulator/generic-device preflight. The physical-device build/install remains a separate explicit step.
 
-The signed Release build for `1.0.9`/build `261` passed deep strict code-signature verification and was installed in
-place on `SaiyanDenawa` without uninstalling or launching the app. The source was committed as `3d455a0`, pushed to
+The source was committed as `3d455a0`, pushed to
 `agent/alpha-3.7.4-source`, and published as the prerelease
 `Resonance-Beta-v1.0.9`: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9.
 
