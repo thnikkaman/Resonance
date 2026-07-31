@@ -35,6 +35,7 @@ struct OnlineArtworkSearchSheet: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var archiveSearchQuery = ""
+    @FocusState private var isArchiveSearchFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -91,6 +92,7 @@ struct OnlineArtworkSearchSheet: View {
                                 .padding()
                             }
                         }
+                        .scrollDismissesKeyboard(.interactively)
                     }
                 }
             }
@@ -100,6 +102,10 @@ struct OnlineArtworkSearchSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { isArchiveSearchFocused = false }
                 }
             }
             .alert("Artwork Search", isPresented: Binding(
@@ -111,6 +117,9 @@ struct OnlineArtworkSearchSheet: View {
                 Text(errorMessage ?? "The artwork could not be loaded.")
             }
             .task { await search() }
+            .simultaneousGesture(
+                TapGesture().onEnded { isArchiveSearchFocused = false }
+            )
         }
         .tint(settings.accentColor)
     }
@@ -161,11 +170,16 @@ struct OnlineArtworkSearchSheet: View {
         HStack(spacing: 8) {
             TextField("Search MusicBrainz artwork", text: $archiveSearchQuery)
                 .textFieldStyle(.roundedBorder)
+                .focused($isArchiveSearchFocused)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
-                .onSubmit { Task { await searchArchive() } }
+                .onSubmit {
+                    isArchiveSearchFocused = false
+                    Task { await searchArchive() }
+                }
             Button {
+                isArchiveSearchFocused = false
                 Task { await searchArchive() }
             } label: {
                 Image(systemName: "magnifyingglass")
