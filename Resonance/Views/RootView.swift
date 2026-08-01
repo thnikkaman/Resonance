@@ -812,7 +812,6 @@ struct RootView: View {
                 // browse modules, and reading the controller at this level
                 // would make the whole navigation tree a playback observer.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .offset(x: -8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
