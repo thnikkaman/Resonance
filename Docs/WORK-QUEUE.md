@@ -15,9 +15,9 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Manual oracle: enable Flac Alert and inspect Streaming album grids/lists and album detail; enable left-handed mode and confirm artist album artwork/cards begin to the right of the alphabet while right-handed mode is unchanged.
 - Rollback: revert this queue entry and the focused `RemoteLibraryStore.swift` and `StreamingLibraryView.swift` changes.
 
-- Runtime baseline: signed Beta v2.0/build 268 installed on Sarah's iPhone; physical runtime acceptance remains user-run.
+- Runtime baseline: signed Beta v2.0/build 268 installed on Sarah's iPhone and Chase's iPhone; physical runtime acceptance remains user-run.
 - Source baseline: local commit `65fdee7` on `agent/alpha-3.7.4-source`.
-- Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
+- Physical devices: installed but not launched by Codex; user runtime acceptance remains pending. Chase's installation uses the separate bundle `com.chaseatron.Resonance` because the original bundle is owned by another team.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
 ## Completed release work

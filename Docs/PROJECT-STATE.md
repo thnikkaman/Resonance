@@ -33,6 +33,16 @@ Last verified: 2026-07-31
 - `codesign --verify --deep --strict` passed; `devicectl` installed the app and verified version `2.0`/build `268`.
 - The app was not launched. Playback, navigation, audiobook behavior, and other runtime acceptance remain manual tests.
 
+## Latest Chaseatron device artifact
+
+- Source: local `agent/alpha-3.7.4-source` commit `56fa904`; source behavior and project version/build are unchanged.
+- Signed artifact: version `2.0`, build `268`, Chase-specific bundle `com.chaseatron.Resonance`.
+- Signing: Chase Peterson personal team `U37R4TL69A`; Xcode identity `Apple Development: chaseatron8110@gmail.com (RU994287VG)`.
+- The original `com.example.ResonancePrototype` identifier was unavailable to Chase's team, so this is a separate app/data container.
+- Device: Chase’s iphone, identifier `016D50FF-A5D1-52C4-8577-6C416B1C15FF`.
+- `codesign --verify --deep --strict` passed; `devicectl` installed and verified version `2.0`/build `268`.
+- The app was not launched. Playback and all other runtime acceptance remain manual tests.
+
 The v2.0 source is published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
 
 ## Implemented change
