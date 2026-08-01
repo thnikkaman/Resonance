@@ -51,10 +51,6 @@ struct SettingsView: View {
                     }
                 }
 
-                Text(settings.visualTheme.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 CenteredSettingsPicker(
                     "Hero buttons",
                     selection: $settings.heroButtonStyle,
@@ -1611,10 +1607,6 @@ private struct ThemeChoiceButton: View {
                 Text(theme.title)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
-                Text(theme.description)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)
