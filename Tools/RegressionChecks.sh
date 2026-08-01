@@ -187,6 +187,8 @@ assert 'artist-album-section-' in streaming
 assert 'scrollIndicators(.hidden)' in streaming
 assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
+assert 'alphabet.touch.begin' in library_view
+assert 'alphabet.touch.end' in library_view
 assert 'Reissue the final selection after the gesture has' in library_view
 assert 'repeatSelection: true' in library_view
 assert 'await Task.yield()' in library_view

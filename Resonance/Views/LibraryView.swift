@@ -384,6 +384,8 @@ struct VerticalArtistIndex: View {
     @State private var gestureKey: String?
     @State private var gestureStarted = false
     @State private var hideTask: Task<Void, Never>?
+    @State private var firstTouchLocation: CGPoint?
+    @State private var touchSampleCount = 0
 
     private let indexColumnWidth: CGFloat = 32
     // Keep the gesture exactly within the visible letter column. A wider
@@ -491,11 +493,22 @@ struct VerticalArtistIndex: View {
                     .onChanged { value in
                         if !gestureStarted {
                             gestureStarted = true
+                            firstTouchLocation = value.location
+                            touchSampleCount = 0
+                            ResonanceDiagnostics.shared.recordDeferred(
+                                "alphabet.touch.begin",
+                                details: touchDetails(
+                                    location: value.location,
+                                    geometry: geometry,
+                                    phase: "changed"
+                                )
+                            )
                             ResonanceDiagnostics.shared.recordDeferred(
                                 "alphabet.gesture.begin",
                                 details: ["surface": diagnosticSurface]
                             )
                         }
+                        touchSampleCount += 1
                         selectRow(
                             at: value.location.y,
                             topInset: topInset,
@@ -504,6 +517,17 @@ struct VerticalArtistIndex: View {
                     }
                     .onEnded { value in
                         let releaseY = value.location.y
+                        touchSampleCount += 1
+                        ResonanceDiagnostics.shared.recordDeferred(
+                            "alphabet.touch.end",
+                            details: touchDetails(
+                                location: value.location,
+                                geometry: geometry,
+                                phase: "ended",
+                                firstLocation: firstTouchLocation,
+                                sampleCount: touchSampleCount
+                            )
+                        )
                         // Reissue the final selection after the gesture has
                         // ended. The initial onChanged callback can be
                         // consumed while the scroll view is still handling
@@ -526,6 +550,8 @@ struct VerticalArtistIndex: View {
                             )
                             gestureStarted = false
                             gestureKey = nil
+                            firstTouchLocation = nil
+                            touchSampleCount = 0
                             scheduleBubbleHide()
                         }
                     }
@@ -577,6 +603,34 @@ struct VerticalArtistIndex: View {
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.15)) { selectedKey = nil }
         }
+    }
+
+    private func touchDetails(
+        location: CGPoint,
+        geometry: GeometryProxy,
+        phase: String,
+        firstLocation: CGPoint? = nil,
+        sampleCount: Int? = nil
+    ) -> [String: String] {
+        var details = [
+            "surface": diagnosticSurface,
+            "phase": phase,
+            "leftHanded": String(settings.leftHandedAlphabet),
+            "x": String(format: "%.1f", location.x),
+            "y": String(format: "%.1f", location.y),
+            "width": String(format: "%.1f", geometry.size.width),
+            "height": String(format: "%.1f", geometry.size.height),
+            "hitWidth": String(format: "%.1f", indexHitWidth),
+            "columnWidth": String(format: "%.1f", indexColumnWidth)
+        ]
+        if let firstLocation {
+            details["firstX"] = String(format: "%.1f", firstLocation.x)
+            details["firstY"] = String(format: "%.1f", firstLocation.y)
+        }
+        if let sampleCount {
+            details["samples"] = String(sampleCount)
+        }
+        return details
     }
 }
 
