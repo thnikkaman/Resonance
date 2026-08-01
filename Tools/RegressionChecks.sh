@@ -632,7 +632,7 @@ assert 'Enter track title' in smart
 assert '_discNumber = State(initialValue: "")' in smart
 assert 'discNumber: discNumber.map { max(1, $0) } ?? track.discNumber' in library_store
 assert 'ScrollableArtistName' in library_view
-assert 'private let indexHitWidth: CGFloat = 48' in library_view
+assert 'private let indexHitWidth: CGFloat = 32' in library_view
 assert '.frame(width: indexHitWidth)' in library_view
 assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming

@@ -386,10 +386,10 @@ struct VerticalArtistIndex: View {
     @State private var hideTask: Task<Void, Never>?
 
     private let indexColumnWidth: CGFloat = 32
-    // Keep the letters in their existing 32-point visual column while giving
-    // the gesture a small edge-side extension so the glyphs themselves are
-    // inside the hit region.
-    private let indexHitWidth: CGFloat = 48
+    // Keep the gesture exactly within the visible letter column. A wider
+    // container overlaps the first content cells in left-handed mode and
+    // steals ordinary browse scrolling near the edge.
+    private let indexHitWidth: CGFloat = 32
     private let bubbleSize: CGFloat = 86
     private let verticalInset: CGFloat = 8
 

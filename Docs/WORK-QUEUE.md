@@ -11,7 +11,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Owners: `RemoteLibraryStore.swift` for cached remote format metadata; `StreamingLibraryView.swift` for remote browse layout.
 - Goal: show the enabled gold FLAC border in Streaming even when the catalog was cached before file extensions were persisted, and keep Streaming artist album content clear of the left alphabet strip.
 - Preserved invariants: cached browsing remains available, remote refresh remains explicit except for this one-time format migration, right-handed geometry is unchanged, and the alphabet strip remains in its existing hit region.
-- Smallest causal levers: one conditional Subsonic cache-refresh predicate and the existing local-library left-handed padding values applied to the Streaming artist album grid.
+- Smallest causal levers: one conditional Subsonic cache-refresh predicate, the existing local-library left-handed padding values applied to the Streaming artist album grid, and a 32-point alphabet gesture column that does not overlap browse content.
 - Manual oracle: enable Flac Alert and inspect Streaming album grids/lists and album detail; enable left-handed mode and confirm artist album artwork/cards begin to the right of the alphabet while right-handed mode is unchanged.
 - Rollback: revert this queue entry and the focused `RemoteLibraryStore.swift` and `StreamingLibraryView.swift` changes.
 
