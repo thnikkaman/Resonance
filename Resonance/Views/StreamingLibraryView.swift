@@ -439,7 +439,7 @@ struct StreamingLibraryView: View {
             Color.clear
                 .frame(width: 24)
                 .contentShape(Rectangle())
-                .gesture(
+                .simultaneousGesture(
                     DragGesture(minimumDistance: 24)
                         .onEnded { value in
                             if value.translation.width > 70,

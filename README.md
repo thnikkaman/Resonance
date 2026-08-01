@@ -2445,3 +2445,18 @@ Manual test: with Debugging Mode enabled, repeatedly tap and drag the left-hande
 far-left edge, including two quick successive attempts, then repeat in Albums and local Library. Confirm the first
 touch jumps immediately, subsequent touches do not inherit the previous letter, and normal content scrolling still works
 outside the hit strip. Codex must not launch the physical app automatically.
+
+## Resolve Streaming alphabet edge overlay — Beta 2.0 build 268 — 2026-08-01
+
+A layout comparison showed that the shared Library and Streaming alphabet containers use the same alignment and padding.
+Streaming alone also placed a full-height 24-point leading overlay above its content for the root back-swipe gesture.
+That overlay covered the left side of the alphabet, matching the observed requirement to touch near the album-art edge.
+The back gesture now uses simultaneous recognition so the alphabet keeps vertical gesture ownership while a qualifying
+horizontal swipe still navigates back.
+
+Automated validation: signed arm64 Release compilation, strict deep code-signature verification, and in-place
+`devicectl` installation of version `2.0`/build `268` passed on `SaiyanDenawa`. The physical app was not launched.
+
+Manual test: in left-handed Streaming Artists, Albums, and artist-album views, touch the visible letters at the actual
+far-left screen edge and drag vertically; confirm the alphabet responds without reaching the album artwork. Then verify
+the root horizontal back swipe, normal browse scrolling, and right-handed alphabet behavior.

@@ -171,3 +171,14 @@ Tools/RegressionChecks.sh
 Tools/PreflightBuild.sh
 xcrun devicectl device info apps --device 00008150-001144383612401C --bundle-id com.example.ResonancePrototype
 ```
+
+## Streaming alphabet edge-overlay repair — Beta 2.0 build 268 — 2026-08-01
+
+A formal local-versus-Streaming layout comparison found the shared `VerticalArtistIndex`, ZStack alignment, and edge
+padding are equivalent. Streaming additionally had a full-height 24-point leading overlay for root back-swipe
+navigation. That overlay was above the alphabet and explains why touches only worked at the album-art edge. Its gesture
+now uses simultaneous recognition, preserving qualifying horizontal back swipes while allowing the alphabet’s
+high-priority vertical gesture to receive left-edge touches.
+
+Signed 2.0/268 build, strict deep signature verification, and in-place device installation passed. Physical runtime
+acceptance remains user-run; Codex did not launch the phone app.

@@ -267,3 +267,15 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Change: explicitly expand each index container to available width and align it to the active handedness edge.
 - Evidence: device diagnostics measured the previous left-handed frame at global x `-7...41`; signed 2.0/268 installation passed after the geometry change.
 - Manual acceptance: verify the visible letters and their hit area share the same left-edge origin in Streaming Artists, Albums, and artist-album views; repeat right-handed mode afterward.
+
+### R-ALPHABET-BACK-SWIPE-ARBITRATION — Remove the Streaming left-edge gesture conflict
+
+- Status: implemented and installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
+- Owner: `StreamingLibraryView.swift` root back-swipe overlay and shared `VerticalArtistIndex` gesture arbitration.
+- Root cause: a full-height 24-point leading overlay sat above the Streaming alphabet, blocking its leftmost hit area.
+- Change: use simultaneous gesture recognition for the overlay so vertical alphabet touches reach the high-priority index
+  while horizontal drags greater than 70 points retain root back navigation.
+- Automated evidence: signed arm64 Release build, strict deep code-signature verification, and in-place version
+  `2.0`/build `268` installation passed. The app was not launched by Codex.
+- Manual acceptance: test far-left alphabet taps and vertical drags in Streaming Artists, Albums, and artist-album views;
+  test root horizontal back swipe, ordinary scrolling, and right-handed mode.
