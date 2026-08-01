@@ -192,3 +192,12 @@ and navigation remain the only intentional Streaming differences around the brow
 
 Signed 2.0/268 build, strict signature verification, and in-place installation passed. Physical runtime acceptance
 remains user-run; Codex did not launch the phone app.
+
+## Minimal Transparent toolbar icon cleanup — Beta 2.0 build 268 — 2026-08-01
+
+Removed the Minimal Transparent accent capsule from the shared `ResonanceToolbarIconButton` and
+`ResonanceToolbarIconLabel` components. Text buttons and hero action buttons retain their existing Minimal Transparent
+underline treatment.
+
+Signed arm64 Release compilation, simulator Debug compilation, `git diff --check`, and in-place simulator installation
+passed. Build `2.0`/`268` is installed on the iPhone 17 Pro simulator; the physical phone was not updated or launched.

@@ -2476,3 +2476,17 @@ launched.
 Manual test: test far-left alphabet taps and vertical drags in Streaming Artists, Albums, and artist-album views;
 compare each directly with the corresponding Local view, then verify normal scrolling, navigation, and right-handed
 behavior.
+
+## Remove Minimal Transparent toolbar icon underline — Beta 2.0 build 268 — 2026-08-01
+
+Minimal Transparent toolbar icons no longer draw the small accent capsule beneath each icon. The shared
+`ResonanceToolbarIconButton` and `ResonanceToolbarIconLabel` components remain transparent without that underline;
+Minimal Transparent text and hero buttons retain their existing accent treatment.
+
+Automated validation: `git diff --check`, signed arm64 Release compilation, and simulator Debug compilation/install
+passed. Version `2.0`/build `268` is installed on the configured iPhone 17 Pro simulator. The physical phone was not
+updated or launched.
+
+Manual test: select Minimal Transparent in Settings and inspect Library, Streaming, Settings, Now Playing, and detail
+toolbars. Confirm icon buttons have no line beneath them, while text/hero buttons and the other visual styles remain
+unchanged.

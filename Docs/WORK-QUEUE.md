@@ -290,3 +290,12 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   version `2.0`/build `268` installation passed. The app was not launched by Codex.
 - Manual acceptance: compare Local and Streaming alphabet taps/drags at the far-left edge in every browse mode, then
   verify ordinary scrolling, navigation, and right-handed mode.
+
+### R-MINIMAL-TRANSPARENT-ICON-LINE — Remove underline from Minimal Transparent toolbar icons
+
+- Status: implemented and installed on the iPhone 17 Pro simulator; physical runtime acceptance remains user-run.
+- Owner: shared `ResonanceToolbarIconButton` and `ResonanceToolbarIconLabel` components in `RootView.swift`.
+- Change: removed only the Minimal Transparent bottom capsule from icon buttons and passive icon labels; text and hero
+  button treatments remain unchanged.
+- Automated evidence: `git diff --check`, signed arm64 Release build, simulator Debug build, and simulator install passed.
+- Manual acceptance: inspect all Minimal Transparent toolbar icon locations and verify other themes and non-icon buttons.

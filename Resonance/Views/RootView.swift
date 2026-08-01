@@ -1837,13 +1837,6 @@ struct ResonanceToolbarIconButton: View {
         }
     }
 
-    private var underline: some View {
-        Capsule(style: .continuous)
-            .fill(settings.accentColor.opacity(0.80))
-            .frame(width: 24, height: 1.5)
-            .padding(.bottom, 3)
-    }
-
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
@@ -1856,11 +1849,6 @@ struct ResonanceToolbarIconButton: View {
             }
             .overlay {
                 outline
-            }
-            .overlay(alignment: .bottom) {
-                if settings.heroButtonStyle == .minimalTransparent {
-                    underline
-                }
             }
             .foregroundStyle(settings.textAccentColor)
             .buttonStyle(.plain)
@@ -1927,13 +1915,6 @@ struct ResonanceToolbarIconLabel: View {
         }
     }
 
-    private var underline: some View {
-        Capsule(style: .continuous)
-            .fill(settings.accentColor.opacity(0.80))
-            .frame(width: 24, height: 1.5)
-            .padding(.bottom, 3)
-    }
-
     var body: some View {
         Image(systemName: systemImage)
             .font(.caption.weight(.semibold))
@@ -1945,11 +1926,6 @@ struct ResonanceToolbarIconLabel: View {
             }
             .overlay {
                 outline
-            }
-            .overlay(alignment: .bottom) {
-                if settings.heroButtonStyle == .minimalTransparent {
-                    underline
-                }
             }
             .foregroundStyle(settings.textAccentColor)
     }
