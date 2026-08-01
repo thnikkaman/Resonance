@@ -1569,8 +1569,8 @@ struct RemoteArtistDetailView: View {
                                 ) { album in
                                     albumTile(album)
                                 }
-                                .padding(.leading, 16)
-                                .padding(.trailing, 36)
+                                .padding(.leading, settings.leftHandedAlphabet ? 40 : 16)
+                                .padding(.trailing, settings.leftHandedAlphabet ? 16 : 36)
                                 .padding(.bottom)
                             }
                             .background {

@@ -945,11 +945,18 @@ final class RemoteLibraryStore: ObservableObject {
         await loadCachedStartupStateIfNeeded()
         prepareForServerIdentity(using: settings)
 
+        // Older cached Subsonic catalogs predate the stored file extension.
+        // When Flac Alert is enabled, refresh that cache once so the Streaming
+        // projection can distinguish FLAC-only albums without guessing.
+        let needsRemoteFormatRefresh = settings.flacAlert
+            && settings.streamBackend == .subsonic
+            && (pendingSubsonicCache?.tracks.contains { $0.fileExtension == nil } ?? false)
+
         // Once a cached catalog is visible, automatic scene/view appearances do
         // not need to start another task just to discover that the check is
         // intentionally deferred. Settings' explicit check still bypasses this
         // guard and is the only path that should refresh cached content.
-        if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive { return }
+        if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive, !needsRemoteFormatRefresh { return }
 
         ResonanceDiagnostics.shared.recordDeferred(
             "remote.catalogCheck.begin",
@@ -977,7 +984,7 @@ final class RemoteLibraryStore: ObservableObject {
                     "remote.catalogCache.activated",
                     details: ["trackCount": String(tracks.count)]
                 )
-                if !forceCheck {
+                if !forceCheck, !needsRemoteFormatRefresh {
                     // Cached remote data is authoritative during startup. The
                     // explicit Streaming refresh control and Settings check
                     // remain available when the user wants server changes.
@@ -1007,7 +1014,7 @@ final class RemoteLibraryStore: ObservableObject {
             let summaries = try await client.fetchAlbumSummaries()
             let newFingerprint = Self.albumFingerprint(summaries)
             let cachedFingerprint = pendingSubsonicCache?.albumFingerprint
-            if tracks.isEmpty || cachedFingerprint != newFingerprint {
+            if tracks.isEmpty || cachedFingerprint != newFingerprint || needsRemoteFormatRefresh {
                 let previousIDs = Set(tracks.compactMap(\.sourceID))
                 await refresh(using: settings)
                 let currentIDs = Set(tracks.compactMap(\.sourceID))

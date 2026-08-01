@@ -350,7 +350,7 @@ assert 'markPlayed(trackID:' in root_view
 assert 'ErrorReportingCoordinatorView' in root_view
 assert 'collectDocumentInventory' in library_store
 assert 'Task.detached(priority: .utility)' in library_store
-assert 'if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive { return }' in remote
+assert 'if !forceCheck, !tracks.isEmpty, !isDisplaySnapshotActive, !needsRemoteFormatRefresh { return }' in remote
 assert 'scheduleNowPlayingArtworkPreparation' in player
 assert 'prepareNowPlayingArtwork(data: data)' in player
 artwork = (root / 'Resonance/Views/ArtworkView.swift').read_text()
