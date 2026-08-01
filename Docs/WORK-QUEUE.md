@@ -324,3 +324,4 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   surfaces for a decorative backdrop that never changes layout or obscures controls/artwork.
 - Follow-up: the crop sheet now fits the phone viewport, keeps the full source image visible outside the selection
   frame, and renders custom page artwork without the previous translucent veil.
+- Follow-up: replaced the even-odd crop mask with explicit outside-only shade bands so the selected region stays clear.

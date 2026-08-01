@@ -224,3 +224,6 @@ simulator. The simulator app was not launched, and the physical phone was not up
 The crop editor now fits its viewport within the sheet, shows the full source image with an overlaid 864 × 1821
 selection frame, and uses the dimmed outside area only as a guide. Custom page backdrops no longer receive the
 translucent readability veil, so the saved image keeps its original brightness.
+
+The outside crop shade now uses explicit top, bottom, leading, and trailing bands; the selected region receives no
+shade or shadow.

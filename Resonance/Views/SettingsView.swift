@@ -1712,13 +1712,12 @@ private struct CustomThemeCropView: View {
                 .scaledToFit()
                 .frame(width: renderedWidth, height: renderedHeight)
                 .offset(offset)
-            CropOutsideMask(cropRect: CGRect(
+            CropOutsideShade(cropRect: CGRect(
                 x: (width - cropWidth) / 2,
                 y: (height - cropHeight) / 2,
                 width: cropWidth,
                 height: cropHeight
             ))
-            .fill(.black.opacity(0.48), style: FillStyle(eoFill: true))
             Rectangle()
                 .stroke(.white.opacity(0.95), lineWidth: 2)
                 .frame(width: cropWidth, height: cropHeight)
@@ -1825,14 +1824,31 @@ private struct CustomThemeCropView: View {
     }
 }
 
-private struct CropOutsideMask: Shape {
+private struct CropOutsideShade: View {
     let cropRect: CGRect
 
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addRect(rect)
-        path.addRect(cropRect)
-        return path
+    var body: some View {
+        Canvas { context, size in
+            let shade = GraphicsContext.Shading.color(.black.opacity(0.48))
+            context.fill(
+                Path(CGRect(x: 0, y: 0, width: size.width, height: cropRect.minY)),
+                with: shade
+            )
+            context.fill(
+                Path(CGRect(x: 0, y: cropRect.maxY, width: size.width, height: size.height - cropRect.maxY)),
+                with: shade
+            )
+            context.fill(
+                Path(CGRect(x: 0, y: cropRect.minY, width: cropRect.minX, height: cropRect.height)),
+                with: shade
+            )
+            context.fill(
+                Path(CGRect(x: cropRect.maxX, y: cropRect.minY, width: size.width - cropRect.maxX, height: cropRect.height)),
+                with: shade
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
     }
 }
 

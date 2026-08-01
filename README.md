@@ -2515,4 +2515,5 @@ launched, and the physical phone was not updated or launched.
 
 The crop sheet fits within the phone viewport and keeps the full source image visible outside the 864 × 1821
 selection frame; the dimmed outside area is only a crop guide. Custom page artwork is rendered without the prior
-translucent veil, preserving the imported image brightness.
+translucent veil, preserving the imported image brightness. The crop guide shades only the four outside bands, leaving
+the selected region clear.
