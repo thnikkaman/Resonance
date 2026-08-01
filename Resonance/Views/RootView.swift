@@ -1465,28 +1465,26 @@ struct ResonanceThemeBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        ZStack {
-            settings.themeBackgroundGradient
-            if settings.visualTheme.rawValue == "custom", let image = settings.customThemeImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(
-                        AppSettings.customThemeCanvasPixelSize.width /
-                            AppSettings.customThemeCanvasPixelSize.height,
-                        contentMode: .fit
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .opacity(1)
-            } else if let imageName = settings.visualTheme.backgroundImageName {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .opacity(0.42)
-                settings.themeBackgroundGradient.opacity(0.12)
+        GeometryReader { proxy in
+            ZStack {
+                settings.themeBackgroundGradient
+                if settings.visualTheme.rawValue == "custom", let image = settings.customThemeImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                } else if let imageName = settings.visualTheme.backgroundImageName {
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .opacity(0.42)
+                    settings.themeBackgroundGradient.opacity(0.12)
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         // The custom tab bar owns an opaque surface, so the page artwork can
         // extend behind the system safe areas without obscuring its controls.
