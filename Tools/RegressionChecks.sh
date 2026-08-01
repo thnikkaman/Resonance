@@ -23,10 +23,12 @@ root = Path('.')
 pbx = (root / 'Resonance.xcodeproj/project.pbxproj').read_text()
 metadata = (root / 'Resonance/Services/MetadataReader.swift').read_text()
 smart = (root / 'Resonance/Views/SmartLibraryViews.swift').read_text()
+track = (root / 'Resonance/Models/Track.swift').read_text()
 player = (root / 'Resonance/Services/PlayerController.swift').read_text()
 gapless = (root / 'Resonance/Services/GaplessAudioEngine.swift').read_text()
 database = (root / 'Resonance/Services/LibraryDatabase.swift').read_text()
 views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
+artwork_view = (root / 'Resonance/Views/ArtworkView.swift').read_text()
 remote = (root / 'Resonance/Services/RemoteLibraryStore.swift').read_text()
 remote_download = (root / 'Resonance/Services/RemoteDownloadService.swift').read_text()
 library_store = (root / 'Resonance/Services/LibraryStore.swift').read_text()
@@ -50,7 +52,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 267;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 268;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 2.0;') == 2
@@ -672,6 +674,11 @@ assert 'audiobookBookmarks.removeAll { $0.albumKey == albumKey && $0.trackID == 
 assert 'func prepareForSceneExit()' in player
 assert 'func prepareForSceneActive()' in player
 assert 'player.prepareForSceneExit()' in app_source
+assert 'var isFlacOnly: Bool' in track
+assert '@AppStorage("flacAlert") var flacAlert = false' in settings
+assert 'Toggle("Flac Alert", isOn: $settings.flacAlert)' in settings_view
+assert 'borderColor: Color? = nil' in artwork_view
+assert 'settings.flacAlert && album.isFlacOnly' in library_view
 assert 'func setPlaybackRate' in player
 assert 'private let timePitch = AVAudioUnitTimePitch()' in gapless
 assert 'engine.connect(playerNode, to: timePitch' in gapless

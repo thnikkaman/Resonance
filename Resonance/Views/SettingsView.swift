@@ -109,6 +109,10 @@ struct SettingsView: View {
 
                 Toggle("Apply theme color to text", isOn: applyThemeColorToTextBinding)
                 Toggle("Red outline for cached artwork", isOn: $settings.showArtworkWarning)
+                Toggle("Flac Alert", isOn: $settings.flacAlert)
+                Text("Draws a gold border around albums made entirely from FLAC files.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Show frame diagnostics", isOn: $settings.showFrameDiagnostics)
                 Text("Draws a 1-pixel red outline and a small label around the app's major layout surfaces. This is useful for locating clipping, safe-area, and background-sizing problems.")
                     .font(.caption)

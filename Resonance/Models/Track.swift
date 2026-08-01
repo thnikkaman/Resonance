@@ -54,6 +54,11 @@ struct Album: Identifiable, Hashable {
 
     var artworkData: Data? { tracks.compactMap(\.artworkData).first }
     var artworkIsEmbedded: Bool { tracks.first(where: { $0.artworkData != nil })?.artworkIsEmbedded ?? true }
+    var isFlacOnly: Bool {
+        !tracks.isEmpty && tracks.allSatisfy {
+            $0.fileURL?.pathExtension.caseInsensitiveCompare("flac") == .orderedSame
+        }
+    }
     var releaseYear: Int { tracks.map(\.releaseYear).filter { $0 > 0 }.min() ?? 0 }
     var yearLabel: String { releaseYear > 0 ? String(releaseYear) : "Release date unavailable" }
 }

@@ -221,6 +221,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("settingsLibraryExpanded") var settingsLibraryExpanded = true
     @AppStorage("settingsPrototypeExpanded") var settingsPrototypeExpanded = true
     @AppStorage("showArtworkWarning") var showArtworkWarning = true
+    @AppStorage("flacAlert") var flacAlert = false
     @AppStorage("showFrameDiagnostics") var showFrameDiagnostics = false
     @AppStorage("showLockScreenArtwork") var showLockScreenArtwork = true
     @AppStorage("preloadNextTrack") var preloadNextTrack = true

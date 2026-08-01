@@ -35,6 +35,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
     let releaseYear: Int
     let duration: Double
     let fileSizeBytes: Int64
+    let fileExtension: String?
     let streamURL: URL
     let artworkURL: URL?
     let artworkBase64: String?
@@ -78,6 +79,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             releaseYear: releaseYear,
             duration: duration,
             fileSizeBytes: fileSizeBytes,
+            fileExtension: fileExtension,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -101,6 +103,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             releaseYear: releaseYear,
             duration: duration,
             fileSizeBytes: fileSizeBytes,
+            fileExtension: fileExtension,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -124,6 +127,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             releaseYear: releaseYear,
             duration: duration,
             fileSizeBytes: fileSizeBytes,
+            fileExtension: fileExtension,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -144,6 +148,11 @@ struct RemoteAlbum: Identifiable, Hashable, Sendable {
     var artworkURL: URL? { tracks.compactMap(\.artworkURL).first }
     var artworkBase64: String? { tracks.compactMap(\.artworkBase64).first }
     var releaseYear: Int { tracks.map(\.releaseYear).filter { $0 > 0 }.min() ?? 0 }
+    var isFlacOnly: Bool {
+        !tracks.isEmpty && tracks.allSatisfy {
+            $0.fileExtension?.caseInsensitiveCompare("flac") == .orderedSame
+        }
+    }
 }
 
 struct RemoteArtist: Identifiable, Hashable, Sendable {
@@ -179,6 +188,7 @@ private struct CachedRemoteTrack: Codable, Sendable {
     let releaseYear: Int
     let duration: Double
     let fileSizeBytes: Int64
+    let fileExtension: String?
     let coverArtID: String?
     let starred: Bool?
     let dateAdded: Date?
@@ -197,6 +207,7 @@ private struct CachedRemoteTrack: Codable, Sendable {
         self.releaseYear = track.releaseYear
         self.duration = track.duration
         self.fileSizeBytes = track.fileSizeBytes
+        self.fileExtension = track.fileExtension
         self.coverArtID = track.coverArtID
         self.starred = track.starred
         self.dateAdded = track.dateAdded
@@ -1446,6 +1457,7 @@ final class RemoteLibraryStore: ObservableObject {
             releaseYear: cached.releaseYear,
             duration: cached.duration,
             fileSizeBytes: cached.fileSizeBytes,
+            fileExtension: cached.fileExtension,
             streamURL: URL(string: "resonance-cache://remote/\(cached.id.uuidString)")!,
             artworkURL: nil,
             artworkBase64: nil,
@@ -1592,6 +1604,7 @@ final class RemoteLibraryStore: ObservableObject {
             releaseYear: max(0, record.releaseYear ?? 0),
             duration: max(0, record.duration ?? 0),
             fileSizeBytes: max(0, record.fileSize ?? 0),
+            fileExtension: streamURL.pathExtension.nonEmpty,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: record.artworkBase64,
@@ -1795,6 +1808,7 @@ private struct SubsonicClient: Sendable {
             releaseYear: max(0, song.year ?? fallbackYear ?? 0),
             duration: max(0, song.duration ?? 0),
             fileSizeBytes: max(0, song.size ?? 0),
+            fileExtension: song.suffix?.nonEmpty,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: nil,
@@ -1835,6 +1849,7 @@ private struct SubsonicClient: Sendable {
             releaseYear: cached.releaseYear,
             duration: cached.duration,
             fileSizeBytes: cached.fileSizeBytes,
+            fileExtension: cached.fileExtension,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: nil,
@@ -2001,6 +2016,7 @@ private struct SubsonicSong: Decodable, Sendable {
     let year: Int?
     let duration: Double?
     let size: Int64?
+    let suffix: String?
     let coverArt: String?
     let starred: String?
     let created: String?

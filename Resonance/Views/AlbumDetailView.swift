@@ -66,7 +66,8 @@ struct AlbumDetailView: View {
                     ArtworkView(
                         data: liveAlbum.artworkData,
                         embedded: liveAlbum.artworkIsEmbedded,
-                        size: 176
+                        size: 176,
+                        borderColor: settings.flacAlert && liveAlbum.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                     )
 
                     VStack(spacing: 6) {

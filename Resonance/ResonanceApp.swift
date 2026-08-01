@@ -30,6 +30,13 @@ struct ResonanceApp: App {
                 .environmentObject(errorLog)
                 .tint(settings.accentColor)
                 .preferredColorScheme(settings.colorScheme)
+                .onAppear {
+                    ResonanceAppIntentRuntime.shared.configure(
+                        library: library,
+                        player: player,
+                        remoteLibrary: remoteLibrary
+                    )
+                }
                 .task(id: scenePhase) {
                     ResonanceDiagnostics.shared.record(
                       "scene.phase.task",

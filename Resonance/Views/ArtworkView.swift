@@ -55,6 +55,7 @@ struct ArtworkView: View {
     let embedded: Bool
     let size: CGFloat
     let showWarningBorder: Bool
+    let borderColor: Color?
     let fallbackTrack: StreamingArtworkTrackQuery?
 
     init(
@@ -62,12 +63,14 @@ struct ArtworkView: View {
         embedded: Bool,
         size: CGFloat,
         showWarningBorder: Bool = true,
+        borderColor: Color? = nil,
         fallbackTrack: StreamingArtworkTrackQuery? = nil
     ) {
         self.data = data
         self.embedded = embedded
         self.size = size
         self.showWarningBorder = showWarningBorder
+        self.borderColor = borderColor
         self.fallbackTrack = fallbackTrack
     }
 
@@ -104,6 +107,9 @@ struct ArtworkView: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: max(8, size * 0.08)))
         .overlay {
+            if let borderColor {
+                RoundedRectangle(cornerRadius: max(8, size * 0.08)).stroke(borderColor, lineWidth: 2)
+            }
             if showWarningBorder && settings.showArtworkWarning && data != nil && !embedded {
                 RoundedRectangle(cornerRadius: max(8, size * 0.08)).stroke(.red, lineWidth: 1)
             }

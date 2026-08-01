@@ -1130,6 +1130,7 @@ private struct RemoteAlbumCollectionView: View {
                 RemoteArtwork(
                     context: RemoteArtworkContext(album),
                     size: settings.libraryThumbnailSize.gridArtworkPoints,
+                    borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                 )
                 Text(album.title)
                     .font(settings.libraryTextSize.font.weight(.semibold))
@@ -1167,6 +1168,7 @@ private struct RemoteAlbumCollectionView: View {
                         subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : album.artist,
                         artwork: RemoteArtworkContext(album),
                         large: settings.albumLayout == .large,
+                        artworkBorderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil,
                     )
                     if selectionMode {
                         DownloadSelectionBubble(isSelected: selectedIDs.contains(album.id))
@@ -1468,6 +1470,7 @@ struct RemoteArtistDetailView: View {
                 RemoteArtwork(
                     context: RemoteArtworkContext(album),
                     size: settings.libraryThumbnailSize.gridArtworkPoints,
+                    borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                 )
                 Text(album.title)
                     .font(settings.libraryTextSize.font.weight(.semibold))
@@ -1607,7 +1610,8 @@ struct RemoteArtistDetailView: View {
                                                     title: album.title,
                                                     subtitle: album.releaseYear > 0 ? "\(album.artist) • \(album.releaseYear)" : "Release date unavailable",
                                                     artwork: RemoteArtworkContext(album),
-                                                    large: settings.albumLayout == .large
+                                                    large: settings.albumLayout == .large,
+                                                    artworkBorderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                                                 )
                                             }
                                             .buttonStyle(ResonanceSwipeAwareButtonStyle())
@@ -2035,7 +2039,8 @@ struct RemoteAlbumDetailView: View {
                         context: RemoteArtworkContext(album),
                         size: 176,
                         overrideData: artworkData ?? resolvedArtworkData,
-                        showWarningBorder: artworkData != nil || isAutomaticallySelectedArtwork
+                        showWarningBorder: artworkData != nil || isAutomaticallySelectedArtwork,
+                        borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                     )
 
                     VStack(spacing: 10) {
@@ -2633,17 +2638,20 @@ private struct RemoteCollectionRow: View {
     let subtitle: String
     let artwork: RemoteArtworkContext
     let large: Bool
+    let artworkBorderColor: Color?
 
     init(
         title: String,
         subtitle: String,
         artwork: RemoteArtworkContext,
-        large: Bool
+        large: Bool,
+        artworkBorderColor: Color? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
         self.artwork = artwork
         self.large = large
+        self.artworkBorderColor = artworkBorderColor
     }
 
     var body: some View {
@@ -2651,6 +2659,7 @@ private struct RemoteCollectionRow: View {
             RemoteArtwork(
                 context: artwork,
                 size: large ? max(76, settings.libraryThumbnailSize.points * 2) : settings.libraryThumbnailSize.points,
+                borderColor: artworkBorderColor,
             )
             VStack(alignment: .leading, spacing: large ? 4 : 1) {
                 Text(title)
@@ -2950,17 +2959,20 @@ private struct RemoteArtwork: View {
     let size: CGFloat
     let overrideData: Data?
     let showWarningBorder: Bool
+    let borderColor: Color?
 
     init(
         context: RemoteArtworkContext,
         size: CGFloat,
         overrideData: Data? = nil,
-        showWarningBorder: Bool = false
+        showWarningBorder: Bool = false,
+        borderColor: Color? = nil
     ) {
         self.context = context
         self.size = size
         self.overrideData = overrideData
         self.showWarningBorder = showWarningBorder
+        self.borderColor = borderColor
     }
 
     @State private var image: UIImage?
@@ -2998,6 +3010,9 @@ private struct RemoteArtwork: View {
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: max(7, size * 0.09)))
         .overlay {
+            if let borderColor {
+                RoundedRectangle(cornerRadius: max(7, size * 0.09)).stroke(borderColor, lineWidth: 2)
+            }
             if settings.showArtworkWarning,
                !context.hasProvidedArtwork,
                (showWarningBorder || automaticallySelectedData != nil) {

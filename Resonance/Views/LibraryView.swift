@@ -1158,7 +1158,8 @@ struct ArtistDetailView: View {
                                                     ArtworkView(
                                                         data: album.artworkData,
                                                         embedded: album.artworkIsEmbedded,
-                                                        size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58
+                                                        size: settings.albumLayout == .compact ? 42 : settings.albumLayout == .large ? 76 : 58,
+                                                        borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                                                     )
                                                     VStack(alignment: .leading, spacing: settings.albumLayout == .compact ? 1 : 3) {
                                                         Text(album.title).font(settings.libraryTextSize.font.weight(.semibold)).lineLimit(1)
@@ -1452,7 +1453,8 @@ struct AlbumCollectionView: View {
                     ArtworkView(
                         data: album.artworkData,
                         embedded: album.artworkIsEmbedded,
-                        size: settings.libraryThumbnailSize.points
+                        size: settings.libraryThumbnailSize.points,
+                        borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                     )
                     Text(album.title)
                         .font(settings.libraryTextSize.font.weight(.medium))
@@ -1468,7 +1470,8 @@ struct AlbumCollectionView: View {
                     ArtworkView(
                         data: album.artworkData,
                         embedded: album.artworkIsEmbedded,
-                        size: max(76, settings.libraryThumbnailSize.points * 2)
+                        size: max(76, settings.libraryThumbnailSize.points * 2),
+                        borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
                     )
                     VStack(alignment: .leading, spacing: 3) {
                         Text(album.title).font(settings.libraryTextSize.font.weight(.semibold))
@@ -1621,7 +1624,8 @@ struct AlbumTile: View {
             ArtworkView(
                 data: album.artworkData,
                 embedded: album.artworkIsEmbedded,
-                size: settings.libraryThumbnailSize.gridArtworkPoints
+                size: settings.libraryThumbnailSize.gridArtworkPoints,
+                borderColor: settings.flacAlert && album.isFlacOnly ? Color(red: 0.95, green: 0.7, blue: 0.1) : nil
             )
             .frame(maxWidth: .infinity)
             Text(album.title)
