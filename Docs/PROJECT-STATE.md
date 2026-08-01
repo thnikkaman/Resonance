@@ -182,3 +182,13 @@ high-priority vertical gesture to receive left-edge touches.
 
 Signed 2.0/268 build, strict deep signature verification, and in-place device installation passed. Physical runtime
 acceptance remains user-run; Codex did not launch the phone app.
+
+## Streaming alphabet copied from Local layout — Beta 2.0 build 268 — 2026-08-01
+
+The previous Streaming-specific hit-width, full-size alignment frames, and leading back-swipe overlay were removed.
+The three Streaming browse containers now use the Local template directly: shared default `VerticalArtistIndex`
+width, matching ZStack sizing/modifier order, and matching edge padding. Remote rows, section IDs, diagnostics, labels,
+and navigation remain the only intentional Streaming differences around the browse content.
+
+Signed 2.0/268 build, strict signature verification, and in-place installation passed. Physical runtime acceptance
+remains user-run; Codex did not launch the phone app.

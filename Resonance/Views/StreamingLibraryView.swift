@@ -433,22 +433,6 @@ struct StreamingLibraryView: View {
                 ]
             )
         }
-        .overlay(alignment: .leading) {
-            // Keep back navigation confined to the left edge so ordinary
-            // vertical drags over artists remain owned by the scroll view.
-            Color.clear
-                .frame(width: 24)
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 24)
-                        .onEnded { value in
-                            if value.translation.width > 70,
-                               abs(value.translation.width) > abs(value.translation.height) {
-                                openLibrary()
-                            }
-                        }
-                )
-        }
     }
 
 }
@@ -1036,8 +1020,7 @@ private struct RemoteArtistCollectionView: View {
                 if sections.count > 1 {
                     VerticalArtistIndex(
                         keys: sections.map(\.key),
-                        diagnosticSurface: "streaming-artists",
-                        hitWidth: settings.leftHandedAlphabet ? 48 : 32
+                        diagnosticSurface: "streaming-artists"
                     ) { key in
                         ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
@@ -1055,11 +1038,6 @@ private struct RemoteArtistCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: .infinity,
-                alignment: settings.leftHandedAlphabet ? .leading : .trailing
-            )
             .scrollIndicators(.hidden)
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
@@ -1319,8 +1297,7 @@ private struct RemoteAlbumCollectionView: View {
                 if sections.count > 1 {
                     VerticalArtistIndex(
                         keys: sections.map(\.key),
-                        diagnosticSurface: "streaming-albums",
-                        hitWidth: settings.leftHandedAlphabet ? 48 : 32
+                        diagnosticSurface: "streaming-albums"
                     ) { key in
                         ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
@@ -1338,11 +1315,6 @@ private struct RemoteAlbumCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: .infinity,
-                alignment: settings.leftHandedAlphabet ? .leading : .trailing
-            )
             .scrollIndicators(.hidden)
             .background {
                 ResonanceThemeBackdrop()
@@ -1729,8 +1701,7 @@ struct RemoteArtistDetailView: View {
                     if indexedAlbumSections.count > 1 {
                         VerticalArtistIndex(
                             keys: indexedAlbumSections.map(\.key),
-                            diagnosticSurface: "streaming-artist-albums",
-                            hitWidth: settings.leftHandedAlphabet ? 48 : 32
+                            diagnosticSurface: "streaming-artist-albums"
                         ) { key in
                             ResonanceDiagnostics.shared.recordDeferred(
                                 "alphabet.scrollTo",
@@ -1748,11 +1719,6 @@ struct RemoteArtistDetailView: View {
                         .padding(.vertical, 4)
                     }
                 }
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity,
-                    alignment: settings.leftHandedAlphabet ? .leading : .trailing
-                )
                 .scrollIndicators(.hidden)
             }
         }

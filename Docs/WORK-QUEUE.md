@@ -279,3 +279,14 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   `2.0`/build `268` installation passed. The app was not launched by Codex.
 - Manual acceptance: test far-left alphabet taps and vertical drags in Streaming Artists, Albums, and artist-album views;
   test root horizontal back swipe, ordinary scrolling, and right-handed mode.
+
+### R-ALPHABET-COPY-LOCAL-SHELL — Use the known-good Local browse layout for Streaming
+
+- Status: implemented and installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
+- Owner: `StreamingLibraryView.swift` remote artist, album, and artist-album browse containers.
+- Change: copied the Local alphabet container behavior by removing Streaming-only hit-width overrides, full-size frames,
+  and the leading overlay that participated in hit testing. Remote-specific content and navigation remain intact.
+- Automated evidence: `git diff --check`, signed arm64 Release build, strict deep signature verification, and in-place
+  version `2.0`/build `268` installation passed. The app was not launched by Codex.
+- Manual acceptance: compare Local and Streaming alphabet taps/drags at the far-left edge in every browse mode, then
+  verify ordinary scrolling, navigation, and right-handed mode.

@@ -2460,3 +2460,19 @@ Automated validation: signed arm64 Release compilation, strict deep code-signatu
 Manual test: in left-handed Streaming Artists, Albums, and artist-album views, touch the visible letters at the actual
 far-left screen edge and drag vertically; confirm the alphabet responds without reaching the album artwork. Then verify
 the root horizontal back swipe, normal browse scrolling, and right-handed alphabet behavior.
+
+## Copy Local alphabet layout into Streaming — Beta 2.0 build 268 — 2026-08-01
+
+The prior Streaming-only geometry changes were removed after physical testing showed the edge problem remained. The
+three Streaming browse containers now follow the working Local containers directly: the shared default 32-point
+`VerticalArtistIndex`, matching ZStack sizing and modifier order, and the same edge padding. Streaming-specific
+remote rows, section IDs, diagnostics, labels, and navigation remain unchanged. The custom Streaming leading overlay
+was removed from the alphabet hit-test chain.
+
+Automated validation: `git diff --check`, signed arm64 Release compilation, strict deep code-signature verification,
+and in-place `devicectl` installation of version `2.0`/build `268` passed on `SaiyanDenawa`. The physical app was not
+launched.
+
+Manual test: test far-left alphabet taps and vertical drags in Streaming Artists, Albums, and artist-album views;
+compare each directly with the corresponding Local view, then verify normal scrolling, navigation, and right-handed
+behavior.
