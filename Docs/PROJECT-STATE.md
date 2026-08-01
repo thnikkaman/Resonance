@@ -71,6 +71,12 @@ The current v2.0/build-268 source and public release are published at https://gi
   under the existing Debugging Mode setting. The signed 2.0/268 probe build is installed in place on `SaiyanDenwa` and
   was not launched. Retrieve the post-reproduction log before disabling Debugging Mode.
 
+- The post-probe trace contained one Streaming Artists gesture and nine local Library gestures. The Streaming gesture
+  was recognized and issued eight scroll requests, so hit testing was not the only difference. Streaming had wrapped
+  each alphabet update in a new 200 ms animation while local Library called `ScrollViewProxy.scrollTo` directly. The
+  three Streaming alphabet handlers now match the local direct-dispatch behavior. The signed 2.0/268 build is installed
+  in place on `SaiyanDenwa`; physical runtime acceptance remains user-run.
+
 ## Beta 2.0 build 268 release scope
 
 - Optional gold FLAC-only artwork borders now cover local and Streaming album grids, rows, artist album modules, and album detail.

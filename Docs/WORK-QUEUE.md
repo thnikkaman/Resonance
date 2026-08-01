@@ -251,3 +251,11 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Owner: `StreamingLibraryView.swift` root simultaneous gesture observer.
 - Evidence target: compare `streaming.alphabetProbe.begin/end` with `alphabet.touch.begin/end` to identify touches received by Streaming but not claimed by `VerticalArtistIndex`.
 - Manual acceptance: enable Debugging Mode, reproduce failed and successful left-handed Streaming alphabet attempts in Artists and Albums, then retrieve `Documents/Resonance-Diagnostics.log`.
+
+### R-ALPHABET-STREAM-DISPATCH — Match local direct section jumps
+
+- Status: implemented and installed in place on `SaiyanDenwa`; physical runtime acceptance remains user-run.
+- Owner: `StreamingLibraryView.swift` Streaming Artists, Albums, and artist-album alphabet callbacks.
+- Change: removed per-update `withAnimation` wrappers so Streaming uses the same direct `ScrollViewProxy.scrollTo` dispatch as local Library.
+- Preserved invariants: 48-point left-handed Streaming hit strip, section IDs, selection bubble, haptics, and ordinary content scrolling.
+- Automated evidence: `git diff --check`, Swift 6 strict simulator/generic-device preflight, signed arm64 Release build, deep signature verification, and in-place device installation passed.

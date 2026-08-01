@@ -1047,9 +1047,7 @@ private struct RemoteArtistCollectionView: View {
                                 "sectionCount": String(sections.count)
                             ]
                         )
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxy.scrollTo("remote-artist-section-\(key)", anchor: .top)
-                        }
+                        proxy.scrollTo("remote-artist-section-\(key)", anchor: .top)
                     }
                     .zIndex(2)
                     .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
@@ -1327,9 +1325,7 @@ private struct RemoteAlbumCollectionView: View {
                                 "sectionCount": String(sections.count)
                             ]
                         )
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxy.scrollTo("remote-album-section-\(key)", anchor: .top)
-                        }
+                        proxy.scrollTo("remote-album-section-\(key)", anchor: .top)
                     }
                     .zIndex(2)
                     .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)
@@ -1734,9 +1730,7 @@ struct RemoteArtistDetailView: View {
                                     "sectionCount": String(indexedAlbumSections.count)
                                 ]
                             )
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                proxy.scrollTo("artist-album-section-\(key)", anchor: .top)
-                            }
+                            proxy.scrollTo("artist-album-section-\(key)", anchor: .top)
                         }
                         .zIndex(2)
                         .padding(.leading, settings.leftHandedAlphabet ? 1 : 0)

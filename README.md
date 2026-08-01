@@ -1320,6 +1320,14 @@ The signed 2.0/268 build was installed in place on `SaiyanDenwa`; Codex did not 
 Debugging Mode enabled, reproduce the failure in Streaming Artists and Albums, including touches on the visible letters,
 the far-left edge, and just to the right of the strip. Copy `Documents/Resonance-Diagnostics.log` afterward.
 
+## Match local alphabet scroll dispatch — Beta 2.0 build 268 — 2026-08-01
+
+The Streaming Artists, Albums, and artist-album alphabet handlers now call `ScrollViewProxy.scrollTo` directly, matching
+the local Library implementation. Streaming previously wrapped every drag update in a new animation, allowing rapid
+alphabet updates to compete and making a valid first jump appear intermittent. The non-owning touch probe remains in
+place for the next user capture. The signed 2.0/268 build was installed in place on `SaiyanDenwa` and was not launched
+by Codex.
+
 ## Playing swipe ownership — 2026-07-27 UTC
 
 Playing-page tab navigation now owns only the upper content region ending above
