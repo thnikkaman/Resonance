@@ -1713,7 +1713,7 @@ private struct CustomThemeCropView: View {
         return ZStack {
             Image(uiImage: source)
                 .resizable()
-                .scaledToFit()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: renderedWidth, height: renderedHeight)
                 .offset(offset)
             Rectangle()

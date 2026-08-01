@@ -2519,3 +2519,5 @@ source pixels before scaling to the target canvas, preventing black saved backgr
 without the prior translucent veil, preserving the imported image brightness.
 For images matching the target portrait aspect ratio, the initial selection frame now covers the full displayed image,
 so the crop preview and applied background use the same framing.
+The crop preview and live backdrop also declare the 864:1821 aspect ratio explicitly, preventing the surrounding
+layout from warping the image dimensions.

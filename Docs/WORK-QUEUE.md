@@ -328,3 +328,5 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Follow-up: crop export now uses the normalized source pixel rectangle before scaling, preventing black saved backgrounds.
 - Follow-up: initial crop-frame geometry now matches the displayed source image at the target aspect ratio, so preview
   and applied-background framing agree.
+- Follow-up: crop preview and live backdrop use an explicit 864:1821 aspect-ratio contract to prevent image warping
+  from unconstrained parent frames.

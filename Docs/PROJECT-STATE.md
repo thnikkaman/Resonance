@@ -228,3 +228,6 @@ receive the translucent readability veil, so the saved image keeps its original 
 
 The initial selection frame now matches the full displayed image whenever the source shares the target portrait aspect
 ratio, eliminating the apparent extra zoom between the crop preview and the applied background.
+
+The crop preview and live custom backdrop now also declare the 864:1821 aspect ratio explicitly in SwiftUI, preventing
+parent layout proposals from warping the image dimensions.
