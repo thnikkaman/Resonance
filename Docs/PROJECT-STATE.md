@@ -48,7 +48,7 @@ The current v2.0/build-268 source and public release are published at https://gi
 
 ## Current alphabet diagnostic build
 
-- Current source commit: `7da4ed2` (`Widen left-handed Streaming alphabet hit strip`). Earlier commits `981e839` and
+- Current source commit: `d6fbd37` (`Make alphabet gestures reset between touches`). Earlier commits `981e839` and
   `3be137f` added local and global touch-coordinate diagnostics.
 - The existing Reported Errors → Debugging Mode setting now records `alphabet.touch.begin` and `alphabet.touch.end`
   events with only surface, handedness, local touch coordinates, container geometry, hit-column width, and sample count.
@@ -58,6 +58,13 @@ The current v2.0/build-268 source and public release are published at https://gi
   Library indexes remain 32 points. The `2.0`/`268` diagnostic build was installed in place on `SaiyanDenwa`
   (`9629DEED-EBF9-5835-B98A-9FAEC81CBDC6`); Codex did not launch it. The installed app remains ready for user reproduction.
 - After reproduction, copy `Documents/Resonance-Diagnostics.log` from the app container before disabling Debugging Mode.
+
+- The latest Streaming trace showed 9 complete touch/gesture pairs and 425 selections on the left-handed Streaming
+  Artists index. The remaining intermittent behavior was traced to `gestureStarted` and `gestureKey` being cleared only
+  inside a yielded task after release. The shared alphabet gesture now resets synchronously, applies the release target
+  immediately, and uses a generation guard to suppress stale deferred callbacks. Commit `d6fbd37` is installed in place
+  on `SaiyanDenwa` as version `2.0`/build `268`; the physical app was not launched. The latest copied trace is
+  `/Users/brian/Resonance/diagnostics/latest/Resonance-Diagnostics.log` and remains uncommitted diagnostic evidence.
 
 ## Beta 2.0 build 268 release scope
 

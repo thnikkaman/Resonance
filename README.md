@@ -2398,3 +2398,23 @@ The Streaming root toolbar’s shared-background suppression was restored after 
 dropped that modifier. The existing root icon, Download, spacing, and alignment layout was otherwise left unchanged.
 
 Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+## Alphabet first-touch reliability — Beta 2.0 build 268 — 2026-08-01
+
+The shared Library and Streaming alphabet index now resets its gesture state at release instead of waiting for a
+yielded main-actor task. The final release position is applied immediately, then repeated only when no newer touch has
+started. A generation guard prevents a delayed callback from an older touch from interfering with the first callback of
+the next touch. This addresses intermittent alphabet jumps and the case where the first attempt appears to do nothing.
+
+The latest device diagnostics showed Streaming receiving the widened left-handed hit strip and producing selections;
+the remaining failure mode was the deferred state handoff. The signed 2.0/268 build was installed in place on
+`SaiyanDenwa` and was not launched by Codex.
+
+Automated validation: `git diff --check` and Swift 6 strict simulator/generic-device preflight passed. The existing
+`Tools/RegressionChecks.sh` currently stops on its unrelated stale `confirmed file artwork` assertion. The signed
+arm64 Release build, strict deep code-signature verification, and `devicectl` install/version check passed.
+
+Manual test: with Debugging Mode enabled, repeatedly tap and drag the left-handed Streaming Artists alphabet from the
+far-left edge, including two quick successive attempts, then repeat in Albums and local Library. Confirm the first
+touch jumps immediately, subsequent touches do not inherit the previous letter, and normal content scrolling still works
+outside the hit strip. Codex must not launch the physical app automatically.

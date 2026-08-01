@@ -234,3 +234,13 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 An implementation item is complete only when its source revision, artifact identity, owning module, preserved invariants,
 automated gates, and manual acceptance status are documented. Credentials, private data, and generated outputs stay outside commits.
+
+### R-ALPHABET-FIRST-TOUCH — Make alphabet jumps reliable on the first attempt
+
+- Status: implemented and installed in place on `SaiyanDenwa`; physical runtime acceptance remains user-run.
+- Owner: `LibraryView.swift` `VerticalArtistIndex`, shared by local and Streaming alphabetized surfaces.
+- Goal: prevent intermittent jumps and stale gesture state from making the first touch after a prior alphabet gesture appear ineffective.
+- Smallest causal lever: synchronously reset gesture state at release, apply the release target immediately, and guard the deferred repeat with a gesture generation.
+- Preserved invariants: left-handed 48-point Streaming hit strip, visible 32-point alphabet column, normal browse scrolling outside the strip, selection bubble, haptics, and section-jump behavior.
+- Automated evidence: `git diff --check`, strict Swift 6 simulator/generic-device preflight, signed arm64 Release build, deep signature verification, and in-place `devicectl` installation passed. `Tools/RegressionChecks.sh` is currently blocked by its unrelated stale `confirmed file artwork` assertion.
+- Manual acceptance: with Debugging Mode enabled, test repeated first-touch jumps and quick successive gestures in Streaming Artists, Streaming Albums, Streaming artist albums, and local Library; then copy the diagnostics log if any attempt still fails.
