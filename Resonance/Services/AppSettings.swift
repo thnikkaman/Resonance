@@ -187,6 +187,8 @@ enum ResonanceHeroButtonStyle: String, CaseIterable, Identifiable, Hashable {
 
 @MainActor
 final class AppSettings: ObservableObject {
+    static let customThemeCanvasPixelSize = CGSize(width: 864, height: 1821)
+
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
     @Published private(set) var customThemeImageData: Data?
@@ -304,7 +306,7 @@ final class AppSettings: ObservableObject {
 
     func setCustomThemeImage(_ data: Data) {
         guard let image = UIImage(data: data),
-              let normalized = image.resonanceThemeJPEGData()
+              let normalized = image.resonanceThemeJPEGData(maximumDimension: 2048)
         else { return }
         try? FileManager.default.createDirectory(
             at: Self.customThemeDirectory,
@@ -452,8 +454,7 @@ extension Color {
 }
 
 private extension UIImage {
-    func resonanceThemeJPEGData() -> Data? {
-        let maximumDimension: CGFloat = 1800
+    func resonanceThemeJPEGData(maximumDimension: CGFloat) -> Data? {
         let scale = min(1, maximumDimension / max(size.width, size.height))
         let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
         let renderer = UIGraphicsImageRenderer(size: targetSize)

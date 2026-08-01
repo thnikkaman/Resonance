@@ -2503,10 +2503,12 @@ was not updated or launched.
 ## Custom Background theme — Beta 2.0 build 268 — 2026-08-01
 
 Waterfall Meadow has been replaced by **Custom Background**. Selecting it in Settings → Appearance provides Photos
-controls to import, replace, or remove a private background image. The image is resized and stored in Application
-Support, then rendered only as a bounded page-level decorative backdrop so controls, album artwork, and interactive
-surfaces remain readable. Existing Waterfall selections migrate to Custom Background. Visual-theme cards now display
-theme names only; their descriptive subtitles were removed. Hero button style descriptions remain unchanged.
+controls to import, replace, or remove a private background image. Images must be at least 864 × 1821 portrait pixels;
+a fixed-canvas crop editor lets the user pan and pinch to choose the area, and Resonance stores the resulting 864 ×
+1821 crop. The image is rendered only as a bounded page-level decorative backdrop so controls, album artwork, and
+interactive surfaces remain readable and the layout cannot expand with the source image. Existing Waterfall selections
+migrate to Custom Background. Visual-theme cards now display theme names only; their descriptive subtitles were removed.
+Hero button style descriptions remain unchanged.
 
 The simulator Debug build 2.0/268 was installed in place on the configured iPhone 17 Pro simulator. The app was not
 launched, and the physical phone was not updated or launched.
