@@ -1473,10 +1473,11 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.42)
-                // Keep a readable veil over the artwork without removing its
-                // texture and color from the page background.
-                settings.themeBackgroundGradient.opacity(0.12)
+                    .opacity(settings.visualTheme == .waterfall ? 1 : 0.42)
+                if settings.visualTheme != .waterfall {
+                    // Keep a readable veil over the other artwork themes.
+                    settings.themeBackgroundGradient.opacity(0.12)
+                }
             }
         }
         // The custom tab bar owns an opaque surface, so the page artwork can
