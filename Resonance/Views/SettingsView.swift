@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 import AVFoundation
-import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
@@ -15,8 +14,6 @@ struct SettingsView: View {
     @State private var accentHexDraft = ""
     @State private var showingServerQRCodeScanner = false
     @State private var serverQRCodeError: String?
-    @State private var customThemePickerItem: PhotosPickerItem?
-    @State private var customThemeImportFailed = false
     @State private var diagnosticsFileSize: Int64 = ResonanceDiagnostics.shared.fileSizeBytes()
     @State private var showingDiagnosticsDeleteConfirmation = false
     @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
@@ -54,31 +51,9 @@ struct SettingsView: View {
                     }
                 }
 
-                if settings.visualTheme.rawValue == "custom" {
-                    PhotosPicker(
-                        selection: $customThemePickerItem,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        Label(
-                            settings.hasCustomThemeImage ? "Replace Background Image" : "Import Background Image",
-                            systemImage: "photo.badge.plus"
-                        )
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(ResonanceSettingsActionButtonStyle())
-
-                    if settings.hasCustomThemeImage {
-                        Button("Remove Custom Background", role: .destructive) {
-                            settings.removeCustomThemeImage()
-                        }
-                        .buttonStyle(ResonanceSettingsActionButtonStyle())
-                    }
-
-                    Text("Choose an image from Photos. It is resized and stored privately on this iPhone as the page background.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(settings.visualTheme.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 CenteredSettingsPicker(
                     "Hero buttons",
@@ -649,26 +624,6 @@ struct SettingsView: View {
                 settings.accentHex = value
                 settings.applyThemeColorToText = false
             }
-        }
-        .onChange(of: customThemePickerItem) { _, item in
-            guard let item else { return }
-            Task { @MainActor in
-                do {
-                    guard let data = try await item.loadTransferable(type: Data.self) else {
-                        customThemeImportFailed = true
-                        return
-                    }
-                    settings.setCustomThemeImage(data)
-                } catch {
-                    customThemeImportFailed = true
-                }
-                customThemePickerItem = nil
-            }
-        }
-        .alert("Could Not Import Background", isPresented: $customThemeImportFailed) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Choose a readable image from Photos and try again.")
         }
     }
 
@@ -1633,15 +1588,8 @@ private struct ThemeChoiceButton: View {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
-                    )
-                    if theme.rawValue == "custom", let image = settings.customThemeImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .opacity(0.40)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .allowsHitTesting(false)
-                    } else if let imageName = theme.backgroundImageName {
+                        )
+                    if let imageName = theme.backgroundImageName {
                         Image(imageName)
                             .resizable()
                             .scaledToFill()
@@ -1663,6 +1611,10 @@ private struct ThemeChoiceButton: View {
                 Text(theme.title)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
+                Text(theme.description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)

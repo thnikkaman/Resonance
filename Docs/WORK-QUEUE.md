@@ -309,14 +309,3 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Automated evidence: `git diff --check`, simulator Debug build, and simulator install passed.
 - Manual acceptance: inspect every Minimal Transparent button surface and confirm no underline remains; verify other
   visual styles are unchanged.
-
-### R-CUSTOM-BACKGROUND-THEME — Replace Waterfall Meadow with imported background image
-
-- Status: implemented and installed on the configured iPhone 17 Pro simulator; physical runtime acceptance remains user-run.
-- Owner: `AppSettings.swift`, `SettingsView.swift`, and the page-level theme backdrop in `RootView.swift`.
-- Change: replaced Waterfall Meadow with a persisted Custom Background option, added Photos import/replace/remove
-  controls, migrated legacy Waterfall selections, and kept imported imagery out of interactive surfaces.
-- Change: removed descriptions from visual-theme cards and retained the theme names; Hero button style descriptions are unchanged.
-- Automated evidence: `git diff --check`, simulator Debug build, and in-place simulator installation passed. The app was not launched.
-- Manual acceptance: select Custom Background, import/replace/remove an image, relaunch, and inspect Library, Streaming,
-  Settings, Now Playing, mini-player, artist, and album surfaces for a decorative backdrop that never obscures controls or artwork.
