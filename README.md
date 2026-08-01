@@ -2490,3 +2490,12 @@ updated or launched.
 Manual test: select Minimal Transparent in Settings and inspect Library, Streaming, Settings, Now Playing, and detail
 toolbars. Confirm icon buttons have no line beneath them, while text/hero buttons and the other visual styles remain
 unchanged.
+
+## Remove remaining Minimal Transparent button lines — simulator build 268 — 2026-08-01
+
+Screenshot review found that underline capsules also remained on hierarchy labels, hero action buttons, hero menu labels,
+and text buttons. Those shared renderers now omit the Minimal Transparent underline as well. The setting description now
+describes the style as having no button chrome.
+
+The updated Debug simulator build 2.0/268 was installed on the configured iPhone 17 Pro simulator. The physical phone
+was not updated or launched.

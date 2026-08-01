@@ -201,3 +201,10 @@ underline treatment.
 
 Signed arm64 Release compilation, simulator Debug compilation, `git diff --check`, and in-place simulator installation
 passed. Build `2.0`/`268` is installed on the iPhone 17 Pro simulator; the physical phone was not updated or launched.
+
+## Remove remaining Minimal Transparent button lines — simulator build 268 — 2026-08-01
+
+Screenshot review identified four additional shared underline implementations: hierarchy labels, hero action buttons,
+hero menu labels, and text buttons. All Minimal Transparent underline capsules are now removed; the style description
+now says “no button chrome.” Simulator Debug build and in-place installation passed on the iPhone 17 Pro simulator.
+The physical phone was not updated or launched.

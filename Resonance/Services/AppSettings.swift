@@ -192,7 +192,7 @@ enum ResonanceHeroButtonStyle: String, CaseIterable, Identifiable, Hashable {
         case .softGlass: "Frosted, translucent buttons with a gentle tint"
         case .matteCrystal: "A denser satin surface with a crisp edge"
         case .innerGlow: "Open buttons with a soft accent glow"
-        case .minimalTransparent: "Nearly invisible controls with an accent underline"
+        case .minimalTransparent: "Nearly invisible controls with no button chrome"
         }
     }
 }

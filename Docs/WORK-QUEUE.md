@@ -299,3 +299,13 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   button treatments remain unchanged.
 - Automated evidence: `git diff --check`, signed arm64 Release build, simulator Debug build, and simulator install passed.
 - Manual acceptance: inspect all Minimal Transparent toolbar icon locations and verify other themes and non-icon buttons.
+
+### R-MINIMAL-TRANSPARENT-ALL-BUTTONS — Remove remaining Minimal Transparent underlines
+
+- Status: implemented and installed on the iPhone 17 Pro simulator; physical runtime acceptance remains user-run.
+- Owner: shared button renderers in `RootView.swift` and `ResonanceHeroButtonStyle` description in `AppSettings.swift`.
+- Change: removed Minimal Transparent underline capsules from hierarchy, hero action, hero menu, and text buttons in
+  addition to toolbar icon buttons.
+- Automated evidence: `git diff --check`, simulator Debug build, and simulator install passed.
+- Manual acceptance: inspect every Minimal Transparent button surface and confirm no underline remains; verify other
+  visual styles are unchanged.

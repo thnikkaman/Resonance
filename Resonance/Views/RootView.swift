@@ -680,14 +680,6 @@ struct ResonanceHierarchyNavigationLabel: View {
     .overlay {
       outline
     }
-    .overlay(alignment: .bottom) {
-      if settings.heroButtonStyle == .minimalTransparent {
-        Capsule(style: .continuous)
-          .fill(settings.accentColor.opacity(0.80))
-          .frame(width: 24, height: 1.5)
-          .padding(.bottom, 3)
-      }
-    }
     .foregroundStyle(settings.textAccentColor)
     .contentShape(Capsule())
     .fixedSize(horizontal: true, vertical: true)
@@ -1649,13 +1641,6 @@ struct ResonanceHeroActionButton: View {
         }
     }
 
-    private var underline: some View {
-        Capsule(style: .continuous)
-            .fill(tint.opacity(prominent ? 0.95 : 0.80))
-            .frame(width: prominent ? 32 : 24, height: prominent ? 2 : 1.5)
-            .padding(.bottom, 4)
-    }
-
     private var styledLabel: some View {
         label
             .foregroundStyle(
@@ -1665,11 +1650,6 @@ struct ResonanceHeroActionButton: View {
             )
             .background { surface }
             .overlay { outline }
-            .overlay(alignment: .bottom) {
-                if settings.heroButtonStyle == .minimalTransparent {
-                    underline
-                }
-            }
     }
 
     var body: some View {
@@ -1766,14 +1746,6 @@ struct ResonanceHeroMenuLabel: View {
             )
             .background { surface }
             .overlay { outline }
-            .overlay(alignment: .bottom) {
-                if settings.heroButtonStyle == .minimalTransparent {
-                    Capsule(style: .continuous)
-                        .fill(tint.opacity(prominent ? 0.95 : 0.80))
-                        .frame(width: prominent ? 32 : 24, height: prominent ? 2 : 1.5)
-                        .padding(.bottom, 4)
-                }
-            }
     }
 }
 
@@ -2003,14 +1975,6 @@ struct ResonanceToolbarTextButton: View {
             .frame(width: width, height: 30)
             .background { surface }
             .overlay { outline }
-            .overlay(alignment: .bottom) {
-                if settings.heroButtonStyle == .minimalTransparent {
-                    Capsule(style: .continuous)
-                        .fill(settings.accentColor.opacity(0.80))
-                        .frame(width: 32, height: 1.5)
-                        .padding(.bottom, 3)
-                }
-            }
             .foregroundStyle(settings.textAccentColor)
         }
         .buttonStyle(.plain)
