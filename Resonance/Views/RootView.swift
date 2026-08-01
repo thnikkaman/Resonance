@@ -279,7 +279,7 @@ private struct ResonanceLayeredNavigationView: View {
     ZStack {
       // Extend the active page surface behind the home-indicator area while
       // keeping the GeometryReader and its controls inside the safe area.
-      ResonanceThemeBackdrop(includesCustomArtwork: true)
+      ResonanceThemeBackdrop()
         .ignoresSafeArea()
 
       GeometryReader { proxy in
@@ -763,7 +763,7 @@ private extension View {
   func layeredSurface() -> some View {
     self
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .background { ResonanceThemeBackdrop() }
+      .background { ResonanceThemeBackdrop(includesCustomArtwork: true) }
       .clipped()
   }
 

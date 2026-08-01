@@ -334,3 +334,5 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   duplicate-looking edge bands.
 - Follow-up: nested custom-theme backdrop instances are gradient/transparent only; imported artwork is drawn once at
   the top-level page.
+- Follow-up: custom artwork now belongs to the active layered page surface, not the outer navigation container, so
+  system container backing cannot cover the entire image.

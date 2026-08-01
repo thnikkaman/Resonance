@@ -2525,3 +2525,5 @@ The live custom backdrop uses one explicit page-bounds aspect-fill layer, elimin
 duplicate-looking edge bands.
 Nested navigation and detail surfaces no longer redraw the custom image; the imported artwork is drawn once at the
 top-level page backdrop.
+The image is attached to the active layered page surface so it remains visible through the transparent page content
+instead of being hidden behind a system navigation backing surface.

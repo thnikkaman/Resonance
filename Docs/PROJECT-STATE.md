@@ -237,3 +237,6 @@ letterbox strips and duplicate-looking edge bands.
 
 Nested navigation/detail backdrop instances now suppress custom artwork, so only the top-level page backdrop draws the
 imported image. Built-in themes retain their existing nested gradient/image behavior.
+
+The custom image is now attached to the active `layeredSurface` page background, where it can remain visible through the
+transparent page content; the outer navigation backdrop is gradient/transparent only.
