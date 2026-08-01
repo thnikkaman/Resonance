@@ -231,3 +231,6 @@ ratio, eliminating the apparent extra zoom between the crop preview and the appl
 
 The crop preview and live custom backdrop now also declare the 864:1821 aspect ratio explicitly in SwiftUI, preventing
 parent layout proposals from warping the image dimensions.
+
+The live custom backdrop uses aspect-fit rather than aspect-fill, preserving the complete image—including the top and
+bottom edges—against the active theme gradient.

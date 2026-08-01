@@ -330,3 +330,4 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   and applied-background framing agree.
 - Follow-up: crop preview and live backdrop use an explicit 864:1821 aspect-ratio contract to prevent image warping
   from unconstrained parent frames.
+- Follow-up: live custom artwork uses aspect-fit so the source image is never cropped at the phone edges.

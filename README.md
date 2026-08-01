@@ -2521,3 +2521,5 @@ For images matching the target portrait aspect ratio, the initial selection fram
 so the crop preview and applied background use the same framing.
 The crop preview and live backdrop also declare the 864:1821 aspect ratio explicitly, preventing the surrounding
 layout from warping the image dimensions.
+The live custom backdrop uses aspect-fit, preserving the complete imported image rather than cutting off its top or
+bottom edges.

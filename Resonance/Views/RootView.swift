@@ -1473,7 +1473,7 @@ struct ResonanceThemeBackdrop: View {
                     .aspectRatio(
                         AppSettings.customThemeCanvasPixelSize.width /
                             AppSettings.customThemeCanvasPixelSize.height,
-                        contentMode: .fill
+                        contentMode: .fit
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
