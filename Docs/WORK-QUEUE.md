@@ -244,3 +244,10 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Preserved invariants: left-handed 48-point Streaming hit strip, visible 32-point alphabet column, normal browse scrolling outside the strip, selection bubble, haptics, and section-jump behavior.
 - Automated evidence: `git diff --check`, strict Swift 6 simulator/generic-device preflight, signed arm64 Release build, deep signature verification, and in-place `devicectl` installation passed. `Tools/RegressionChecks.sh` is currently blocked by its unrelated stale `confirmed file artwork` assertion.
 - Manual acceptance: with Debugging Mode enabled, test repeated first-touch jumps and quick successive gestures in Streaming Artists, Streaming Albums, Streaming artist albums, and local Library; then copy the diagnostics log if any attempt still fails.
+
+### R-ALPHABET-TOUCH-PROBE — Identify touches lost before the alphabet gesture
+
+- Status: diagnostic probe installed in place on `SaiyanDenwa`; awaiting user reproduction.
+- Owner: `StreamingLibraryView.swift` root simultaneous gesture observer.
+- Evidence target: compare `streaming.alphabetProbe.begin/end` with `alphabet.touch.begin/end` to identify touches received by Streaming but not claimed by `VerticalArtistIndex`.
+- Manual acceptance: enable Debugging Mode, reproduce failed and successful left-handed Streaming alphabet attempts in Artists and Albums, then retrieve `Documents/Resonance-Diagnostics.log`.

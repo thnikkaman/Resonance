@@ -66,6 +66,11 @@ The current v2.0/build-268 source and public release are published at https://gi
   on `SaiyanDenwa` as version `2.0`/build `268`; the physical app was not launched. The latest copied trace is
   `/Users/brian/Resonance/diagnostics/latest/Resonance-Diagnostics.log` and remains uncommitted diagnostic evidence.
 
+- A non-owning simultaneous `streaming.alphabetProbe.begin/end` observer was added to the Streaming root to capture
+  left-edge touches that never reach `VerticalArtistIndex`. It records only coordinates, handedness, and sample counts
+  under the existing Debugging Mode setting. The signed 2.0/268 probe build is installed in place on `SaiyanDenwa` and
+  was not launched. Retrieve the post-reproduction log before disabling Debugging Mode.
+
 ## Beta 2.0 build 268 release scope
 
 - Optional gold FLAC-only artwork borders now cover local and Streaming album grids, rows, artist album modules, and album detail.

@@ -68,6 +68,70 @@ private extension View {
     }
 }
 
+private struct StreamingAlphabetTouchProbe: ViewModifier {
+    @EnvironmentObject private var settings: AppSettings
+    @State private var active = false
+    @State private var sampleCount = 0
+
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                .onChanged { value in
+                    guard settings.leftHandedAlphabet,
+                          value.startLocation.x <= 80 else { return }
+                    if !active {
+                        active = true
+                        sampleCount = 0
+                        ResonanceDiagnostics.shared.recordDeferred(
+                            "streaming.alphabetProbe.begin",
+                            details: probeDetails(value: value, phase: "changed")
+                        )
+                    }
+                    sampleCount += 1
+                }
+                .onEnded { value in
+                    guard active else { return }
+                    sampleCount += 1
+                    ResonanceDiagnostics.shared.recordDeferred(
+                        "streaming.alphabetProbe.end",
+                        details: probeDetails(
+                            value: value,
+                            phase: "ended",
+                            sampleCount: sampleCount
+                        )
+                    )
+                    active = false
+                    sampleCount = 0
+                }
+        )
+    }
+
+    private func probeDetails(
+        value: DragGesture.Value,
+        phase: String,
+        sampleCount: Int? = nil
+    ) -> [String: String] {
+        var details = [
+            "phase": phase,
+            "leftHanded": String(settings.leftHandedAlphabet),
+            "startX": String(format: "%.1f", value.startLocation.x),
+            "startY": String(format: "%.1f", value.startLocation.y),
+            "x": String(format: "%.1f", value.location.x),
+            "y": String(format: "%.1f", value.location.y)
+        ]
+        if let sampleCount {
+            details["samples"] = String(sampleCount)
+        }
+        return details
+    }
+}
+
+private extension View {
+    func streamingAlphabetTouchProbe() -> some View {
+        modifier(StreamingAlphabetTouchProbe())
+    }
+}
+
 struct StreamingLibraryView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var remote: RemoteLibraryStore
@@ -247,6 +311,7 @@ struct StreamingLibraryView: View {
                 }
             }
         }
+        .streamingAlphabetTouchProbe()
         .navigationTitle("Streaming Library")
         .toolbarTitleDisplayMode(.inline)
         .navigationBarTitleDisplayMode(.large)

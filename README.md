@@ -1309,6 +1309,17 @@ Manual test: switch Library and Streaming Artists, Albums, and artist-detail
 album views to Grid, then confirm tiles continue across letter boundaries and
 the right-side alphabet still lands on each letter.
 
+## Streaming alphabet touch probe — Beta 2.0 build 268 — 2026-08-01
+
+The Streaming root now records credential-free `streaming.alphabetProbe.begin` and `.end` events for left-edge touches
+through a simultaneous, non-owning gesture observer. The probe records only start/end coordinates and sample counts,
+so it can distinguish a touch that reaches the Streaming container but never reaches `VerticalArtistIndex` from one
+that reaches the alphabet and produces a section jump. It does not claim the gesture or change scrolling behavior.
+
+The signed 2.0/268 build was installed in place on `SaiyanDenwa`; Codex did not launch it. With Reported Errors →
+Debugging Mode enabled, reproduce the failure in Streaming Artists and Albums, including touches on the visible letters,
+the far-left edge, and just to the right of the strip. Copy `Documents/Resonance-Diagnostics.log` afterward.
+
 ## Playing swipe ownership — 2026-07-27 UTC
 
 Playing-page tab navigation now owns only the upper content region ending above
