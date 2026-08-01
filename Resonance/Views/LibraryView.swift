@@ -386,6 +386,7 @@ struct VerticalArtistIndex: View {
     @State private var selectedRow = 0
     @State private var gestureKey: String?
     @State private var gestureStarted = false
+    @State private var gestureGeneration = 0
     @State private var hideTask: Task<Void, Never>?
     @State private var firstTouchLocation: CGPoint?
     @State private var touchSampleCount = 0
@@ -494,7 +495,15 @@ struct VerticalArtistIndex: View {
                 DragGesture(minimumDistance: 0, coordinateSpace: .local)
                     .onChanged { value in
                         if !gestureStarted {
+                            gestureGeneration &+= 1
                             gestureStarted = true
+                            // A new touch must always start with fresh
+                            // selection state. The previous implementation
+                            // kept gestureKey until an async yield after
+                            // release, which could make the first callback
+                            // of a quick follow-up touch look like a stale
+                            // continuation.
+                            gestureKey = nil
                             firstTouchLocation = value.location
                             touchSampleCount = 0
                             ResonanceDiagnostics.shared.recordDeferred(
@@ -519,6 +528,7 @@ struct VerticalArtistIndex: View {
                     }
                     .onEnded { value in
                         let releaseY = value.location.y
+                        let endedGeneration = gestureGeneration
                         touchSampleCount += 1
                         ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.touch.end",
@@ -530,30 +540,41 @@ struct VerticalArtistIndex: View {
                                 sampleCount: touchSampleCount
                             )
                         )
-                        // Reissue the final selection after the gesture has
-                        // ended. The initial onChanged callback can be
-                        // consumed while the scroll view is still handling
-                        // the touch; force the release callback so a direct
-                        // tap never needs a second touch.
+                        // Apply the release selection immediately so a
+                        // direct tap cannot require a second touch. Reissue
+                        // it once after the scroll view has processed the
+                        // touch, but only if a newer gesture has not started.
+                        // This keeps the first selection reliable without an
+                        // older deferred task interfering with the next one.
+                        selectRow(
+                            at: releaseY,
+                            topInset: topInset,
+                            rowHeight: rowHeight,
+                            repeatSelection: true
+                        )
+                        let endedSelection = selectedKey ?? "none"
+                        gestureStarted = false
+                        firstTouchLocation = nil
+                        touchSampleCount = 0
+                        scheduleBubbleHide()
+                        ResonanceDiagnostics.shared.recordDeferred(
+                            "alphabet.gesture.end",
+                            details: [
+                                "surface": diagnosticSurface,
+                                "selected": endedSelection
+                            ]
+                        )
                         Task { @MainActor in
                             await Task.yield()
+                            guard endedGeneration == gestureGeneration,
+                                  !gestureStarted else { return }
                             selectRow(
                                 at: releaseY,
                                 topInset: topInset,
                                 rowHeight: rowHeight,
                                 repeatSelection: true
                             )
-                            ResonanceDiagnostics.shared.recordDeferred(
-                                "alphabet.gesture.end",
-                                details: [
-                                    "surface": diagnosticSurface,
-                                    "selected": selectedKey ?? "none"
-                                ]
-                            )
-                            gestureStarted = false
                             gestureKey = nil
-                            firstTouchLocation = nil
-                            touchSampleCount = 0
                             scheduleBubbleHide()
                         }
                     }
