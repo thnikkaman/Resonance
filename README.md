@@ -1,6 +1,6 @@
 # Resonance Beta v2.0 — Audiobook Playback and Multi-Disc Metadata Safety
 
-## Current beta — 2.0 (build 267)
+## Current beta — 2.0 (build 268)
 
 The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
@@ -25,16 +25,17 @@ refresh, and Settings. The local file-browser/import control is intentionally om
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v2.0` publication tag recorded below. The project’s
-default Xcode settings are version `2.0`, build `267`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v2.0-build268` publication tag recorded below. The project’s
+default Xcode settings are version `2.0`, build `268`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Release source build: `2.0` (build `267`)
+Release source build: `2.0` (build `268`)
 
-Latest device validation build: `2.0` (build `267`). The app was installed in place on `SaiyanDenawa` and not launched
-by Codex.
+Latest device validation build: `2.0` (build `268`). The build was installed in place on Sarah’s iPhone and Chase’s
+iPhone; Codex did not launch either physical app. A matching Debug build was installed on the iPhone 17 Pro simulator
+for visual inspection.
 
-## Resonance Beta v2.0 — 2026-07-31 UTC
+## Resonance Beta v2.0 build 268 — 2026-07-31 UTC
 
 Beta 2.0 introduces user-controlled audiobook playback. Albums in the local or personal Streaming library can be
 marked as audiobooks, audiobook Play resumes the newest saved position, and audiobook-only playback-speed controls are
@@ -48,8 +49,15 @@ numbers unchanged. Validation includes source parsing, `git diff --check`, signe
 signature verification, and in-place installation. Known non-blocking warnings are the empty supported-platforms/no-scheme
 destination warning and harmless AppIntents metadata extraction skip.
 
-The source is published as the GitHub prerelease
-`Resonance-Beta-v2.0`: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
+Build 268 adds the optional gold FLAC-only artwork border across local and Streaming album presentations, Siri/App
+Intents for playing a song, album, or artist and resuming an audiobook, and the remote cache migration needed to
+identify FLAC-only Streaming albums. It also repairs left-handed Streaming artist-album spacing and restores the
+alphabet gesture to a non-overlapping 32-point hit column.
+
+Automated validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, signed Release
+compilation, strict deep code-signature verification, and in-place installation. The source and public release are
+available at [Resonance Beta v2.0 build 268](https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0-build268).
+Physical runtime acceptance remains user-run; Codex did not launch the physical devices.
 
 ## Resonance Beta v1.0.9 — 2026-07-31 UTC
 

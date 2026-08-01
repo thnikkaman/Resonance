@@ -7,7 +7,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-STREAMING-FLAC-LEFT-HAND — Repair Streaming FLAC alert cache activation and left-handed artist albums
 
-- Status: implemented; automated validation and physical-device installation passed on Sarah's iPhone; runtime acceptance pending.
+- Status: implemented; automated validation, physical-device installation, simulator installation, and public build-268 publication passed; physical runtime acceptance remains user-run.
 - Owners: `RemoteLibraryStore.swift` for cached remote format metadata; `StreamingLibraryView.swift` for remote browse layout.
 - Goal: show the enabled gold FLAC border in Streaming even when the catalog was cached before file extensions were persisted, and keep Streaming artist album content clear of the left alphabet strip.
 - Preserved invariants: cached browsing remains available, remote refresh remains explicit except for this one-time format migration, right-handed geometry is unchanged, and the alphabet strip remains in its existing hit region.
@@ -16,9 +16,22 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Rollback: revert this queue entry and the focused `RemoteLibraryStore.swift` and `StreamingLibraryView.swift` changes.
 
 - Runtime baseline: signed Beta v2.0/build 268 installed on Sarah's iPhone and Chase's iPhone; physical runtime acceptance remains user-run.
-- Source baseline: local commit `65fdee7` on `agent/alpha-3.7.4-source`.
+- Source baseline: GitHub-synchronized commit `baef8bc` on `agent/alpha-3.7.4-source`.
 - Physical devices: installed but not launched by Codex; user runtime acceptance remains pending. Chase's installation uses the separate bundle `com.chaseatron.Resonance` because the original bundle is owned by another team.
 - Full state record: `Docs/PROJECT-STATE.md`.
+
+### R-BETA-2.0-BUILD-268 — Publish the latest Beta 2.0 build
+
+- Status: implemented, validated, installed in place, pushed, and published publicly.
+- Scope: gold FLAC-only artwork borders across Streaming and local album presentations; Siri/App Intents for song,
+  album, artist, and audiobook playback; remote FLAC cache migration; and left-handed Streaming layout correction.
+- Source: `agent/alpha-3.7.4-source` at commit `baef8bc`.
+- Release: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0-build268
+- Validation: regression checks, diff check, strict preflight, signed Release compilation, deep signature verification,
+  Sarah/Chase in-place installations, and iPhone 17 Pro simulator installation passed.
+- Manual oracle: enable Flac Alert in local and Streaming libraries, inspect grid/list/artist-detail/album-detail artwork,
+  test Siri/App Intents, enable left-handed alphabet mode, and verify scrolling and album positioning.
+- Physical devices were not launched by Codex; playback and full runtime acceptance remain user-run.
 
 ## Completed release work
 

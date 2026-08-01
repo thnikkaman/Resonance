@@ -7,25 +7,26 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: `65fdee7` (`Restore left-handed alphabet scrolling`); local branch is three commits ahead of the fetched origin branch.
-- GitHub tag/release: `Resonance-Beta-v2.0` prerelease publication.
+- Release commit: `baef8bc` (`Record Chaseatron build 268 installation`); the source branch is synchronized with GitHub.
+- GitHub tag/release: `Resonance-Beta-v2.0-build268` public prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `2.0`, build `268`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
 ## Current beta source and installed artifact
 
-- Source product: Resonance Beta v2.0/build 267.
+- Source product: Resonance Beta v2.0/build 268.
 - Bundle: `com.example.ResonancePrototype`.
 - Signed arm64 Release build passed with development team `98CWMFS26R`.
 - Deep strict code-signature verification passed.
-- In-place installation on `SaiyanDenawa` passed; existing app data was preserved.
-- The installed physical artifact is version `2.0`, build `267`; it was installed in place after signed verification.
-- Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
+- The prior build-267 artifact was installed in place on `SaiyanDenawa`; build 268 was installed in place on Sarah’s and Chase’s iPhones.
+- Sarah’s and Chase’s physical artifacts are version `2.0`, build `268`; both were installed in place after signed verification.
+- A Debug `2.0`/`268` build was installed on the configured iPhone 17 Pro simulator for visual inspection.
+- Codex did not launch the physical apps; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
 
 ## Latest SarahSue device artifact
 
-- Source: local `agent/alpha-3.7.4-source` commit `65fdee7`.
+- Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`.
 - Automated validation: `git diff --check`, `Tools/RegressionChecks.sh`, and `Tools/PreflightBuild.sh` passed.
 - Signed artifact: version `2.0`, build `268`, bundle `com.example.ResonancePrototype`.
 - Signing: Sarah Garcia personal team `M4Q367H7K2`; Xcode identity `Apple Development: sarahsue621@gmail.com (D75HLRVZDX)`.
@@ -35,7 +36,7 @@ Last verified: 2026-07-31
 
 ## Latest Chaseatron device artifact
 
-- Source: local `agent/alpha-3.7.4-source` commit `56fa904`; source behavior and project version/build are unchanged.
+- Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`; source behavior and project version/build are unchanged.
 - Signed artifact: version `2.0`, build `268`, Chase-specific bundle `com.chaseatron.Resonance`.
 - Signing: Chase Peterson personal team `U37R4TL69A`; Xcode identity `Apple Development: chaseatron8110@gmail.com (RU994287VG)`.
 - The original `com.example.ResonancePrototype` identifier was unavailable to Chase's team, so this is a separate app/data container.
@@ -43,7 +44,23 @@ Last verified: 2026-07-31
 - `codesign --verify --deep --strict` passed; `devicectl` installed and verified version `2.0`/build `268`.
 - The app was not launched. Playback and all other runtime acceptance remain manual tests.
 
-The v2.0 source is published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
+The current v2.0/build-268 source and public release are published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0-build268.
+
+## Beta 2.0 build 268 release scope
+
+- Optional gold FLAC-only artwork borders now cover local and Streaming album grids, rows, artist album modules, and album detail.
+- Siri/App Intents provide Play Song, Play Album, Play Artist, and Resume Audiobook actions.
+- Cached Subsonic catalogs missing file extensions receive a one-time format refresh when Flac Alert is enabled.
+- Left-handed Streaming artist-album padding and the alphabet gesture hit column are corrected without changing right-handed geometry.
+
+## Beta 2.0 build 268 validation and installation
+
+- `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` passed.
+- Signed arm64 Release compilation and strict deep code-signature verification passed.
+- Build `2.0`/`268` installed in place on Sarah’s iPhone under team `M4Q367H7K2` using `com.example.ResonancePrototype`.
+- Build `2.0`/`268` installed in place on Chase’s iPhone under team `U37R4TL69` using `com.chaseatron.Resonance`; the original identifier was unavailable to Chase’s team.
+- A matching Debug build installed on the iPhone 17 Pro simulator and was visually inspected by the user.
+- Codex did not launch either physical app; physical playback and full runtime acceptance remain user-run.
 
 ## Implemented change
 
