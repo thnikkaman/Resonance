@@ -225,3 +225,6 @@ The crop editor now fits its viewport within the sheet and shows the full source
 selection frame; no shade or shadow is drawn over either region. Export normalizes the source orientation, crops the
 actual source pixel rectangle, and scales that crop to the exact target canvas. Custom page backdrops no longer
 receive the translucent readability veil, so the saved image keeps its original brightness.
+
+The initial selection frame now matches the full displayed image whenever the source shares the target portrait aspect
+ratio, eliminating the apparent extra zoom between the crop preview and the applied background.

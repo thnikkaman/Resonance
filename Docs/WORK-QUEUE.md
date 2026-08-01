@@ -326,3 +326,5 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   frame, and renders custom page artwork without the previous translucent veil.
 - Follow-up: removed crop shading entirely so the full source image stays bright and the selection frame is the only guide.
 - Follow-up: crop export now uses the normalized source pixel rectangle before scaling, preventing black saved backgrounds.
+- Follow-up: initial crop-frame geometry now matches the displayed source image at the target aspect ratio, so preview
+  and applied-background framing agree.

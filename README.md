@@ -2517,3 +2517,5 @@ The crop sheet fits within the phone viewport and keeps the full source image vi
 selection frame with no shade or shadow over the image. Crop export normalizes the source orientation and crops actual
 source pixels before scaling to the target canvas, preventing black saved backgrounds. Custom page artwork is rendered
 without the prior translucent veil, preserving the imported image brightness.
+For images matching the target portrait aspect ratio, the initial selection frame now covers the full displayed image,
+so the crop preview and applied background use the same framing.

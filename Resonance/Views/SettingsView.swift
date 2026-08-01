@@ -1702,16 +1702,13 @@ private struct CustomThemeCropView: View {
 
     private func cropViewport(width: CGFloat, height: CGFloat) -> some View {
         let source = normalizedImage
-        let cropHeight = min(height - 16, width / canvasAspectRatio)
+        let baseScale = min(width / source.size.width, height / source.size.height)
+        let baseRenderedWidth = source.size.width * baseScale
+        let baseRenderedHeight = source.size.height * baseScale
+        let cropHeight = min(baseRenderedHeight, baseRenderedWidth / canvasAspectRatio)
         let cropWidth = cropHeight * canvasAspectRatio
-        let baseScale = max(
-            width / source.size.width,
-            height / source.size.height,
-            cropWidth / source.size.width,
-            cropHeight / source.size.height
-        )
-        let renderedWidth = source.size.width * baseScale * zoom
-        let renderedHeight = source.size.height * baseScale * zoom
+        let renderedWidth = baseRenderedWidth * zoom
+        let renderedHeight = baseRenderedHeight * zoom
 
         return ZStack {
             Image(uiImage: source)
@@ -1794,16 +1791,13 @@ private struct CustomThemeCropView: View {
         guard viewportSize != .zero else { return nil }
         let source = normalizedImage
         guard let sourceCGImage = source.cgImage else { return nil }
-        let cropHeight = min(viewportSize.height - 16, viewportSize.width / canvasAspectRatio)
+        let baseScale = min(viewportSize.width / source.size.width, viewportSize.height / source.size.height)
+        let baseRenderedWidth = source.size.width * baseScale
+        let baseRenderedHeight = source.size.height * baseScale
+        let cropHeight = min(baseRenderedHeight, baseRenderedWidth / canvasAspectRatio)
         let cropWidth = cropHeight * canvasAspectRatio
-        let baseScale = max(
-            viewportSize.width / source.size.width,
-            viewportSize.height / source.size.height,
-            cropWidth / source.size.width,
-            cropHeight / source.size.height
-        )
-        let renderedWidth = source.size.width * baseScale * zoom
-        let renderedHeight = source.size.height * baseScale * zoom
+        let renderedWidth = baseRenderedWidth * zoom
+        let renderedHeight = baseRenderedHeight * zoom
         let imageX = (viewportSize.width - renderedWidth) / 2 + offset.width
         let imageY = (viewportSize.height - renderedHeight) / 2 + offset.height
         let cropX = (viewportSize.width - cropWidth) / 2
