@@ -332,3 +332,5 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   from unconstrained parent frames.
 - Follow-up: live custom artwork uses one explicit page-bounds aspect-fill layer, eliminating letterbox strips and
   duplicate-looking edge bands.
+- Follow-up: nested custom-theme backdrop instances are gradient/transparent only; imported artwork is drawn once at
+  the top-level page.

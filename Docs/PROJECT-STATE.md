@@ -234,3 +234,6 @@ parent layout proposals from warping the image dimensions.
 
 The live custom backdrop now receives explicit page bounds and uses one clipped aspect-fill image layer, eliminating
 letterbox strips and duplicate-looking edge bands.
+
+Nested navigation/detail backdrop instances now suppress custom artwork, so only the top-level page backdrop draws the
+imported image. Built-in themes retain their existing nested gradient/image behavior.

@@ -802,7 +802,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            ResonanceThemeBackdrop()
+            ResonanceThemeBackdrop(includesCustomArtwork: true)
             ResonanceLayeredNavigationView()
                 .environmentObject(gestureCoordinator)
                 .environmentObject(miniPlayerNavigation)
@@ -1463,12 +1463,21 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
 struct ResonanceThemeBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
+    let includesCustomArtwork: Bool
+
+    init(includesCustomArtwork: Bool = false) {
+        self.includesCustomArtwork = includesCustomArtwork
+    }
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                settings.themeBackgroundGradient
-                if settings.visualTheme.rawValue == "custom", let image = settings.customThemeImage {
+                if settings.visualTheme.rawValue != "custom" || includesCustomArtwork {
+                    settings.themeBackgroundGradient
+                }
+                if includesCustomArtwork,
+                   settings.visualTheme.rawValue == "custom",
+                   let image = settings.customThemeImage {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()

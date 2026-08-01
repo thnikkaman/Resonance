@@ -2523,3 +2523,5 @@ The crop preview and live backdrop also declare the 864:1821 aspect ratio explic
 layout from warping the image dimensions.
 The live custom backdrop uses one explicit page-bounds aspect-fill layer, eliminating letterbox strips and
 duplicate-looking edge bands.
+Nested navigation and detail surfaces no longer redraw the custom image; the imported artwork is drawn once at the
+top-level page backdrop.
