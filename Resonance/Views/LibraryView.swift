@@ -620,6 +620,10 @@ struct VerticalArtistIndex: View {
             "y": String(format: "%.1f", location.y),
             "width": String(format: "%.1f", geometry.size.width),
             "height": String(format: "%.1f", geometry.size.height),
+            "globalX": String(format: "%.1f", geometry.frame(in: .global).minX + location.x),
+            "globalY": String(format: "%.1f", geometry.frame(in: .global).minY + location.y),
+            "globalMinX": String(format: "%.1f", geometry.frame(in: .global).minX),
+            "globalMaxX": String(format: "%.1f", geometry.frame(in: .global).maxX),
             "hitWidth": String(format: "%.1f", indexHitWidth),
             "columnWidth": String(format: "%.1f", indexColumnWidth)
         ]
