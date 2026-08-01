@@ -212,22 +212,10 @@ The physical phone was not updated or launched.
 ## Custom Background theme — Beta 2.0 build 268 — 2026-08-01
 
 The former Waterfall Meadow visual theme is now **Custom Background**. Users can import an image from Photos when
-that theme is selected; images must be at least 864 × 1821 portrait pixels, then a fixed-canvas crop editor lets the
-user pan and pinch to choose the area. Resonance stores the resulting 864 × 1821 crop privately in Application
-Support, with legacy Waterfall selections migrated to the custom option. The image is used only as the page-level
-decorative backdrop so controls, album artwork, and interactive surfaces remain readable. Theme cards now show names
-only; the visual-theme descriptions were removed while Hero button style descriptions remain available.
+that theme is selected; Resonance resizes it and stores it privately in Application Support, with legacy Waterfall
+selections migrated to the custom option. The image is used only as the page-level decorative backdrop so controls,
+album artwork, and interactive surfaces remain readable. Theme cards now show names only; the visual-theme descriptions
+were removed while Hero button style descriptions remain available.
 
 Simulator Debug build 2.0/268 compiled successfully and was installed in place on the configured iPhone 17 Pro
 simulator. The simulator app was not launched, and the physical phone was not updated or launched.
-
-The crop editor now fits its viewport within the sheet and shows the full source image with an overlaid 864 × 1821
-selection frame; no shade or shadow is drawn over either region. Export normalizes the source orientation, crops the
-actual source pixel rectangle, and scales that crop to the exact target canvas. The known-good RootView layout and
-backdrop compositing are restored after custom-image rendering experiments introduced black/strip artifacts.
-
-The initial selection frame now matches the full displayed image whenever the source shares the target portrait aspect
-ratio, eliminating the apparent extra zoom between the crop preview and the applied background.
-
-Live custom-image rendering is paused at the restored known-good RootView baseline pending a screenshot-grounded
-transparency audit.

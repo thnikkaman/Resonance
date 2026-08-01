@@ -1467,8 +1467,8 @@ struct ResonanceThemeBackdrop: View {
     var body: some View {
         ZStack {
             settings.themeBackgroundGradient
-            if let imageName = settings.visualTheme.backgroundImageName {
-                Image(imageName)
+            if settings.visualTheme.rawValue == "custom", let image = settings.customThemeImage {
+                Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1476,6 +1476,14 @@ struct ResonanceThemeBackdrop: View {
                     .opacity(0.42)
                 // Keep a readable veil over the artwork without removing its
                 // texture and color from the page background.
+                settings.themeBackgroundGradient.opacity(0.12)
+            } else if let imageName = settings.visualTheme.backgroundImageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .opacity(0.42)
                 settings.themeBackgroundGradient.opacity(0.12)
             }
         }

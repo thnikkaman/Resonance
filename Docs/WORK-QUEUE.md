@@ -312,16 +312,11 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 
 ### R-CUSTOM-BACKGROUND-THEME — Replace Waterfall Meadow with imported background image
 
-- Status: import/crop/storage implemented; live custom-image rendering is paused at the restored known-good RootView baseline pending a screenshot-grounded transparency audit.
+- Status: implemented and installed on the configured iPhone 17 Pro simulator; physical runtime acceptance remains user-run.
 - Owner: `AppSettings.swift`, `SettingsView.swift`, and the page-level theme backdrop in `RootView.swift`.
 - Change: replaced Waterfall Meadow with a persisted Custom Background option, added Photos import/replace/remove
-  controls, requires at least 864 × 1821 portrait pixels, and provides a fixed-canvas pan/pinch crop before saving.
-  Legacy Waterfall selections migrate. Live image rendering is intentionally paused while the layout baseline is restored.
+  controls, migrated legacy Waterfall selections, and kept imported imagery out of interactive surfaces.
 - Change: removed descriptions from visual-theme cards and retained the theme names; Hero button style descriptions are unchanged.
 - Automated evidence: `git diff --check`, simulator Debug build, and in-place simulator installation passed. The app was not launched.
-- Manual acceptance: select Custom Background, try an undersized image, import a larger image, pan/pinch the crop,
-  replace/remove it, relaunch, and inspect Library, Streaming, Settings, Now Playing, mini-player, artist, and album
-  surfaces for a decorative backdrop that never changes layout or obscures controls/artwork.
-- Follow-up: crop sheet fits the phone viewport, keeps the full source image visible, removes crop shading, and exports
-  normalized source pixels to the target canvas. Live custom-image rendering remains paused pending evidence-based
-  transparency work.
+- Manual acceptance: select Custom Background, import/replace/remove an image, relaunch, and inspect Library, Streaming,
+  Settings, Now Playing, mini-player, artist, and album surfaces for a decorative backdrop that never obscures controls or artwork.

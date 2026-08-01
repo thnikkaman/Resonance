@@ -17,8 +17,6 @@ struct SettingsView: View {
     @State private var serverQRCodeError: String?
     @State private var customThemePickerItem: PhotosPickerItem?
     @State private var customThemeImportFailed = false
-    @State private var customThemeCropImage: UIImage?
-    @State private var showingCustomThemeCrop = false
     @State private var diagnosticsFileSize: Int64 = ResonanceDiagnostics.shared.fileSizeBytes()
     @State private var showingDiagnosticsDeleteConfirmation = false
     @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
@@ -56,7 +54,6 @@ struct SettingsView: View {
                     }
                 }
 
-                let customBackgroundImageAvailable = settings.hasCustomThemeImage
                 if settings.visualTheme.rawValue == "custom" {
                     PhotosPicker(
                         selection: $customThemePickerItem,
@@ -64,7 +61,7 @@ struct SettingsView: View {
                         photoLibrary: .shared()
                     ) {
                         Label(
-                            customBackgroundImageAvailable ? "Replace Background Image" : "Import Background Image",
+                            settings.hasCustomThemeImage ? "Replace Background Image" : "Import Background Image",
                             systemImage: "photo.badge.plus"
                         )
                         .frame(maxWidth: .infinity)
@@ -78,7 +75,7 @@ struct SettingsView: View {
                         .buttonStyle(ResonanceSettingsActionButtonStyle())
                     }
 
-                    Text("Choose an image at least 864 × 1821 pixels. You will choose the crop area before it is stored privately on this iPhone as the page background.")
+                    Text("Choose an image from Photos. It is resized and stored privately on this iPhone as the page background.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -661,16 +658,7 @@ struct SettingsView: View {
                         customThemeImportFailed = true
                         return
                     }
-                            guard let image = UIImage(data: data),
-                                  image.size.width * image.scale >= AppSettings.customThemeCanvasPixelSize.width,
-                                  image.size.height * image.scale >= AppSettings.customThemeCanvasPixelSize.height
-                    else {
-                        customThemeImportFailed = true
-                        customThemePickerItem = nil
-                        return
-                    }
-                    customThemeCropImage = image
-                    showingCustomThemeCrop = true
+                    settings.setCustomThemeImage(data)
                 } catch {
                     customThemeImportFailed = true
                 }
@@ -680,19 +668,7 @@ struct SettingsView: View {
         .alert("Could Not Import Background", isPresented: $customThemeImportFailed) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Choose an image that is at least 864 × 1821 pixels in portrait orientation.")
-        }
-        .sheet(isPresented: $showingCustomThemeCrop) {
-            if let image = customThemeCropImage {
-                CustomThemeCropView(image: image) { croppedData in
-                    settings.setCustomThemeImage(croppedData)
-                    showingCustomThemeCrop = false
-                    customThemeCropImage = nil
-                } onCancel: {
-                    showingCustomThemeCrop = false
-                    customThemeCropImage = nil
-                }
-            }
+            Text("Choose a readable image from Photos and try again.")
         }
     }
 
@@ -1635,198 +1611,6 @@ private struct CurrentTrackArtworkPreview: View {
             embedded: player.currentTrack.map { player.artworkIsEmbedded(for: $0) } ?? true,
             size: size
         )
-    }
-}
-
-private struct CustomThemeCropView: View {
-    let image: UIImage
-    let onSave: (Data) -> Void
-    let onCancel: () -> Void
-
-    @State private var zoom: CGFloat = 1
-    @State private var committedZoom: CGFloat = 1
-    @State private var offset: CGSize = .zero
-    @State private var dragStartOffset: CGSize = .zero
-    @State private var viewportSize: CGSize = .zero
-
-    private let canvasAspectRatio = AppSettings.customThemeCanvasPixelSize.width / AppSettings.customThemeCanvasPixelSize.height
-
-    private var normalizedImage: UIImage {
-        let renderer = UIGraphicsImageRenderer(size: image.size)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            GeometryReader { proxy in
-                let viewportWidth = min(proxy.size.width - 32, 360)
-                let viewportHeight = min(max(proxy.size.height - 150, 240), 620)
-
-                VStack(spacing: 16) {
-                    Text("The full image remains visible. Move and pinch it behind the crop frame to choose the background area.")
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    cropViewport(width: viewportWidth, height: viewportHeight)
-
-                    Text("The saved background will be \(Int(AppSettings.customThemeCanvasPixelSize.width)) × \(Int(AppSettings.customThemeCanvasPixelSize.height)) pixels.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.top, 12)
-            }
-            .navigationTitle("Crop Background")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Use This Crop") {
-                        if let data = croppedJPEG(viewportSize: viewportSize) {
-                            onSave(data)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func cropViewport(width: CGFloat, height: CGFloat) -> some View {
-        let source = normalizedImage
-        let baseScale = min(width / source.size.width, height / source.size.height)
-        let baseRenderedWidth = source.size.width * baseScale
-        let baseRenderedHeight = source.size.height * baseScale
-        let cropHeight = min(baseRenderedHeight, baseRenderedWidth / canvasAspectRatio)
-        let cropWidth = cropHeight * canvasAspectRatio
-        let renderedWidth = baseRenderedWidth * zoom
-        let renderedHeight = baseRenderedHeight * zoom
-
-        return ZStack {
-            Image(uiImage: source)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: renderedWidth, height: renderedHeight)
-                .offset(offset)
-            Rectangle()
-                .stroke(.white.opacity(0.95), lineWidth: 2)
-                .frame(width: cropWidth, height: cropHeight)
-                .allowsHitTesting(false)
-        }
-        .frame(width: width, height: height)
-        .clipped()
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    offset = clampedOffset(
-                        CGSize(
-                            width: dragStartOffset.width + value.translation.width,
-                            height: dragStartOffset.height + value.translation.height
-                        ),
-                        viewportWidth: width,
-                        viewportHeight: height,
-                        cropWidth: cropWidth,
-                        cropHeight: cropHeight,
-                        baseScale: baseScale
-                    )
-                }
-                .onEnded { _ in dragStartOffset = offset }
-        )
-        .simultaneousGesture(
-            MagnificationGesture()
-                .onChanged { value in
-                    zoom = max(1, committedZoom * value)
-                    offset = clampedOffset(
-                        offset,
-                        viewportWidth: width,
-                        viewportHeight: height,
-                        cropWidth: cropWidth,
-                        cropHeight: cropHeight,
-                        baseScale: baseScale
-                    )
-                }
-                .onEnded { _ in
-                    committedZoom = zoom
-                    dragStartOffset = offset
-                }
-        )
-        .onAppear {
-            viewportSize = CGSize(width: width, height: height)
-            offset = .zero
-            dragStartOffset = .zero
-            zoom = 1
-            committedZoom = 1
-        }
-    }
-
-    private func clampedOffset(
-        _ proposed: CGSize,
-        viewportWidth: CGFloat,
-        viewportHeight: CGFloat,
-        cropWidth: CGFloat,
-        cropHeight: CGFloat,
-        baseScale: CGFloat
-    ) -> CGSize {
-        let source = normalizedImage
-        let renderedWidth = source.size.width * baseScale * zoom
-        let renderedHeight = source.size.height * baseScale * zoom
-        let maxX = max(0, (renderedWidth - cropWidth) / 2)
-        let maxY = max(0, (renderedHeight - cropHeight) / 2)
-        return CGSize(
-            width: min(max(proposed.width, -maxX), maxX),
-            height: min(max(proposed.height, -maxY), maxY)
-        )
-    }
-
-    private func croppedJPEG(viewportSize: CGSize) -> Data? {
-        guard viewportSize != .zero else { return nil }
-        let source = normalizedImage
-        guard let sourceCGImage = source.cgImage else { return nil }
-        let baseScale = min(viewportSize.width / source.size.width, viewportSize.height / source.size.height)
-        let baseRenderedWidth = source.size.width * baseScale
-        let baseRenderedHeight = source.size.height * baseScale
-        let cropHeight = min(baseRenderedHeight, baseRenderedWidth / canvasAspectRatio)
-        let cropWidth = cropHeight * canvasAspectRatio
-        let renderedWidth = baseRenderedWidth * zoom
-        let renderedHeight = baseRenderedHeight * zoom
-        let imageX = (viewportSize.width - renderedWidth) / 2 + offset.width
-        let imageY = (viewportSize.height - renderedHeight) / 2 + offset.height
-        let cropX = (viewportSize.width - cropWidth) / 2
-        let cropY = (viewportSize.height - cropHeight) / 2
-        let targetSize = AppSettings.customThemeCanvasPixelSize
-        let imageScale = CGFloat(sourceCGImage.width) / source.size.width
-        let sourceCropWidth = cropWidth / (baseScale * zoom)
-        let sourceCropHeight = cropHeight / (baseScale * zoom)
-        let sourceCropX = min(
-            max(0, (cropX - imageX) / (baseScale * zoom)),
-            max(0, source.size.width - sourceCropWidth)
-        )
-        let sourceCropY = min(
-            max(0, (cropY - imageY) / (baseScale * zoom)),
-            max(0, source.size.height - sourceCropHeight)
-        )
-        let pixelCropRect = CGRect(
-            x: sourceCropX * imageScale,
-            y: sourceCropY * imageScale,
-            width: sourceCropWidth * imageScale,
-            height: sourceCropHeight * imageScale
-        ).integral
-        guard let croppedCGImage = sourceCGImage.cropping(to: pixelCropRect) else { return nil }
-        let croppedSource = UIImage(cgImage: croppedCGImage)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        let cropped = renderer.image { _ in
-            croppedSource.draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-        return cropped.jpegData(compressionQuality: 0.82)
     }
 }
 
