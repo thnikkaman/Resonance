@@ -1328,6 +1328,14 @@ alphabet updates to compete and making a valid first jump appear intermittent. T
 place for the next user capture. The signed 2.0/268 build was installed in place on `SaiyanDenwa` and was not launched
 by Codex.
 
+## Anchor Streaming alphabet geometry to the screen edge — Beta 2.0 build 268 — 2026-08-01
+
+Device diagnostics measured the left-handed Streaming alphabet frame at global x `-7...41` instead of beginning at
+the screen edge. The three Streaming alphabet containers now explicitly expand to the available width and align their
+index to `.leading` in left-handed mode (or `.trailing` in right-handed mode). This preserves the 48-point hit strip
+while removing the parent-width centering that shifted the effective tap area. The signed 2.0/268 build was installed
+in place on `SaiyanDenwa` and was not launched by Codex.
+
 ## Playing swipe ownership — 2026-07-27 UTC
 
 Playing-page tab navigation now owns only the upper content region ending above

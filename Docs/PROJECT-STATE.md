@@ -77,6 +77,11 @@ The current v2.0/build-268 source and public release are published at https://gi
   three Streaming alphabet handlers now match the local direct-dispatch behavior. The signed 2.0/268 build is installed
   in place on `SaiyanDenwa`; physical runtime acceptance remains user-run.
 
+- The latest trace confirmed the user-visible geometry concern: Streaming’s left-handed alphabet frame reported
+  `globalMinX=-7` and `globalMaxX=41`, centering the 48-point hit frame around x=17 rather than anchoring it to the
+  screen edge. The three Streaming alphabet ZStacks now explicitly fill available width and align leading/trailing
+  according to handedness. The signed 2.0/268 build is installed in place on `SaiyanDenwa`; Codex did not launch it.
+
 ## Beta 2.0 build 268 release scope
 
 - Optional gold FLAC-only artwork borders now cover local and Streaming album grids, rows, artist album modules, and album detail.

@@ -1055,6 +1055,11 @@ private struct RemoteArtistCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: settings.leftHandedAlphabet ? .leading : .trailing
+            )
             .scrollIndicators(.hidden)
             .task(id: sectionInputKey) {
                 sections = Self.makeSections(artists, ascending: sortDirection == .ascending)
@@ -1333,6 +1338,11 @@ private struct RemoteAlbumCollectionView: View {
                     .padding(.vertical, 4)
                 }
             }
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: settings.leftHandedAlphabet ? .leading : .trailing
+            )
             .scrollIndicators(.hidden)
             .background {
                 ResonanceThemeBackdrop()
@@ -1403,9 +1413,9 @@ private struct RemoteTrackCollectionView: View {
                         }
                     }
                 }
+                    }
             }
-        }
-        .scrollIndicators(.hidden)
+            .scrollIndicators(.hidden)
         .resonanceBrowseBottomClearance()
         .sheet(isPresented: $showingPlaylistPicker) {
             RemotePlaylistPickerSheet(items: playlistItems)
@@ -1738,6 +1748,11 @@ struct RemoteArtistDetailView: View {
                         .padding(.vertical, 4)
                     }
                 }
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: settings.leftHandedAlphabet ? .leading : .trailing
+                )
                 .scrollIndicators(.hidden)
             }
         }

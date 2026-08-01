@@ -259,3 +259,11 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Change: removed per-update `withAnimation` wrappers so Streaming uses the same direct `ScrollViewProxy.scrollTo` dispatch as local Library.
 - Preserved invariants: 48-point left-handed Streaming hit strip, section IDs, selection bubble, haptics, and ordinary content scrolling.
 - Automated evidence: `git diff --check`, Swift 6 strict simulator/generic-device preflight, signed arm64 Release build, deep signature verification, and in-place device installation passed.
+
+### R-ALPHABET-EDGE-GEOMETRY — Anchor Streaming index to the screen edge
+
+- Status: implemented and installed in place on `SaiyanDenwa`; physical runtime acceptance remains user-run.
+- Owner: `StreamingLibraryView.swift` Streaming Artists, Albums, and artist-album alphabet ZStacks.
+- Change: explicitly expand each index container to available width and align it to the active handedness edge.
+- Evidence: device diagnostics measured the previous left-handed frame at global x `-7...41`; signed 2.0/268 installation passed after the geometry change.
+- Manual acceptance: verify the visible letters and their hit area share the same left-edge origin in Streaming Artists, Albums, and artist-album views; repeat right-handed mode afterward.
