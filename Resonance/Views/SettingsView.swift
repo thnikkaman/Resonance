@@ -1651,6 +1651,13 @@ private struct CustomThemeCropView: View {
 
     private let canvasAspectRatio = AppSettings.customThemeCanvasPixelSize.width / AppSettings.customThemeCanvasPixelSize.height
 
+    private var normalizedImage: UIImage {
+        let renderer = UIGraphicsImageRenderer(size: image.size)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
@@ -1665,7 +1672,7 @@ private struct CustomThemeCropView: View {
 
                     cropViewport(width: viewportWidth, height: viewportHeight)
 
-                    Text("The saved background will be (Int(AppSettings.customThemeCanvasPixelSize.width)) × (Int(AppSettings.customThemeCanvasPixelSize.height)) pixels.")
+                    Text("The saved background will be \(Int(AppSettings.customThemeCanvasPixelSize.width)) × \(Int(AppSettings.customThemeCanvasPixelSize.height)) pixels.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -1694,30 +1701,24 @@ private struct CustomThemeCropView: View {
     }
 
     private func cropViewport(width: CGFloat, height: CGFloat) -> some View {
+        let source = normalizedImage
         let cropHeight = min(height - 16, width / canvasAspectRatio)
         let cropWidth = cropHeight * canvasAspectRatio
         let baseScale = max(
-            width / image.size.width,
-            height / image.size.height,
-            cropWidth / image.size.width,
-            cropHeight / image.size.height
+            width / source.size.width,
+            height / source.size.height,
+            cropWidth / source.size.width,
+            cropHeight / source.size.height
         )
-        let renderedWidth = image.size.width * baseScale * zoom
-        let renderedHeight = image.size.height * baseScale * zoom
+        let renderedWidth = source.size.width * baseScale * zoom
+        let renderedHeight = source.size.height * baseScale * zoom
 
         return ZStack {
-            Color.black.opacity(0.22)
-            Image(uiImage: image)
+            Image(uiImage: source)
                 .resizable()
                 .scaledToFit()
                 .frame(width: renderedWidth, height: renderedHeight)
                 .offset(offset)
-            CropOutsideShade(cropRect: CGRect(
-                x: (width - cropWidth) / 2,
-                y: (height - cropHeight) / 2,
-                width: cropWidth,
-                height: cropHeight
-            ))
             Rectangle()
                 .stroke(.white.opacity(0.95), lineWidth: 2)
                 .frame(width: cropWidth, height: cropHeight)
@@ -1778,8 +1779,9 @@ private struct CustomThemeCropView: View {
         cropHeight: CGFloat,
         baseScale: CGFloat
     ) -> CGSize {
-        let renderedWidth = image.size.width * baseScale * zoom
-        let renderedHeight = image.size.height * baseScale * zoom
+        let source = normalizedImage
+        let renderedWidth = source.size.width * baseScale * zoom
+        let renderedHeight = source.size.height * baseScale * zoom
         let maxX = max(0, (renderedWidth - cropWidth) / 2)
         let maxY = max(0, (renderedHeight - cropHeight) / 2)
         return CGSize(
@@ -1790,65 +1792,47 @@ private struct CustomThemeCropView: View {
 
     private func croppedJPEG(viewportSize: CGSize) -> Data? {
         guard viewportSize != .zero else { return nil }
+        let source = normalizedImage
+        guard let sourceCGImage = source.cgImage else { return nil }
         let cropHeight = min(viewportSize.height - 16, viewportSize.width / canvasAspectRatio)
         let cropWidth = cropHeight * canvasAspectRatio
         let baseScale = max(
-            viewportSize.width / image.size.width,
-            viewportSize.height / image.size.height,
-            cropWidth / image.size.width,
-            cropHeight / image.size.height
+            viewportSize.width / source.size.width,
+            viewportSize.height / source.size.height,
+            cropWidth / source.size.width,
+            cropHeight / source.size.height
         )
-        let renderedWidth = image.size.width * baseScale * zoom
-        let renderedHeight = image.size.height * baseScale * zoom
+        let renderedWidth = source.size.width * baseScale * zoom
+        let renderedHeight = source.size.height * baseScale * zoom
         let imageX = (viewportSize.width - renderedWidth) / 2 + offset.width
         let imageY = (viewportSize.height - renderedHeight) / 2 + offset.height
         let cropX = (viewportSize.width - cropWidth) / 2
         let cropY = (viewportSize.height - cropHeight) / 2
         let targetSize = AppSettings.customThemeCanvasPixelSize
-        let scaleX = targetSize.width / cropWidth
-        let scaleY = targetSize.height / cropHeight
+        let imageScale = CGFloat(sourceCGImage.width) / source.size.width
+        let sourceCropWidth = cropWidth / (baseScale * zoom)
+        let sourceCropHeight = cropHeight / (baseScale * zoom)
+        let sourceCropX = min(
+            max(0, (cropX - imageX) / (baseScale * zoom)),
+            max(0, source.size.width - sourceCropWidth)
+        )
+        let sourceCropY = min(
+            max(0, (cropY - imageY) / (baseScale * zoom)),
+            max(0, source.size.height - sourceCropHeight)
+        )
+        let pixelCropRect = CGRect(
+            x: sourceCropX * imageScale,
+            y: sourceCropY * imageScale,
+            width: sourceCropWidth * imageScale,
+            height: sourceCropHeight * imageScale
+        ).integral
+        guard let croppedCGImage = sourceCGImage.cropping(to: pixelCropRect) else { return nil }
+        let croppedSource = UIImage(cgImage: croppedCGImage)
         let renderer = UIGraphicsImageRenderer(size: targetSize)
-        let cropped = renderer.image { context in
-            UIColor.black.setFill()
-            context.fill(CGRect(origin: .zero, size: targetSize))
-            image.draw(
-                in: CGRect(
-                    x: (imageX - cropX) * scaleX,
-                    y: (imageY - cropY) * scaleY,
-                    width: renderedWidth * scaleX,
-                    height: renderedHeight * scaleY
-                )
-            )
+        let cropped = renderer.image { _ in
+            croppedSource.draw(in: CGRect(origin: .zero, size: targetSize))
         }
         return cropped.jpegData(compressionQuality: 0.82)
-    }
-}
-
-private struct CropOutsideShade: View {
-    let cropRect: CGRect
-
-    var body: some View {
-        Canvas { context, size in
-            let shade = GraphicsContext.Shading.color(.black.opacity(0.48))
-            context.fill(
-                Path(CGRect(x: 0, y: 0, width: size.width, height: cropRect.minY)),
-                with: shade
-            )
-            context.fill(
-                Path(CGRect(x: 0, y: cropRect.maxY, width: size.width, height: size.height - cropRect.maxY)),
-                with: shade
-            )
-            context.fill(
-                Path(CGRect(x: 0, y: cropRect.minY, width: cropRect.minX, height: cropRect.height)),
-                with: shade
-            )
-            context.fill(
-                Path(CGRect(x: cropRect.maxX, y: cropRect.minY, width: size.width - cropRect.maxX, height: cropRect.height)),
-                with: shade
-            )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false)
     }
 }
 
