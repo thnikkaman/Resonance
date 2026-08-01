@@ -189,6 +189,7 @@ assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
 assert 'alphabet.touch.begin' in library_view
 assert 'alphabet.touch.end' in library_view
+assert streaming.count('hitWidth: settings.leftHandedAlphabet ? 48 : 32') == 3
 assert 'Reissue the final selection after the gesture has' in library_view
 assert 'repeatSelection: true' in library_view
 assert 'await Task.yield()' in library_view
@@ -465,7 +466,7 @@ assert 'catalogSyncStatus' in remote
 assert 'remote-artist-section-' in streaming
 assert 'RemoteArtworkLoader' in streaming and 'ImageIO' in streaming
 assert 'Showing cached catalog' in remote
-assert 'frame(width: indexHitWidth)' in library_view
+assert 'frame(width: hitWidth)' in library_view
 assert 'coordinateSpace: .local' in library_view
 assert 'y - topInset' in library_view
 assert 'if first.isLetter { return String(first) }' in library_view
@@ -634,8 +635,8 @@ assert 'Enter track title' in smart
 assert '_discNumber = State(initialValue: "")' in smart
 assert 'discNumber: discNumber.map { max(1, $0) } ?? track.discNumber' in library_store
 assert 'ScrollableArtistName' in library_view
-assert 'private let indexHitWidth: CGFloat = 32' in library_view
-assert '.frame(width: indexHitWidth)' in library_view
+assert 'let hitWidth: CGFloat' in library_view
+assert '.frame(width: hitWidth)' in library_view
 assert 'resumePersistedDownloads' in remote_download
 assert 'hasPersistedQueue' in streaming
 assert 'ServerQRCodeScannerView' in settings_view

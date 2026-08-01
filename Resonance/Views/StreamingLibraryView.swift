@@ -971,7 +971,8 @@ private struct RemoteArtistCollectionView: View {
                 if sections.count > 1 {
                     VerticalArtistIndex(
                         keys: sections.map(\.key),
-                        diagnosticSurface: "streaming-artists"
+                        diagnosticSurface: "streaming-artists",
+                        hitWidth: settings.leftHandedAlphabet ? 48 : 32
                     ) { key in
                         ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
@@ -1250,7 +1251,8 @@ private struct RemoteAlbumCollectionView: View {
                 if sections.count > 1 {
                     VerticalArtistIndex(
                         keys: sections.map(\.key),
-                        diagnosticSurface: "streaming-albums"
+                        diagnosticSurface: "streaming-albums",
+                        hitWidth: settings.leftHandedAlphabet ? 48 : 32
                     ) { key in
                         ResonanceDiagnostics.shared.recordDeferred(
                             "alphabet.scrollTo",
@@ -1656,7 +1658,8 @@ struct RemoteArtistDetailView: View {
                     if indexedAlbumSections.count > 1 {
                         VerticalArtistIndex(
                             keys: indexedAlbumSections.map(\.key),
-                            diagnosticSurface: "streaming-artist-albums"
+                            diagnosticSurface: "streaming-artist-albums",
+                            hitWidth: settings.leftHandedAlphabet ? 48 : 32
                         ) { key in
                             ResonanceDiagnostics.shared.recordDeferred(
                                 "alphabet.scrollTo",

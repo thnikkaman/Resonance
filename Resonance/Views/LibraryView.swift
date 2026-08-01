@@ -367,15 +367,18 @@ struct VerticalArtistIndex: View {
 
     let keys: [String]
     let diagnosticSurface: String
+    let hitWidth: CGFloat
     let onSelect: (String) -> Void
 
     init(
         keys: [String],
         diagnosticSurface: String = "artists",
+        hitWidth: CGFloat = 32,
         onSelect: @escaping (String) -> Void
     ) {
         self.keys = keys
         self.diagnosticSurface = diagnosticSurface
+        self.hitWidth = hitWidth
         self.onSelect = onSelect
     }
 
@@ -391,7 +394,6 @@ struct VerticalArtistIndex: View {
     // Keep the gesture exactly within the visible letter column. A wider
     // container overlaps the first content cells in left-handed mode and
     // steals ordinary browse scrolling near the edge.
-    private let indexHitWidth: CGFloat = 32
     private let bubbleSize: CGFloat = 86
     private let verticalInset: CGFloat = 8
 
@@ -557,7 +559,7 @@ struct VerticalArtistIndex: View {
                     }
             )
         }
-        .frame(width: indexHitWidth)
+        .frame(width: hitWidth)
         .frame(maxHeight: .infinity)
         .accessibilityLabel("Alphabet index")
     }
@@ -624,7 +626,7 @@ struct VerticalArtistIndex: View {
             "globalY": String(format: "%.1f", geometry.frame(in: .global).minY + location.y),
             "globalMinX": String(format: "%.1f", geometry.frame(in: .global).minX),
             "globalMaxX": String(format: "%.1f", geometry.frame(in: .global).maxX),
-            "hitWidth": String(format: "%.1f", indexHitWidth),
+            "hitWidth": String(format: "%.1f", hitWidth),
             "columnWidth": String(format: "%.1f", indexColumnWidth)
         ]
         if let firstLocation {
