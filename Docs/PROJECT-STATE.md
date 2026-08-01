@@ -220,3 +220,7 @@ only; the visual-theme descriptions were removed while Hero button style descrip
 
 Simulator Debug build 2.0/268 compiled successfully and was installed in place on the configured iPhone 17 Pro
 simulator. The simulator app was not launched, and the physical phone was not updated or launched.
+
+The crop editor now fits its viewport within the sheet, shows the full source image with an overlaid 864 × 1821
+selection frame, and uses the dimmed outside area only as a guide. Custom page backdrops no longer receive the
+translucent readability veil, so the saved image keeps its original brightness.

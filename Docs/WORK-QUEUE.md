@@ -322,3 +322,5 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Manual acceptance: select Custom Background, try an undersized image, import a larger image, pan/pinch the crop,
   replace/remove it, relaunch, and inspect Library, Streaming, Settings, Now Playing, mini-player, artist, and album
   surfaces for a decorative backdrop that never changes layout or obscures controls/artwork.
+- Follow-up: the crop sheet now fits the phone viewport, keeps the full source image visible outside the selection
+  frame, and renders custom page artwork without the previous translucent veil.

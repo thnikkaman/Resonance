@@ -2512,3 +2512,7 @@ Hero button style descriptions remain unchanged.
 
 The simulator Debug build 2.0/268 was installed in place on the configured iPhone 17 Pro simulator. The app was not
 launched, and the physical phone was not updated or launched.
+
+The crop sheet fits within the phone viewport and keeps the full source image visible outside the 864 × 1821
+selection frame; the dimmed outside area is only a crop guide. Custom page artwork is rendered without the prior
+translucent veil, preserving the imported image brightness.

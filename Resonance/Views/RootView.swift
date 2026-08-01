@@ -1473,10 +1473,7 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .opacity(0.42)
-                // Keep a readable veil over the artwork without removing its
-                // texture and color from the page background.
-                settings.themeBackgroundGradient.opacity(0.12)
+                    .opacity(1)
             } else if let imageName = settings.visualTheme.backgroundImageName {
                 Image(imageName)
                     .resizable()

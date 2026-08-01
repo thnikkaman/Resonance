@@ -1647,22 +1647,23 @@ private struct CustomThemeCropView: View {
     @State private var committedZoom: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var dragStartOffset: CGSize = .zero
+    @State private var viewportSize: CGSize = .zero
 
     private let canvasAspectRatio = AppSettings.customThemeCanvasPixelSize.width / AppSettings.customThemeCanvasPixelSize.height
 
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let canvasWidth = min(proxy.size.width - 32, 340)
-                let canvasHeight = canvasWidth / canvasAspectRatio
+                let viewportWidth = min(proxy.size.width - 32, 360)
+                let viewportHeight = min(max(proxy.size.height - 150, 240), 620)
 
                 VStack(spacing: 16) {
-                    Text("Move and pinch the image to choose the background area.")
+                    Text("The full image remains visible. Move and pinch it behind the crop frame to choose the background area.")
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    cropCanvas(width: canvasWidth, height: canvasHeight)
+                    cropViewport(width: viewportWidth, height: viewportHeight)
 
                     Text("The saved background will be (Int(AppSettings.customThemeCanvasPixelSize.width)) × (Int(AppSettings.customThemeCanvasPixelSize.height)) pixels.")
                         .font(.caption)
@@ -1683,9 +1684,7 @@ private struct CustomThemeCropView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Use This Crop") {
-                        let canvasWidth = min(UIScreen.main.bounds.width - 32, 340)
-                        let canvasHeight = canvasWidth / canvasAspectRatio
-                        if let data = croppedJPEG(canvasWidth: canvasWidth, canvasHeight: canvasHeight) {
+                        if let data = croppedJPEG(viewportSize: viewportSize) {
                             onSave(data)
                         }
                     }
@@ -1694,52 +1693,77 @@ private struct CustomThemeCropView: View {
         }
     }
 
-    private func cropCanvas(width: CGFloat, height: CGFloat) -> some View {
-        let baseScale = max(width / image.size.width, height / image.size.height)
+    private func cropViewport(width: CGFloat, height: CGFloat) -> some View {
+        let cropHeight = min(height - 16, width / canvasAspectRatio)
+        let cropWidth = cropHeight * canvasAspectRatio
+        let baseScale = max(
+            width / image.size.width,
+            height / image.size.height,
+            cropWidth / image.size.width,
+            cropHeight / image.size.height
+        )
         let renderedWidth = image.size.width * baseScale * zoom
         let renderedHeight = image.size.height * baseScale * zoom
 
         return ZStack {
-            Color.black
+            Color.black.opacity(0.22)
             Image(uiImage: image)
                 .resizable()
+                .scaledToFit()
                 .frame(width: renderedWidth, height: renderedHeight)
                 .offset(offset)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            offset = clampedOffset(
-                                CGSize(
-                                    width: dragStartOffset.width + value.translation.width,
-                                    height: dragStartOffset.height + value.translation.height
-                                ),
-                                width: width,
-                                height: height,
-                                baseScale: baseScale
-                            )
-                        }
-                        .onEnded { _ in dragStartOffset = offset }
-                )
-                .simultaneousGesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            zoom = max(1, committedZoom * value)
-                            offset = clampedOffset(offset, width: width, height: height, baseScale: baseScale)
-                        }
-                        .onEnded { _ in
-                            committedZoom = zoom
-                            dragStartOffset = offset
-                        }
-                )
+            CropOutsideMask(cropRect: CGRect(
+                x: (width - cropWidth) / 2,
+                y: (height - cropHeight) / 2,
+                width: cropWidth,
+                height: cropHeight
+            ))
+            .fill(.black.opacity(0.48), style: FillStyle(eoFill: true))
+            Rectangle()
+                .stroke(.white.opacity(0.95), lineWidth: 2)
+                .frame(width: cropWidth, height: cropHeight)
+                .allowsHitTesting(false)
         }
         .frame(width: width, height: height)
         .clipped()
-        .overlay {
-            Rectangle()
-                .stroke(.white.opacity(0.9), lineWidth: 2)
-                .allowsHitTesting(false)
-        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    offset = clampedOffset(
+                        CGSize(
+                            width: dragStartOffset.width + value.translation.width,
+                            height: dragStartOffset.height + value.translation.height
+                        ),
+                        viewportWidth: width,
+                        viewportHeight: height,
+                        cropWidth: cropWidth,
+                        cropHeight: cropHeight,
+                        baseScale: baseScale
+                    )
+                }
+                .onEnded { _ in dragStartOffset = offset }
+        )
+        .simultaneousGesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    zoom = max(1, committedZoom * value)
+                    offset = clampedOffset(
+                        offset,
+                        viewportWidth: width,
+                        viewportHeight: height,
+                        cropWidth: cropWidth,
+                        cropHeight: cropHeight,
+                        baseScale: baseScale
+                    )
+                }
+                .onEnded { _ in
+                    committedZoom = zoom
+                    dragStartOffset = offset
+                }
+        )
         .onAppear {
+            viewportSize = CGSize(width: width, height: height)
             offset = .zero
             dragStartOffset = .zero
             zoom = 1
@@ -1749,43 +1773,66 @@ private struct CustomThemeCropView: View {
 
     private func clampedOffset(
         _ proposed: CGSize,
-        width: CGFloat,
-        height: CGFloat,
+        viewportWidth: CGFloat,
+        viewportHeight: CGFloat,
+        cropWidth: CGFloat,
+        cropHeight: CGFloat,
         baseScale: CGFloat
     ) -> CGSize {
         let renderedWidth = image.size.width * baseScale * zoom
         let renderedHeight = image.size.height * baseScale * zoom
-        let maxX = max(0, (renderedWidth - width) / 2)
-        let maxY = max(0, (renderedHeight - height) / 2)
+        let maxX = max(0, (renderedWidth - cropWidth) / 2)
+        let maxY = max(0, (renderedHeight - cropHeight) / 2)
         return CGSize(
             width: min(max(proposed.width, -maxX), maxX),
             height: min(max(proposed.height, -maxY), maxY)
         )
     }
 
-    private func croppedJPEG(canvasWidth: CGFloat, canvasHeight: CGFloat) -> Data? {
-        let baseScale = max(canvasWidth / image.size.width, canvasHeight / image.size.height)
+    private func croppedJPEG(viewportSize: CGSize) -> Data? {
+        guard viewportSize != .zero else { return nil }
+        let cropHeight = min(viewportSize.height - 16, viewportSize.width / canvasAspectRatio)
+        let cropWidth = cropHeight * canvasAspectRatio
+        let baseScale = max(
+            viewportSize.width / image.size.width,
+            viewportSize.height / image.size.height,
+            cropWidth / image.size.width,
+            cropHeight / image.size.height
+        )
         let renderedWidth = image.size.width * baseScale * zoom
         let renderedHeight = image.size.height * baseScale * zoom
-        let imageX = (canvasWidth - renderedWidth) / 2 + offset.width
-        let imageY = (canvasHeight - renderedHeight) / 2 + offset.height
+        let imageX = (viewportSize.width - renderedWidth) / 2 + offset.width
+        let imageY = (viewportSize.height - renderedHeight) / 2 + offset.height
+        let cropX = (viewportSize.width - cropWidth) / 2
+        let cropY = (viewportSize.height - cropHeight) / 2
         let targetSize = AppSettings.customThemeCanvasPixelSize
-        let scaleX = targetSize.width / canvasWidth
-        let scaleY = targetSize.height / canvasHeight
+        let scaleX = targetSize.width / cropWidth
+        let scaleY = targetSize.height / cropHeight
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         let cropped = renderer.image { context in
             UIColor.black.setFill()
             context.fill(CGRect(origin: .zero, size: targetSize))
             image.draw(
                 in: CGRect(
-                    x: imageX * scaleX,
-                    y: imageY * scaleY,
+                    x: (imageX - cropX) * scaleX,
+                    y: (imageY - cropY) * scaleY,
                     width: renderedWidth * scaleX,
                     height: renderedHeight * scaleY
                 )
             )
         }
         return cropped.jpegData(compressionQuality: 0.82)
+    }
+}
+
+private struct CropOutsideMask: Shape {
+    let cropRect: CGRect
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.addRect(rect)
+        path.addRect(cropRect)
+        return path
     }
 }
 
