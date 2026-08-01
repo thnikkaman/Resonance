@@ -48,13 +48,15 @@ The current v2.0/build-268 source and public release are published at https://gi
 
 ## Current alphabet diagnostic build
 
-- Local source commit: `981e839` (`Trace alphabet touch delivery coordinates`).
+- Current source commit: `7da4ed2` (`Widen left-handed Streaming alphabet hit strip`). Earlier commits `981e839` and
+  `3be137f` added local and global touch-coordinate diagnostics.
 - The existing Reported Errors → Debugging Mode setting now records `alphabet.touch.begin` and `alphabet.touch.end`
   events with only surface, handedness, local touch coordinates, container geometry, hit-column width, and sample count.
 - The separate alphabet-diagnostics setting was intentionally not added; the trace uses the existing diagnostics setting.
 - `Tools/RegressionChecks.sh` and `git diff --check` passed. A signed arm64 Release build passed strict code-signature verification.
-- The `2.0`/`268` diagnostic build was installed in place on `SaiyanDenwa` (`9629DEED-EBF9-5835-B98A-9FAEC81CBDC6`);
-  Codex did not launch it. The installed app remains ready for user reproduction.
+- Left-handed Streaming indexes now retain a 32-point visible letter column but use a 48-point edge hit strip; local
+  Library indexes remain 32 points. The `2.0`/`268` diagnostic build was installed in place on `SaiyanDenwa`
+  (`9629DEED-EBF9-5835-B98A-9FAEC81CBDC6`); Codex did not launch it. The installed app remains ready for user reproduction.
 - After reproduction, copy `Documents/Resonance-Diagnostics.log` from the app container before disabling Debugging Mode.
 
 ## Beta 2.0 build 268 release scope

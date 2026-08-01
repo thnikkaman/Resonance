@@ -25,9 +25,10 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Status: diagnostic trace implemented, validated, and installed on `SaiyanDenawa`; user reproduction pending.
 - Owner: `LibraryView.swift` `VerticalArtistIndex` gesture boundary.
 - Scope: extend the existing Debugging Mode log with opt-in touch begin/end coordinates and layout geometry for local
-  artists, Streaming artists, Streaming albums, and Streaming artist-album indexes.
+  artists, Streaming artists, Streaming albums, and Streaming artist-album indexes; give left-handed Streaming indexes
+  a 48-point edge hit strip while preserving the 32-point visible column and local Library behavior.
 - Privacy boundary: no track names, URLs, credentials, file paths, or audio data are recorded.
-- Evidence: commit `981e839`; `Tools/RegressionChecks.sh`, `git diff --check`, signed Release compilation, strict
+- Evidence: commits `981e839`, `3be137f`, and `7da4ed2`; `Tools/RegressionChecks.sh`, `git diff --check`, signed Release compilation, strict
   code-signature verification, and in-place `devicectl` installation passed. The app was not launched by Codex.
 - Manual oracle: enable Debugging Mode, enable Left-handed alphabet, reproduce touches directly on the visible letters
   and then just to their right in each affected Streaming surface, and copy `Documents/Resonance-Diagnostics.log`.
