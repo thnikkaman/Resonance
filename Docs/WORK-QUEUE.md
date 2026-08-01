@@ -7,7 +7,7 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ### R-STREAMING-FLAC-LEFT-HAND — Repair Streaming FLAC alert cache activation and left-handed artist albums
 
-- Status: implemented; automated validation and physical-device installation pending.
+- Status: implemented; automated validation and physical-device installation passed on Sarah's iPhone; runtime acceptance pending.
 - Owners: `RemoteLibraryStore.swift` for cached remote format metadata; `StreamingLibraryView.swift` for remote browse layout.
 - Goal: show the enabled gold FLAC border in Streaming even when the catalog was cached before file extensions were persisted, and keep Streaming artist album content clear of the left alphabet strip.
 - Preserved invariants: cached browsing remains available, remote refresh remains explicit except for this one-time format migration, right-handed geometry is unchanged, and the alphabet strip remains in its existing hit region.
@@ -15,8 +15,8 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Manual oracle: enable Flac Alert and inspect Streaming album grids/lists and album detail; enable left-handed mode and confirm artist album artwork/cards begin to the right of the alphabet while right-handed mode is unchanged.
 - Rollback: revert this queue entry and the focused `RemoteLibraryStore.swift` and `StreamingLibraryView.swift` changes.
 
-- Runtime baseline: signed Beta v2.0/build 267 installed in place on `SaiyanDenawa`; physical runtime acceptance remains user-run.
-- Source baseline: `Resonance-Beta-v2.0` publication commit `088c291` on `agent/alpha-3.7.4-source`.
+- Runtime baseline: signed Beta v2.0/build 268 installed on Sarah's iPhone; physical runtime acceptance remains user-run.
+- Source baseline: local commit `65fdee7` on `agent/alpha-3.7.4-source`.
 - Physical device: installed but not launched by Codex; user runtime acceptance remains pending.
 - Full state record: `Docs/PROJECT-STATE.md`.
 

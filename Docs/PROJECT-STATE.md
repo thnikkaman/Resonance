@@ -7,10 +7,10 @@ Last verified: 2026-07-31
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: `088c291` (`Prepare Resonance Beta v2.0`).
+- Release commit: `65fdee7` (`Restore left-handed alphabet scrolling`); local branch is three commits ahead of the fetched origin branch.
 - GitHub tag/release: `Resonance-Beta-v2.0` prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
-- Project defaults: version `2.0`, build `267`, Swift language mode `5.0`.
+- Project defaults: version `2.0`, build `268`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
 ## Current beta source and installed artifact
@@ -22,6 +22,16 @@ Last verified: 2026-07-31
 - In-place installation on `SaiyanDenawa` passed; existing app data was preserved.
 - The installed physical artifact is version `2.0`, build `267`; it was installed in place after signed verification.
 - Codex did not launch the physical app; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
+
+## Latest SarahSue device artifact
+
+- Source: local `agent/alpha-3.7.4-source` commit `65fdee7`.
+- Automated validation: `git diff --check`, `Tools/RegressionChecks.sh`, and `Tools/PreflightBuild.sh` passed.
+- Signed artifact: version `2.0`, build `268`, bundle `com.example.ResonancePrototype`.
+- Signing: Sarah Garcia personal team `M4Q367H7K2`; Xcode identity `Apple Development: sarahsue621@gmail.com (D75HLRVZDX)`.
+- Device: Sarah's iPhone (3), identifier `00008140-00067D620E10401C`.
+- `codesign --verify --deep --strict` passed; `devicectl` installed the app and verified version `2.0`/build `268`.
+- The app was not launched. Playback, navigation, audiobook behavior, and other runtime acceptance remain manual tests.
 
 The v2.0 source is published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0.
 
