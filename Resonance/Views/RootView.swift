@@ -279,7 +279,7 @@ private struct ResonanceLayeredNavigationView: View {
     ZStack {
       // Extend the active page surface behind the home-indicator area while
       // keeping the GeometryReader and its controls inside the safe area.
-      ResonanceThemeBackdrop()
+      ResonanceThemeBackdrop(includesCustomArtwork: true)
         .ignoresSafeArea()
 
       GeometryReader { proxy in
@@ -802,7 +802,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            ResonanceThemeBackdrop(includesCustomArtwork: true)
+            ResonanceThemeBackdrop()
             ResonanceLayeredNavigationView()
                 .environmentObject(gestureCoordinator)
                 .environmentObject(miniPlayerNavigation)
@@ -812,7 +812,6 @@ struct RootView: View {
                 // browse modules, and reading the controller at this level
                 // would make the whole navigation tree a playback observer.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .offset(x: -8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
