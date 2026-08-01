@@ -223,20 +223,11 @@ simulator. The simulator app was not launched, and the physical phone was not up
 
 The crop editor now fits its viewport within the sheet and shows the full source image with an overlaid 864 × 1821
 selection frame; no shade or shadow is drawn over either region. Export normalizes the source orientation, crops the
-actual source pixel rectangle, and scales that crop to the exact target canvas. Custom page backdrops no longer
-receive the translucent readability veil, so the saved image keeps its original brightness.
+actual source pixel rectangle, and scales that crop to the exact target canvas. The known-good RootView layout and
+backdrop compositing are restored after custom-image rendering experiments introduced black/strip artifacts.
 
 The initial selection frame now matches the full displayed image whenever the source shares the target portrait aspect
 ratio, eliminating the apparent extra zoom between the crop preview and the applied background.
 
-The crop preview and live custom backdrop now also declare the 864:1821 aspect ratio explicitly in SwiftUI, preventing
-parent layout proposals from warping the image dimensions.
-
-The live custom backdrop now receives explicit page bounds and uses one clipped aspect-fill image layer, eliminating
-letterbox strips and duplicate-looking edge bands.
-
-Nested navigation/detail backdrop instances now suppress custom artwork, so only the top-level page backdrop draws the
-imported image. Built-in themes retain their existing nested gradient/image behavior.
-
-The custom image is now attached to the active `layeredSurface` page background, where it can remain visible through the
-transparent page content; the outer navigation backdrop is gradient/transparent only.
+Live custom-image rendering is paused at the restored known-good RootView baseline pending a screenshot-grounded
+transparency audit.

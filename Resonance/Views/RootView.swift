@@ -763,7 +763,7 @@ private extension View {
   func layeredSurface() -> some View {
     self
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .background { ResonanceThemeBackdrop(includesCustomArtwork: true) }
+      .background { ResonanceThemeBackdrop() }
       .clipped()
   }
 
@@ -812,6 +812,7 @@ struct RootView: View {
                 // browse modules, and reading the controller at this level
                 // would make the whole navigation tree a playback observer.
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(x: -8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
@@ -1462,37 +1463,21 @@ private struct ResonanceThemeTextSurface: ViewModifier {
 
 struct ResonanceThemeBackdrop: View {
     @EnvironmentObject private var settings: AppSettings
-    let includesCustomArtwork: Bool
-
-    init(includesCustomArtwork: Bool = false) {
-        self.includesCustomArtwork = includesCustomArtwork
-    }
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                if settings.visualTheme.rawValue != "custom" || includesCustomArtwork {
-                    settings.themeBackgroundGradient
-                }
-                if includesCustomArtwork,
-                   settings.visualTheme.rawValue == "custom",
-                   let image = settings.customThemeImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
-                } else if let imageName = settings.visualTheme.backgroundImageName {
-                    Image(imageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
-                        .opacity(0.42)
-                    settings.themeBackgroundGradient.opacity(0.12)
-                }
+        ZStack {
+            settings.themeBackgroundGradient
+            if let imageName = settings.visualTheme.backgroundImageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .opacity(0.42)
+                // Keep a readable veil over the artwork without removing its
+                // texture and color from the page background.
+                settings.themeBackgroundGradient.opacity(0.12)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         // The custom tab bar owns an opaque surface, so the page artwork can
         // extend behind the system safe areas without obscuring its controls.
