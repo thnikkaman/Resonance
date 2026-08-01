@@ -46,6 +46,17 @@ Last verified: 2026-07-31
 
 The current v2.0/build-268 source and public release are published at https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0-build268.
 
+## Current alphabet diagnostic build
+
+- Local source commit: `981e839` (`Trace alphabet touch delivery coordinates`).
+- The existing Reported Errors → Debugging Mode setting now records `alphabet.touch.begin` and `alphabet.touch.end`
+  events with only surface, handedness, local touch coordinates, container geometry, hit-column width, and sample count.
+- The separate alphabet-diagnostics setting was intentionally not added; the trace uses the existing diagnostics setting.
+- `Tools/RegressionChecks.sh` and `git diff --check` passed. A signed arm64 Release build passed strict code-signature verification.
+- The `2.0`/`268` diagnostic build was installed in place on `SaiyanDenwa` (`9629DEED-EBF9-5835-B98A-9FAEC81CBDC6`);
+  Codex did not launch it. The installed app remains ready for user reproduction.
+- After reproduction, copy `Documents/Resonance-Diagnostics.log` from the app container before disabling Debugging Mode.
+
 ## Beta 2.0 build 268 release scope
 
 - Optional gold FLAC-only artwork borders now cover local and Streaming album grids, rows, artist album modules, and album detail.

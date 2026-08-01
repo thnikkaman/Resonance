@@ -20,6 +20,20 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 - Physical devices: installed but not launched by Codex; user runtime acceptance remains pending. Chase's installation uses the separate bundle `com.chaseatron.Resonance` because the original bundle is owned by another team.
 - Full state record: `Docs/PROJECT-STATE.md`.
 
+### R-ALPHABET-TOUCH-TRACE — Capture left-handed alphabet gesture delivery
+
+- Status: diagnostic trace implemented, validated, and installed on `SaiyanDenawa`; user reproduction pending.
+- Owner: `LibraryView.swift` `VerticalArtistIndex` gesture boundary.
+- Scope: extend the existing Debugging Mode log with opt-in touch begin/end coordinates and layout geometry for local
+  artists, Streaming artists, Streaming albums, and Streaming artist-album indexes.
+- Privacy boundary: no track names, URLs, credentials, file paths, or audio data are recorded.
+- Evidence: commit `981e839`; `Tools/RegressionChecks.sh`, `git diff --check`, signed Release compilation, strict
+  code-signature verification, and in-place `devicectl` installation passed. The app was not launched by Codex.
+- Manual oracle: enable Debugging Mode, enable Left-handed alphabet, reproduce touches directly on the visible letters
+  and then just to their right in each affected Streaming surface, and copy `Documents/Resonance-Diagnostics.log`.
+- Continuation: retrieve the log before disabling Debugging Mode; compare whether `alphabet.touch.begin/end` appear for
+  the visible-letter touches and record their `x`, `width`, `hitWidth`, and `columnWidth` values.
+
 ### R-BETA-2.0-BUILD-268 — Publish the latest Beta 2.0 build
 
 - Status: implemented, validated, installed in place, pushed, and published publicly.
