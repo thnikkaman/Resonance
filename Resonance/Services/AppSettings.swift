@@ -1,5 +1,6 @@
 import SwiftUI
 import Security
+import UIKit
 
 enum RemoteLibraryBackend: String, CaseIterable, Identifiable {
     case subsonic = "Navidrome / Subsonic / OpenSubsonic"
@@ -23,7 +24,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
     case classicWood
     case electronic
     case psychedelic
-    case waterfall
+    case custom
 
     var id: String { rawValue }
 
@@ -36,20 +37,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "Classic Wood"
         case .electronic: "Electronic"
         case .psychedelic: "Psychedelic"
-        case .waterfall: "Waterfall Meadow"
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .nocturne: "Cinematic graphite with violet glass"
-        case .galleryLight: "Warm ivory with editorial terracotta"
-        case .colorBloom: "Deep navy with luminous color"
-        case .brushedMetal: "Cool steel with a soft silver sheen"
-        case .classicWood: "Warm cherry with flowing flame grain"
-        case .electronic: "Midnight circuitry with electric cyan"
-        case .psychedelic: "Ultraviolet color with acid-lime energy"
-        case .waterfall: "Mountain waterfall with purple and orange flowers"
+        case .custom: "Custom Background"
         }
     }
 
@@ -62,7 +50,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "D68A36"
         case .electronic: "00E5FF"
         case .psychedelic: "F533FF"
-        case .waterfall: "7B4DCC"
+        case .custom: "A78BFA"
         }
     }
 
@@ -75,7 +63,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "2A170E"
         case .electronic: "050914"
         case .psychedelic: "18042D"
-        case .waterfall: "123B2A"
+        case .custom: "0B1020"
         }
     }
 
@@ -88,7 +76,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "4A2A18"
         case .electronic: "0D1830"
         case .psychedelic: "351050"
-        case .waterfall: "214F38"
+        case .custom: "151A2C"
         }
     }
 
@@ -101,7 +89,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "7FDBDA"
         case .electronic: "FF9F68"
         case .psychedelic: "FFFF00"
-        case .waterfall: "D7A8FF"
+        case .custom: "F4C95D"
         }
     }
 
@@ -117,14 +105,14 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "8BE9FD"
         case .electronic: "FFB86C"
         case .psychedelic: "FFFF00"
-        case .waterfall: "E5B8FF"
+        case .custom: "FFD166"
         }
     }
 
     var recommendedColorScheme: ColorScheme {
         switch self {
-        case .galleryLight, .waterfall: .light
-        case .nocturne, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic: .dark
+        case .galleryLight: .light
+        case .nocturne, .colorBloom, .brushedMetal, .classicWood, .electronic, .psychedelic, .custom: .dark
         }
     }
 
@@ -137,7 +125,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: ["241109", "5B321B", "2A140B"]
         case .electronic: ["030711", "0A1D32", "04101D"]
         case .psychedelic: ["120022", "3A0A52", "13062E"]
-        case .waterfall: ["123B2A", "2E6B4A"]
+        case .custom: ["0B1020", "271A4A", "080B15"]
         }
     }
 
@@ -150,7 +138,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: ["4A2A18", "6C3D20"]
         case .electronic: ["0D1830", "122C4A"]
         case .psychedelic: ["351050", "59105F"]
-        case .waterfall: ["214F38", "3E7A57"]
+        case .custom: ["151A2C", "3A2A5A", "101522"]
         }
     }
 
@@ -164,8 +152,7 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
         case .classicWood: "ThemeClassicWood"
         case .electronic: "ThemeElectronic"
         case .psychedelic: "ThemePsychedelic"
-        case .nocturne, .galleryLight, .colorBloom: nil
-        case .waterfall: "ThemeWaterfallMeadow"
+        case .custom, .nocturne, .galleryLight, .colorBloom: nil
         }
     }
 }
@@ -202,6 +189,7 @@ enum ResonanceHeroButtonStyle: String, CaseIterable, Identifiable, Hashable {
 final class AppSettings: ObservableObject {
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
+    @Published private(set) var customThemeImageData: Data?
     @AppStorage("heroButtonStyle") private var heroButtonStyleRaw = ResonanceHeroButtonStyle.softGlass.rawValue
     @AppStorage("accentHex") private var accentHexStorage = "A855F7"
     @AppStorage("applyThemeColorToText") private var applyThemeColorToTextStorage = true
@@ -242,6 +230,10 @@ final class AppSettings: ObservableObject {
 
     init() {
         streamPassword = KeychainCredentialStore.load(account: "remote-library-password") ?? ""
+        if visualThemeRaw == "waterfall" {
+            visualThemeRaw = ResonanceVisualTheme.custom.rawValue
+        }
+        customThemeImageData = try? Data(contentsOf: Self.customThemeImageURL)
 
         // Build 85 stored this option as false by default. Migrate existing users
         // once so themed text is the default; a custom visual theme remains the
@@ -289,9 +281,7 @@ final class AppSettings: ObservableObject {
 
     var visualTheme: ResonanceVisualTheme {
         get {
-            // Replace the removed Custom Accent theme without resetting an
-            // existing user's selected visual theme.
-            if visualThemeRaw == "custom" { return .waterfall }
+            if visualThemeRaw == "waterfall" { return .custom }
             return ResonanceVisualTheme(rawValue: visualThemeRaw) ?? .nocturne
         }
         set {
@@ -302,6 +292,42 @@ final class AppSettings: ObservableObject {
             objectWillChange.send()
         }
     }
+
+    var customThemeImage: UIImage? {
+        guard let customThemeImageData else { return nil }
+        return UIImage(data: customThemeImageData)
+    }
+
+    var hasCustomThemeImage: Bool {
+        customThemeImageData != nil
+    }
+
+    func setCustomThemeImage(_ data: Data) {
+        guard let image = UIImage(data: data),
+              let normalized = image.resonanceThemeJPEGData()
+        else { return }
+        try? FileManager.default.createDirectory(
+            at: Self.customThemeDirectory,
+            withIntermediateDirectories: true
+        )
+        try? normalized.write(to: Self.customThemeImageURL, options: .atomic)
+        customThemeImageData = normalized
+        objectWillChange.send()
+    }
+
+    func removeCustomThemeImage() {
+        try? FileManager.default.removeItem(at: Self.customThemeImageURL)
+        customThemeImageData = nil
+        objectWillChange.send()
+    }
+
+    private static let customThemeDirectory: URL = {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ResonanceTheme", isDirectory: true)
+    }()
+
+    private static let customThemeImageURL: URL =
+        customThemeDirectory.appendingPathComponent("CustomBackground.jpg")
 
     var heroButtonStyle: ResonanceHeroButtonStyle {
         get { ResonanceHeroButtonStyle(rawValue: heroButtonStyleRaw) ?? .softGlass }
@@ -422,6 +448,19 @@ extension Color {
             blue: Double(value & 0xFF) / 255,
             opacity: 1
         )
+    }
+}
+
+private extension UIImage {
+    func resonanceThemeJPEGData() -> Data? {
+        let maximumDimension: CGFloat = 1800
+        let scale = min(1, maximumDimension / max(size.width, size.height))
+        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let normalized = renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        return normalized.jpegData(compressionQuality: 0.82)
     }
 }
 
