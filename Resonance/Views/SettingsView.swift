@@ -148,7 +148,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle("Left-handed alphabet", isOn: $settings.leftHandedAlphabet)
+                Toggle("Left Handed Mode", isOn: $settings.leftHandedAlphabet)
                 Text("Places the alphabet index on the left and moves the browse gutter to the right.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

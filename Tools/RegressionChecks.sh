@@ -143,7 +143,7 @@ assert 'VerticalArtistIndex' in library_view
 assert 'resonanceArtistIndexKey' in library_view
 assert 'diagnosticSurface: "albums"' in library_view
 assert '@AppStorage("leftHandedAlphabet") var leftHandedAlphabet = false' in settings
-assert 'Toggle("Left-handed alphabet"' in settings_view
+assert 'Toggle("Left Handed Mode"' in settings_view
 assert 'settings.leftHandedAlphabet ? .leading : .trailing' in library_view
 assert 'album-section-' in library_view
 assert 'private var indexedAlbumSections: [ArtistIndexSection<Album>]' in library_view

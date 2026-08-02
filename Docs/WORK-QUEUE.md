@@ -360,3 +360,13 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Automated acceptance: `git diff --check`, simulator Debug build, and simulator install. The repository regression
   script remains blocked by its unrelated existing `LibraryStore.swift` assertion at line 172.
 - Rollback: restore `backgroundImageName` to `nil` for these two cases and remove the two image sets.
+
+### R-LEFT-HANDED-MODE-LABEL — Clarify alphabet setting and default
+
+- Status: implemented; simulator validation pending.
+- Owner: `SettingsView.swift`, with the existing `AppSettings.leftHandedAlphabet` persisted setting.
+- Change: rename the toggle to **Left Handed Mode**; retain the existing `false` default for new installations.
+- Invariants: preserve existing users' saved preference and all alphabet geometry/gesture behavior.
+- Acceptance oracle: Settings shows “Left Handed Mode,” a fresh default is off, and enabling it still moves the index.
+- Automated acceptance: `git diff --check`, `Tools/RegressionChecks.sh`, simulator build, and simulator install.
+- Rollback: restore the prior label and contract assertion.

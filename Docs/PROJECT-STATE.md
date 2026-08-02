@@ -62,6 +62,13 @@ Last verified: 2026-08-01
 - `git diff --check` and the Debug 2.0/build 268 simulator build passed; the app installed on the configured iPhone
   17 Pro simulator and was not launched.
 
+## Left Handed Mode setting label — 2026-08-01
+
+- Renamed the Settings toggle from “Left-handed alphabet” to “Left Handed Mode.”
+- The existing `@AppStorage("leftHandedAlphabet")` default remains `false`; existing saved preferences are not reset.
+- Alphabet layout and gesture behavior are unchanged.
+- `git diff --check` passed and the Debug 2.0/build 268 simulator build installed on the configured iPhone 17 Pro.
+
 ## Latest SarahSue device artifact
 
 - Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`.
