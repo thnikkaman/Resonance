@@ -1651,7 +1651,9 @@ private struct CustomThemeCropView: View {
     private let canvasAspectRatio = AppSettings.customThemeCanvasPixelSize.width / AppSettings.customThemeCanvasPixelSize.height
 
     private var normalizedImage: UIImage {
-        let renderer = UIGraphicsImageRenderer(size: image.size)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: image.size))
         }
@@ -1802,7 +1804,6 @@ private struct CustomThemeCropView: View {
         let cropX = (viewportSize.width - cropWidth) / 2
         let cropY = (viewportSize.height - cropHeight) / 2
         let targetSize = AppSettings.customThemeCanvasPixelSize
-        let imageScale = CGFloat(sourceCGImage.width) / source.size.width
         let sourceCropWidth = cropWidth / (baseScale * zoom)
         let sourceCropHeight = cropHeight / (baseScale * zoom)
         let sourceCropX = min(
@@ -1816,7 +1817,7 @@ private struct CustomThemeCropView: View {
         let sourcePixelWidth = CGFloat(sourceCGImage.width)
         let sourcePixelHeight = CGFloat(sourceCGImage.height)
         let targetPixelAspect = targetSize.width / targetSize.height
-        var pixelCropWidth = max(1, round(sourceCropWidth * imageScale))
+        var pixelCropWidth = max(1, round(sourceCropWidth))
         var pixelCropHeight = max(1, round(pixelCropWidth / targetPixelAspect))
         if pixelCropHeight > sourcePixelHeight {
             pixelCropHeight = sourcePixelHeight
@@ -1827,11 +1828,11 @@ private struct CustomThemeCropView: View {
             pixelCropHeight = round(pixelCropWidth / targetPixelAspect)
         }
         let pixelCropX = min(
-            max(0, round(sourceCropX * imageScale)),
+            max(0, round(sourceCropX)),
             max(0, sourcePixelWidth - pixelCropWidth)
         )
         let pixelCropY = min(
-            max(0, round(sourceCropY * imageScale)),
+            max(0, round(sourceCropY)),
             max(0, sourcePixelHeight - pixelCropHeight)
         )
         let pixelCropRect = CGRect(
