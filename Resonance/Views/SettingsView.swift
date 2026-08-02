@@ -1813,12 +1813,33 @@ private struct CustomThemeCropView: View {
             max(0, (cropY - imageY) / (baseScale * zoom)),
             max(0, source.size.height - sourceCropHeight)
         )
+        let sourcePixelWidth = CGFloat(sourceCGImage.width)
+        let sourcePixelHeight = CGFloat(sourceCGImage.height)
+        let targetPixelAspect = targetSize.width / targetSize.height
+        var pixelCropWidth = max(1, round(sourceCropWidth * imageScale))
+        var pixelCropHeight = max(1, round(pixelCropWidth / targetPixelAspect))
+        if pixelCropHeight > sourcePixelHeight {
+            pixelCropHeight = sourcePixelHeight
+            pixelCropWidth = round(pixelCropHeight * targetPixelAspect)
+        }
+        if pixelCropWidth > sourcePixelWidth {
+            pixelCropWidth = sourcePixelWidth
+            pixelCropHeight = round(pixelCropWidth / targetPixelAspect)
+        }
+        let pixelCropX = min(
+            max(0, round(sourceCropX * imageScale)),
+            max(0, sourcePixelWidth - pixelCropWidth)
+        )
+        let pixelCropY = min(
+            max(0, round(sourceCropY * imageScale)),
+            max(0, sourcePixelHeight - pixelCropHeight)
+        )
         let pixelCropRect = CGRect(
-            x: sourceCropX * imageScale,
-            y: sourceCropY * imageScale,
-            width: sourceCropWidth * imageScale,
-            height: sourceCropHeight * imageScale
-        ).integral
+            x: pixelCropX,
+            y: pixelCropY,
+            width: pixelCropWidth,
+            height: pixelCropHeight
+        )
         guard let croppedCGImage = sourceCGImage.cropping(to: pixelCropRect) else { return nil }
         let croppedSource = UIImage(cgImage: croppedCGImage)
         let format = UIGraphicsImageRendererFormat()
