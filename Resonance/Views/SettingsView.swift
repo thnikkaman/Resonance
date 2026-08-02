@@ -1793,6 +1793,7 @@ private struct CustomThemeCropView: View {
     private func croppedJPEG(viewportSize: CGSize) -> Data? {
         guard viewportSize != .zero else { return nil }
         let source = normalizedImage
+        guard let sourceCGImage = source.cgImage else { return nil }
         let baseScale = min(viewportSize.width / source.size.width, viewportSize.height / source.size.height)
         let baseRenderedWidth = source.size.width * baseScale
         let baseRenderedHeight = source.size.height * baseScale
@@ -1815,8 +1816,9 @@ private struct CustomThemeCropView: View {
             width: renderedWidth * outputScale,
             height: renderedHeight * outputScale
         )
-        let cropped = renderer.image { _ in
-            source.draw(in: outputImageRect)
+        let cropped = renderer.image { context in
+            context.cgContext.interpolationQuality = .high
+            context.cgContext.draw(sourceCGImage, in: outputImageRect)
         }
         return cropped.jpegData(compressionQuality: 0.82)
     }
