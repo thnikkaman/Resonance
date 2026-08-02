@@ -424,10 +424,14 @@ final class AppSettings: ObservableObject {
 
     func setCustomThemeImage(_ data: Data) {
         guard let image = UIImage(data: data),
-              let normalized = image.resonanceThemeJPEGData(
-                targetSize: Self.customThemeCanvasPixelSize
-              )
+              let source = image.cgImage
         else { return }
+        let targetWidth = Int(Self.customThemeCanvasPixelSize.width)
+        let targetHeight = Int(Self.customThemeCanvasPixelSize.height)
+        let normalized = source.width == targetWidth && source.height == targetHeight
+            ? data
+            : image.resonanceThemeJPEGData(targetSize: Self.customThemeCanvasPixelSize)
+        guard let normalized else { return }
         try? FileManager.default.createDirectory(
             at: Self.customThemeDirectory,
             withIntermediateDirectories: true
