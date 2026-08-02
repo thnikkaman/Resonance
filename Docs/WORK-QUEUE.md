@@ -370,3 +370,14 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Acceptance oracle: Settings shows “Left Handed Mode,” a fresh default is off, and enabling it still moves the index.
 - Automated acceptance: `git diff --check`, `Tools/RegressionChecks.sh`, simulator build, and simulator install.
 - Rollback: restore the prior label and contract assertion.
+
+### R-ELECTRONIC-MINIMAL-CIRCUIT — Replace busy Electronic artwork
+
+- Status: implemented; signed Sarah-device installation pending.
+- Owner: `Resonance/Assets.xcassets/ThemeElectronic.imageset/electronic.png` only.
+- Change: replace the dial-heavy artwork with a minimal dark circuit board and sparse fluorescent paths.
+- Invariants: preserve the Electronic theme name, palette, layout, controls, navigation, and all other themes.
+- Acceptance oracle: asset dimensions remain 1206 × 2622 and visual inspection shows no dials or dense hardware.
+- Automated acceptance: `git diff --check`, signed Release build with Sarah's team, deep signature verification, and
+  in-place install on Sarah's paired phone; do not launch automatically.
+- Rollback: revert the single asset commit.

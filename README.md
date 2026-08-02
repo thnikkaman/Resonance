@@ -47,6 +47,9 @@ navy/cyan Aqua companion. Their names and existing UI palettes remain unchanged.
 The Settings toggle is labeled **Left Handed Mode**. Its persisted default remains off (`false`) for new
 installations; existing users' saved preference is preserved.
 
+Electronic now uses a minimal dark circuit-board background with sparse fluorescent cyan, blue, and magenta traces.
+The prior dials and dense hardware details were removed.
+
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on

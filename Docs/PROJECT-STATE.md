@@ -69,6 +69,14 @@ Last verified: 2026-08-01
 - Alphabet layout and gesture behavior are unchanged.
 - `git diff --check` passed and the Debug 2.0/build 268 simulator build installed on the configured iPhone 17 Pro.
 
+## Electronic minimal circuit artwork — 2026-08-01
+
+- Replaced the busy Electronic artwork with a 1206 × 2622 dark circuit-board background.
+- The new asset contains sparse fluorescent cyan, blue, and magenta paths without dials, gauges, sliders, or dense
+  hardware components.
+- No layout, theme logic, controls, or navigation code changed.
+- Sarah's currently paired phone is `67843DDD-CEF7-5AAC-ADCB-13171D2D7589`; signed installation is the next step.
+
 ## Latest SarahSue device artifact
 
 - Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`.
