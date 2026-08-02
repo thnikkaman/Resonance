@@ -1654,9 +1654,11 @@ private struct CustomThemeCropView: View {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
-        return renderer.image { _ in
+        let rendered = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: image.size))
         }
+        guard let cgImage = rendered.cgImage else { return rendered }
+        return UIImage(cgImage: cgImage, scale: 1, orientation: .up)
     }
 
     var body: some View {
