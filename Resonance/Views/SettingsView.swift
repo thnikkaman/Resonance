@@ -1816,9 +1816,17 @@ private struct CustomThemeCropView: View {
             width: renderedWidth * outputScale,
             height: renderedHeight * outputScale
         )
+        let coreGraphicsImageRect = CGRect(
+            x: outputImageRect.minX,
+            y: targetSize.height - outputImageRect.maxY,
+            width: outputImageRect.width,
+            height: outputImageRect.height
+        )
         let cropped = renderer.image { context in
             context.cgContext.interpolationQuality = .high
-            context.cgContext.draw(sourceCGImage, in: outputImageRect)
+            context.cgContext.translateBy(x: 0, y: targetSize.height)
+            context.cgContext.scaleBy(x: 1, y: -1)
+            context.cgContext.draw(sourceCGImage, in: coreGraphicsImageRect)
         }
         return cropped.jpegData(compressionQuality: 0.82)
     }
