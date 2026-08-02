@@ -373,11 +373,12 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 
 ### R-ELECTRONIC-MINIMAL-CIRCUIT — Replace busy Electronic artwork
 
-- Status: implemented; signed Sarah-device installation pending.
+- Status: implemented and installed on Sarah's iPhone; Chase installation pending device reachability.
 - Owner: `Resonance/Assets.xcassets/ThemeElectronic.imageset/electronic.png` only.
 - Change: replace the dial-heavy artwork with a minimal dark circuit board and sparse fluorescent paths.
 - Invariants: preserve the Electronic theme name, palette, layout, controls, navigation, and all other themes.
 - Acceptance oracle: asset dimensions remain 1206 × 2622 and visual inspection shows no dials or dense hardware.
 - Automated acceptance: `git diff --check`, signed Release build with Sarah's team, deep signature verification, and
-  in-place install on Sarah's paired phone; do not launch automatically.
+  in-place install on Sarah's paired phone. A Chase-specific artifact was manually signed with the valid Chase
+  profile; CoreDevice reported Chase's phone unavailable during its install attempt. Do not launch automatically.
 - Rollback: revert the single asset commit.

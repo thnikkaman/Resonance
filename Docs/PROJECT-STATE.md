@@ -75,7 +75,10 @@ Last verified: 2026-08-01
 - The new asset contains sparse fluorescent cyan, blue, and magenta paths without dials, gauges, sliders, or dense
   hardware components.
 - No layout, theme logic, controls, or navigation code changed.
-- Sarah's currently paired phone is `67843DDD-CEF7-5AAC-ADCB-13171D2D7589`; signed installation is the next step.
+- Sarah's currently paired phone is `67843DDD-CEF7-5AAC-ADCB-13171D2D7589`; signed version 2.0/build 268 installation
+  passed with team `M4Q367H7K2`.
+- Chase's phone is currently unavailable to CoreDevice. The Chase-specific app was built and manually signed with the
+  valid team `U37R4TL69` profile, but installation remains pending until the phone becomes reachable.
 
 ## Latest SarahSue device artifact
 
