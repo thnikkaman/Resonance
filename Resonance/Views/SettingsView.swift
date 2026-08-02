@@ -1791,7 +1791,6 @@ private struct CustomThemeCropView: View {
     private func croppedJPEG(viewportSize: CGSize) -> Data? {
         guard viewportSize != .zero else { return nil }
         let source = normalizedImage
-        guard let sourceCGImage = source.cgImage else { return nil }
         let baseScale = min(viewportSize.width / source.size.width, viewportSize.height / source.size.height)
         let baseRenderedWidth = source.size.width * baseScale
         let baseRenderedHeight = source.size.height * baseScale
@@ -1804,44 +1803,31 @@ private struct CustomThemeCropView: View {
         let cropX = (viewportSize.width - cropWidth) / 2
         let cropY = (viewportSize.height - cropHeight) / 2
         let targetSize = AppSettings.customThemeCanvasPixelSize
-        let sourceCropWidth = cropWidth / (baseScale * zoom)
-        let sourceCropHeight = cropHeight / (baseScale * zoom)
-        let sourceCropX = min(
-            max(0, (cropX - imageX) / (baseScale * zoom)),
-            max(0, source.size.width - sourceCropWidth)
+        let viewportFormat = UIGraphicsImageRendererFormat()
+        viewportFormat.scale = 1
+        let viewportRenderer = UIGraphicsImageRenderer(
+            size: viewportSize,
+            format: viewportFormat
         )
-        let sourceCropY = min(
-            max(0, (cropY - imageY) / (baseScale * zoom)),
-            max(0, source.size.height - sourceCropHeight)
-        )
-        let sourcePixelWidth = CGFloat(sourceCGImage.width)
-        let sourcePixelHeight = CGFloat(sourceCGImage.height)
-        let targetPixelAspect = targetSize.width / targetSize.height
-        var pixelCropWidth = max(1, round(sourceCropWidth))
-        var pixelCropHeight = max(1, round(pixelCropWidth / targetPixelAspect))
-        if pixelCropHeight > sourcePixelHeight {
-            pixelCropHeight = sourcePixelHeight
-            pixelCropWidth = round(pixelCropHeight * targetPixelAspect)
+        let renderedViewport = viewportRenderer.image { _ in
+            source.draw(
+                in: CGRect(
+                    x: imageX,
+                    y: imageY,
+                    width: renderedWidth,
+                    height: renderedHeight
+                )
+            )
         }
-        if pixelCropWidth > sourcePixelWidth {
-            pixelCropWidth = sourcePixelWidth
-            pixelCropHeight = round(pixelCropWidth / targetPixelAspect)
-        }
-        let pixelCropX = min(
-            max(0, round(sourceCropX)),
-            max(0, sourcePixelWidth - pixelCropWidth)
-        )
-        let pixelCropY = min(
-            max(0, round(sourceCropY)),
-            max(0, sourcePixelHeight - pixelCropHeight)
-        )
+        guard let viewportCGImage = renderedViewport.cgImage else { return nil }
+        let pixelScale = CGFloat(viewportCGImage.width) / viewportSize.width
         let pixelCropRect = CGRect(
-            x: pixelCropX,
-            y: pixelCropY,
-            width: pixelCropWidth,
-            height: pixelCropHeight
-        )
-        guard let croppedCGImage = sourceCGImage.cropping(to: pixelCropRect) else { return nil }
+            x: cropX * pixelScale,
+            y: cropY * pixelScale,
+            width: cropWidth * pixelScale,
+            height: cropHeight * pixelScale
+        ).integral
+        guard let croppedCGImage = viewportCGImage.cropping(to: pixelCropRect) else { return nil }
         let croppedSource = UIImage(cgImage: croppedCGImage)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
