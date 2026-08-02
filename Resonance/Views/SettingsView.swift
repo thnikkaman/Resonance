@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import PhotosUI
 
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
@@ -14,6 +15,8 @@ struct SettingsView: View {
     @State private var accentHexDraft = ""
     @State private var showingServerQRCodeScanner = false
     @State private var serverQRCodeError: String?
+    @State private var customThemePickerItem: PhotosPickerItem?
+    @State private var customThemeImportFailed = false
     @State private var diagnosticsFileSize: Int64 = ResonanceDiagnostics.shared.fileSizeBytes()
     @State private var showingDiagnosticsDeleteConfirmation = false
     @StateObject private var accentHexCommitter = DebouncedSettingCommitter()
@@ -49,6 +52,35 @@ struct SettingsView: View {
                             settings.visualTheme = theme
                         }
                     }
+                }
+
+                if settings.visualTheme == .waterfall {
+                    let hasCustomThemeImage = settings.hasCustomThemeImage
+                    PhotosPicker(
+                        selection: $customThemePickerItem,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        Label(
+                            hasCustomThemeImage
+                                ? "Replace Waterfall Background"
+                                : "Choose Waterfall Background",
+                            systemImage: "photo.badge.plus"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(ResonanceSettingsActionButtonStyle())
+
+                    if settings.hasCustomThemeImage {
+                        Button("Restore Waterfall Meadow", role: .destructive) {
+                            settings.removeCustomThemeImage()
+                        }
+                        .buttonStyle(ResonanceSettingsActionButtonStyle())
+                    }
+
+                    Text("Choose an image at least 1206 × 2622 pixels. It will be center-cropped and stored privately on this iPhone.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 CenteredSettingsPicker(
@@ -620,6 +652,31 @@ struct SettingsView: View {
                 settings.accentHex = value
                 settings.applyThemeColorToText = false
             }
+        }
+        .onChange(of: customThemePickerItem) { _, item in
+            guard let item else { return }
+            Task { @MainActor in
+                defer { customThemePickerItem = nil }
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self),
+                          let image = UIImage(data: data),
+                          let source = image.cgImage,
+                          source.width >= Int(AppSettings.customThemeCanvasPixelSize.width),
+                          source.height >= Int(AppSettings.customThemeCanvasPixelSize.height)
+                    else {
+                        customThemeImportFailed = true
+                        return
+                    }
+                    settings.setCustomThemeImage(data)
+                } catch {
+                    customThemeImportFailed = true
+                }
+            }
+        }
+        .alert("Could Not Import Background", isPresented: $customThemeImportFailed) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Choose an image that is at least 1206 × 2622 pixels.")
         }
     }
 

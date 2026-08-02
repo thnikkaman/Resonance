@@ -1,5 +1,6 @@
 import SwiftUI
 import Security
+import UIKit
 
 enum RemoteLibraryBackend: String, CaseIterable, Identifiable {
     case subsonic = "Navidrome / Subsonic / OpenSubsonic"
@@ -200,8 +201,11 @@ enum ResonanceHeroButtonStyle: String, CaseIterable, Identifiable, Hashable {
 
 @MainActor
 final class AppSettings: ObservableObject {
+    static let customThemeCanvasPixelSize = CGSize(width: 1206, height: 2622)
+
     @AppStorage("appearance") private var appearanceRaw = "system"
     @AppStorage("visualTheme") private var visualThemeRaw = ResonanceVisualTheme.nocturne.rawValue
+    @Published private(set) var customThemeImageData: Data?
     @AppStorage("heroButtonStyle") private var heroButtonStyleRaw = ResonanceHeroButtonStyle.softGlass.rawValue
     @AppStorage("accentHex") private var accentHexStorage = "A855F7"
     @AppStorage("applyThemeColorToText") private var applyThemeColorToTextStorage = true
@@ -242,6 +246,7 @@ final class AppSettings: ObservableObject {
 
     init() {
         streamPassword = KeychainCredentialStore.load(account: "remote-library-password") ?? ""
+        customThemeImageData = try? Data(contentsOf: Self.customThemeImageURL)
 
         // Build 85 stored this option as false by default. Migrate existing users
         // once so themed text is the default; a custom visual theme remains the
@@ -409,6 +414,42 @@ final class AppSettings: ObservableObject {
         let b = 255 - Int(value & 0xFF)
         return Color(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: 1)
     }
+
+    var customThemeImage: UIImage? {
+        guard let customThemeImageData else { return nil }
+        return UIImage(data: customThemeImageData)
+    }
+
+    var hasCustomThemeImage: Bool { customThemeImageData != nil }
+
+    func setCustomThemeImage(_ data: Data) {
+        guard let image = UIImage(data: data),
+              let normalized = image.resonanceThemeJPEGData(
+                targetSize: Self.customThemeCanvasPixelSize
+              )
+        else { return }
+        try? FileManager.default.createDirectory(
+            at: Self.customThemeDirectory,
+            withIntermediateDirectories: true
+        )
+        try? normalized.write(to: Self.customThemeImageURL, options: .atomic)
+        customThemeImageData = normalized
+        objectWillChange.send()
+    }
+
+    func removeCustomThemeImage() {
+        try? FileManager.default.removeItem(at: Self.customThemeImageURL)
+        customThemeImageData = nil
+        objectWillChange.send()
+    }
+
+    private static let customThemeDirectory: URL = {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ResonanceTheme", isDirectory: true)
+    }()
+
+    private static let customThemeImageURL =
+        customThemeDirectory.appendingPathComponent("CustomBackground.jpg")
 }
 
 extension Color {
@@ -422,6 +463,34 @@ extension Color {
             blue: Double(value & 0xFF) / 255,
             opacity: 1
         )
+    }
+}
+
+private extension UIImage {
+    func resonanceThemeJPEGData(targetSize: CGSize) -> Data? {
+        guard let source = cgImage else { return nil }
+        let sourceWidth = CGFloat(source.width)
+        let sourceHeight = CGFloat(source.height)
+        let targetAspect = targetSize.width / targetSize.height
+        let sourceAspect = sourceWidth / sourceHeight
+        let cropWidth = sourceAspect > targetAspect
+            ? sourceHeight * targetAspect
+            : sourceWidth
+        let cropHeight = sourceAspect > targetAspect
+            ? sourceHeight
+            : sourceWidth / targetAspect
+        let cropRect = CGRect(
+            x: (sourceWidth - cropWidth) / 2,
+            y: (sourceHeight - cropHeight) / 2,
+            width: cropWidth,
+            height: cropHeight
+        ).integral
+        guard let cropped = source.cropping(to: cropRect) else { return nil }
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let normalized = renderer.image { _ in
+            UIImage(cgImage: cropped).draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        return normalized.jpegData(compressionQuality: 0.82)
     }
 }
 

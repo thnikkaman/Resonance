@@ -1466,7 +1466,14 @@ struct ResonanceThemeBackdrop: View {
     var body: some View {
         ZStack {
             settings.themeBackgroundGradient
-            if let imageName = settings.visualTheme.backgroundImageName {
+            if settings.visualTheme == .waterfall,
+               let customImage = settings.customThemeImage {
+                Image(uiImage: customImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else if let imageName = settings.visualTheme.backgroundImageName {
                 Image(imageName)
                     .resizable()
                     .scaledToFill()
