@@ -7,7 +7,7 @@ Last verified: 2026-08-01
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: `61bbbc6` (`Keep crop apply action reliable`); documentation and publication are pending.
+- Release commit: pending local commit for the Brushed Metal artwork replacement.
 - GitHub tag/release: `Resonance-Beta-v2.0-build268` public prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `2.0`, build `268`, Swift language mode `5.0`.
@@ -35,6 +35,15 @@ Last verified: 2026-08-01
   `com.example.ResonancePrototype` version `2.0`/build `268`.
 - The physical app was not launched. Manual acceptance remains user-run. The known AppIntents SSU artifact archive
   warning did not prevent the successful build or installation.
+
+## Brushed Metal single-surface artwork — 2026-08-01
+
+- Replaced the detailed hardware-panel Brushed Metal artwork with one continuous 1206 × 2622 brushed-metal surface.
+- Removed dials, knobs, vents, screws, panel seams, borders, and decorative lines from the theme asset only.
+- No SwiftUI layout, theme selection, navigation, controls, or persistence code changed.
+- The generated raster asset was visually inspected before validation; physical runtime appearance remains manual.
+- Signed Release build and deep strict code-signature verification passed. Installation is pending because
+  SaiyanDenwa is paired but currently unavailable with `ddiServicesAvailable: false` and `tunnelState: unavailable`.
 
 ## Latest SarahSue device artifact
 

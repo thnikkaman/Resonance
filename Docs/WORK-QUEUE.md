@@ -324,3 +324,14 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   `devicectl` installation passed. The app was not launched by Codex.
 - Manual acceptance: import an image, place a distinctive feature inside the crop frame, tap Use This Crop, verify the
   saved background matches the selection and fills the canvas without distortion, then test Restore Waterfall Meadow.
+
+### R-BRUSHED-METAL-SINGLE-SURFACE — Remove decorative hardware from Brushed Metal
+
+- Status: implemented; signed device build pending installation on `SaiyanDenawa`.
+- Owner: `Resonance/Assets.xcassets/ThemeBrushedMetal.imageset/brushed-metal.png` only.
+- Change: replace the hardware-panel illustration with a single continuous 1206 × 2622 brushed-metal surface.
+- Invariants: preserve the existing theme identifier, palette, layout, controls, navigation, and all other theme assets.
+- Acceptance oracle: asset dimensions remain 1206 × 2622 and visual inspection shows only uninterrupted brushed metal.
+- Automated acceptance: `git diff --check`, `Tools/RegressionChecks.sh`, strict preflight, signed Release build, and
+  deep code-signature verification; install in place without launching the physical app.
+- Rollback: revert the single asset commit.

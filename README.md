@@ -35,6 +35,9 @@ build 268. The app was not launched by Codex; manual acceptance remains user-run
 The public release ZIP is available from the public GitHub repository at:
 https://github.com/thnikkaman/Resonance/raw/refs/heads/main/Resonance-Beta-v2.0-build268.zip
 
+The Brushed Metal theme now uses one continuous brushed-metal surface with no dials, vents, panel seams, or
+decorative hardware.
+
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
