@@ -1479,6 +1479,10 @@ struct ResonanceThemeBackdrop: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
+                    .opacity(settings.visualTheme == .psychedelic ? 0.42 : 1)
+                if settings.visualTheme == .psychedelic {
+                    settings.themeBackgroundGradient.opacity(0.12)
+                }
             }
         }
         // The custom tab bar owns an opaque surface, so the page artwork can

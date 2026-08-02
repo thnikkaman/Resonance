@@ -45,6 +45,14 @@ Last verified: 2026-08-01
 - Signed Release build and deep strict code-signature verification passed. Installation is pending because
   SaiyanDenwa is paired but currently unavailable with `ddiServicesAvailable: false` and `tunnelState: unavailable`.
 
+## Psychedelic readability veil — 2026-08-01
+
+- Restored the historical Psychedelic-only treatment in `ResonanceThemeBackdrop`: artwork opacity `0.42` plus the
+  themed-gradient veil at opacity `0.12`.
+- Waterfall, Brushed Metal, Electronic, and Classic Wood retain their current rendering.
+- `git diff --check` passed and the Debug 2.0/build 268 simulator build installed on the configured iPhone 17 Pro.
+- The app was not launched; visual acceptance remains user-run.
+
 ## Latest SarahSue device artifact
 
 - Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`.

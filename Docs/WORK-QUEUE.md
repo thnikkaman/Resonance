@@ -335,3 +335,15 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Automated acceptance: `git diff --check`, `Tools/RegressionChecks.sh`, strict preflight, signed Release build, and
   deep code-signature verification; install in place without launching the physical app.
 - Rollback: revert the single asset commit.
+
+### R-PSYCHEDELIC-DIM-LAYER — Restore the prior Psychedelic readability veil
+
+- Status: implemented and installed on the configured iPhone 17 Pro simulator.
+- Owner: `Resonance/Views/RootView.swift`, `ResonanceThemeBackdrop`.
+- Change: restore the historical `0.42` artwork opacity and `0.12` themed-gradient veil for Psychedelic only.
+- Invariants: preserve the Psychedelic artwork, layout, controls, navigation, and all other theme appearance.
+- Acceptance oracle: Psychedelic is visibly dimmer and more readable; Waterfall, Brushed Metal, Electronic, and
+  Classic Wood render as before.
+- Automated acceptance: `git diff --check`, simulator Debug build, and simulator install. The repository regression
+  script remains blocked by its unrelated existing `LibraryStore.swift` assertion at line 172.
+- Rollback: revert the single backdrop conditional.

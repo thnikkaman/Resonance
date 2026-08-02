@@ -38,6 +38,9 @@ https://github.com/thnikkaman/Resonance/raw/refs/heads/main/Resonance-Beta-v2.0-
 The Brushed Metal theme now uses one continuous brushed-metal surface with no dials, vents, panel seams, or
 decorative hardware.
 
+The Psychedelic theme restores its earlier readability treatment: the artwork is rendered at 42% opacity with a
+12% themed-gradient veil above it. Other themes are unchanged.
+
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
