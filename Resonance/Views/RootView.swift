@@ -1470,11 +1470,7 @@ struct ResonanceThemeBackdrop: View {
                let customImage = settings.customThemeImage {
                 Image(uiImage: customImage)
                     .resizable()
-                    .aspectRatio(
-                        AppSettings.customThemeCanvasPixelSize.width /
-                            AppSettings.customThemeCanvasPixelSize.height,
-                        contentMode: .fill
-                    )
+                    .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else if let imageName = settings.visualTheme.backgroundImageName {
