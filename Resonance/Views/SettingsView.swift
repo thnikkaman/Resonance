@@ -1821,13 +1821,23 @@ private struct CustomThemeCropView: View {
         }
         guard let viewportCGImage = renderedViewport.cgImage else { return nil }
         let pixelScale = CGFloat(viewportCGImage.width) / viewportSize.width
-        let pixelCropRect = CGRect(
+        let requestedCropRect = CGRect(
             x: cropX * pixelScale,
             y: cropY * pixelScale,
             width: cropWidth * pixelScale,
             height: cropHeight * pixelScale
-        ).integral
-        guard let croppedCGImage = viewportCGImage.cropping(to: pixelCropRect) else { return nil }
+        )
+        let viewportBounds = CGRect(
+            x: 0,
+            y: 0,
+            width: viewportCGImage.width,
+            height: viewportCGImage.height
+        )
+        let pixelCropRect = requestedCropRect.integral.intersection(viewportBounds)
+        guard !pixelCropRect.isNull,
+              !pixelCropRect.isEmpty,
+              let croppedCGImage = viewportCGImage.cropping(to: pixelCropRect)
+        else { return nil }
         let croppedSource = UIImage(cgImage: croppedCGImage)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
