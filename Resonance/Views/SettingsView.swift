@@ -1821,7 +1821,9 @@ private struct CustomThemeCropView: View {
         ).integral
         guard let croppedCGImage = sourceCGImage.cropping(to: pixelCropRect) else { return nil }
         let croppedSource = UIImage(cgImage: croppedCGImage)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         let cropped = renderer.image { _ in
             croppedSource.draw(in: CGRect(origin: .zero, size: targetSize))
         }

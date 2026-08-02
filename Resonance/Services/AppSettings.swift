@@ -486,7 +486,9 @@ private extension UIImage {
             height: cropHeight
         ).integral
         guard let cropped = source.cropping(to: cropRect) else { return nil }
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         let normalized = renderer.image { _ in
             UIImage(cgImage: cropped).draw(in: CGRect(origin: .zero, size: targetSize))
         }
