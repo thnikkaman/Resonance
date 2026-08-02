@@ -41,6 +41,9 @@ decorative hardware.
 The Psychedelic theme restores its earlier readability treatment: the artwork is rendered at 42% opacity with a
 12% themed-gradient veil above it. Other themes are unchanged.
 
+Gallery Light now uses the approved minimal pale Aqua glass background, while Nocturne Glass uses its matching dark
+navy/cyan Aqua companion. Their names and existing UI palettes remain unchanged.
+
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on

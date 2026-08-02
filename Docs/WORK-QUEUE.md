@@ -347,3 +347,16 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Automated acceptance: `git diff --check`, simulator Debug build, and simulator install. The repository regression
   script remains blocked by its unrelated existing `LibraryStore.swift` assertion at line 172.
 - Rollback: revert the single backdrop conditional.
+
+### R-AQUA-THEME-BACKGROUNDS — Replace Gallery Light and Nocturne Glass artwork
+
+- Status: implemented and installed on the configured iPhone 17 Pro simulator.
+- Owner: `AppSettings.swift` theme image mapping and the two new image assets in `Assets.xcassets`.
+- Change: Gallery Light uses the approved pale Aqua glass background; Nocturne Glass uses its dark Aqua companion.
+- Invariants: preserve the existing theme names, palettes, appearance recommendations, layout, controls, and all
+  other theme assets.
+- Acceptance oracle: both assets remain 1206 × 2622; Gallery Light is bright/light Aqua, Nocturne Glass is dark
+  navy/cyan Aqua, and no other theme changes.
+- Automated acceptance: `git diff --check`, simulator Debug build, and simulator install. The repository regression
+  script remains blocked by its unrelated existing `LibraryStore.swift` assertion at line 172.
+- Rollback: restore `backgroundImageName` to `nil` for these two cases and remove the two image sets.

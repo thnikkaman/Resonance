@@ -161,11 +161,13 @@ enum ResonanceVisualTheme: String, CaseIterable, Identifiable {
 
     var backgroundImageName: String? {
         switch self {
+        case .nocturne: "ThemeNocturneAqua"
+        case .galleryLight: "ThemeGalleryAqua"
         case .brushedMetal: "ThemeBrushedMetal"
         case .classicWood: "ThemeClassicWood"
         case .electronic: "ThemeElectronic"
         case .psychedelic: "ThemePsychedelic"
-        case .nocturne, .galleryLight, .colorBloom: nil
+        case .colorBloom: nil
         case .waterfall: "ThemeWaterfallMeadow"
         }
     }

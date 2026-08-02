@@ -53,6 +53,15 @@ Last verified: 2026-08-01
 - `git diff --check` passed and the Debug 2.0/build 268 simulator build installed on the configured iPhone 17 Pro.
 - The app was not launched; visual acceptance remains user-run.
 
+## Aqua theme backgrounds — 2026-08-01
+
+- Gallery Light now maps to `ThemeGalleryAqua`, a minimal pale Aqua glass background.
+- Nocturne Glass now maps to `ThemeNocturneAqua`, the matching dark navy/cyan Aqua background.
+- Both assets are 1206 × 2622. Theme names, palettes, layout, controls, appearance recommendations, and other
+  backgrounds remain unchanged.
+- `git diff --check` and the Debug 2.0/build 268 simulator build passed; the app installed on the configured iPhone
+  17 Pro simulator and was not launched.
+
 ## Latest SarahSue device artifact
 
 - Source: GitHub-synchronized `agent/alpha-3.7.4-source` commit `baef8bc`.
