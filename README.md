@@ -22,6 +22,16 @@ acceptance remains user-run.
 The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
 refresh, and Settings. The local file-browser/import control is intentionally omitted.
 
+## Waterfall Meadow custom background crop — 2026-08-01
+
+Waterfall Meadow now supports importing a replacement background image from Settings. Images must be at least
+1206 × 2622 pixels. The crop screen allows pan and pinch selection; the chosen region is normalized for orientation,
+saved as a new 1206 × 2622 JPEG, and used as the Waterfall backdrop without changing the app layout. Restore Waterfall
+Meadow removes the replacement image.
+
+The final crop implementation is committed at `61bbbc6` and was installed in place on SaiyanDenawa as version 2.0,
+build 268. The app was not launched by Codex; manual acceptance remains user-run.
+
 ## Verified source and release artifact identity — 2026-07-31
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on

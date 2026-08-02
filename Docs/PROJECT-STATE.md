@@ -1,13 +1,13 @@
 # Resonance verified project state
 
-Last verified: 2026-07-31
+Last verified: 2026-08-01
 
 ## Source identity
 
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: `baef8bc` (`Record Chaseatron build 268 installation`); the source branch is synchronized with GitHub.
+- Release commit: `61bbbc6` (`Keep crop apply action reliable`); documentation and publication are pending.
 - GitHub tag/release: `Resonance-Beta-v2.0-build268` public prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `2.0`, build `268`, Swift language mode `5.0`.
@@ -23,6 +23,18 @@ Last verified: 2026-07-31
 - Sarah’s and Chase’s physical artifacts are version `2.0`, build `268`; both were installed in place after signed verification.
 - A Debug `2.0`/`268` build was installed on the configured iPhone 17 Pro simulator for visual inspection.
 - Codex did not launch the physical apps; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
+
+## Final Waterfall custom-background crop work — 2026-08-01
+
+- Settings → Appearance → Waterfall Meadow accepts replacement images at least 1206 × 2622 pixels.
+- The crop interaction supports pan and pinch selection and exports a new 1206 × 2622 JPEG for the backdrop.
+- Orientation is normalized before export; Restore Waterfall Meadow removes the replacement image. No layout changes were
+  made for this feature.
+- The signed arm64 Release build from the final source was built with development team `98CWMFS26R`, passed strict
+  code-signature verification, and installed in place on SaiyanDenawa (`9629DEED-EBF9-5835-B98A-9FAEC81CBDC6`) as
+  `com.example.ResonancePrototype` version `2.0`/build `268`.
+- The physical app was not launched. Manual acceptance remains user-run. The known AppIntents SSU artifact archive
+  warning did not prevent the successful build or installation.
 
 ## Latest SarahSue device artifact
 

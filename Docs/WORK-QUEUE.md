@@ -309,3 +309,18 @@ automated gates, and manual acceptance status are documented. Credentials, priva
 - Automated evidence: `git diff --check`, simulator Debug build, and simulator install passed.
 - Manual acceptance: inspect every Minimal Transparent button surface and confirm no underline remains; verify other
   visual styles are unchanged.
+
+### R-WATERFALL-CUSTOM-CROP — Save selected Waterfall background region
+
+- Status: implemented; final signed 2.0/build 268 installed in place on `SaiyanDenawa`; physical runtime acceptance
+  remains user-run.
+- Owner: `SettingsView.swift` crop presentation and `AppSettings.swift` Waterfall background persistence, with the
+  existing page-level backdrop in `RootView.swift`.
+- Change: Waterfall Meadow accepts images at least 1206 × 2622 pixels, supports pan/pinch selection, normalizes image
+  orientation, and saves the selected result as a new 1206 × 2622 JPEG without changing layout or other themes.
+- Invariants: the selected background remains private to the device, existing app data is preserved, and Restore
+  Waterfall Meadow removes the override.
+- Evidence: `git diff --check`, signed arm64 Release build, deep strict code-signature verification, and in-place
+  `devicectl` installation passed. The app was not launched by Codex.
+- Manual acceptance: import an image, place a distinctive feature inside the crop frame, tap Use This Crop, verify the
+  saved background matches the selection and fills the canvas without distortion, then test Restore Waterfall Meadow.
