@@ -1803,47 +1803,18 @@ private struct CustomThemeCropView: View {
         let cropX = (viewportSize.width - cropWidth) / 2
         let cropY = (viewportSize.height - cropHeight) / 2
         let targetSize = AppSettings.customThemeCanvasPixelSize
-        let viewportFormat = UIGraphicsImageRendererFormat()
-        viewportFormat.scale = 1
-        let viewportRenderer = UIGraphicsImageRenderer(
-            size: viewportSize,
-            format: viewportFormat
-        )
-        let renderedViewport = viewportRenderer.image { _ in
-            source.draw(
-                in: CGRect(
-                    x: imageX,
-                    y: imageY,
-                    width: renderedWidth,
-                    height: renderedHeight
-                )
-            )
-        }
-        guard let viewportCGImage = renderedViewport.cgImage else { return nil }
-        let pixelScale = CGFloat(viewportCGImage.width) / viewportSize.width
-        let requestedCropRect = CGRect(
-            x: cropX * pixelScale,
-            y: cropY * pixelScale,
-            width: cropWidth * pixelScale,
-            height: cropHeight * pixelScale
-        )
-        let viewportBounds = CGRect(
-            x: 0,
-            y: 0,
-            width: viewportCGImage.width,
-            height: viewportCGImage.height
-        )
-        let pixelCropRect = requestedCropRect.integral.intersection(viewportBounds)
-        guard !pixelCropRect.isNull,
-              !pixelCropRect.isEmpty,
-              let croppedCGImage = viewportCGImage.cropping(to: pixelCropRect)
-        else { return nil }
-        let croppedSource = UIImage(cgImage: croppedCGImage)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        let outputScale = targetSize.width / cropWidth
+        let outputImageRect = CGRect(
+            x: (imageX - cropX) * outputScale,
+            y: (imageY - cropY) * outputScale,
+            width: renderedWidth * outputScale,
+            height: renderedHeight * outputScale
+        )
         let cropped = renderer.image { _ in
-            croppedSource.draw(in: CGRect(origin: .zero, size: targetSize))
+            source.draw(in: outputImageRect)
         }
         return cropped.jpegData(compressionQuality: 0.82)
     }
