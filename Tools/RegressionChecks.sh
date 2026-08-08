@@ -57,7 +57,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 280;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 281;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 2.1;') == 2

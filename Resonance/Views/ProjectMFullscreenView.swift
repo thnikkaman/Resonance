@@ -72,6 +72,7 @@ struct ProjectMFullscreenView: View {
             handleSustainedLowFPS(fps: fps, duration: duration)
           }
         )
+          .equatable()
           .id(rendererGeneration)
           .ignoresSafeArea()
           .contentShape(Rectangle())
@@ -459,9 +460,19 @@ private final class ProjectMLyricsFeed: ObservableObject {
     }
     let index = max(0, min(lines.count - 1, low - 1))
     let line = lines[index]
-    let endTime = index + 1 < lines.count
-      ? lines[index + 1].startTime
-      : max(trackDuration, line.startTime + 4)
+    let nextStart = index + 1 < lines.count ? lines[index + 1].startTime : nil
+    // Keep a line visible for its normal interval when the next line arrives
+    // promptly. If the next line is delayed or absent, let MilkDrop's
+    // progress-driven text animation fade it out after five seconds instead
+    // of holding the last lyric until the end of the track.
+    let timeoutStart = line.startTime + 5
+    let endTime: TimeInterval
+    if let nextStart, nextStart <= timeoutStart {
+      endTime = nextStart
+    } else {
+      endTime = timeoutStart + 0.75
+    }
+    guard elapsed < endTime else { return nil }
     let duration = max(0.8, endTime - line.startTime)
     let progress = Float(min(1, max(0, (elapsed - line.startTime) / duration)))
     return Snapshot(
@@ -519,12 +530,18 @@ private struct ProjectMDownloadFlushOnDisappear: View {
   }
 }
 
-private struct ProjectMFullscreenGLView: UIViewRepresentable {
+private struct ProjectMFullscreenGLView: UIViewRepresentable, Equatable {
   let preset: ResonanceProjectMPreset
   let isActive: Bool
   let lyricsEnabled: Bool
   let lyricsFeed: ProjectMLyricsFeed
   let onSustainedLowFPS: @MainActor (Double, TimeInterval) -> Void
+
+  nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.preset.id == rhs.preset.id &&
+      lhs.isActive == rhs.isActive &&
+      lhs.lyricsEnabled == rhs.lyricsEnabled
+  }
 
   @MainActor
   final class Coordinator: NSObject, @preconcurrency GLKViewDelegate {
@@ -534,6 +551,7 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
     private var displayLink: CADisplayLink?
     private var loadedPresetID = ""
     private var lastDrawableSize = CGSize.zero
+    private var targetFramebuffer: UInt32?
     private var displayTickCount = 0
     private var lyricsFeed: ProjectMLyricsFeed?
     private var activeLyricKey: String?
@@ -611,6 +629,7 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
         }
         bridge = nil
         lastDrawableSize = .zero
+        targetFramebuffer = nil
         lastFrameStart = 0
         timingIntervals = 0
         timingElapsed = 0
@@ -627,6 +646,7 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
     }
 
     func setLyrics(enabled: Bool, feed: ProjectMLyricsFeed) {
+      guard lyricsEnabled != enabled || lyricsFeed !== feed else { return }
       lyricsEnabled = enabled
       lyricsFeed = feed
       feed.update(enabled: enabled)
@@ -715,7 +735,8 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
       }
       lastFrameStart = frameStart
       let drawableSize = CGSize(width: view.drawableWidth, height: view.drawableHeight)
-      if drawableSize != lastDrawableSize {
+      let drawableResized = drawableSize != lastDrawableSize
+      if drawableResized {
         lastDrawableSize = drawableSize
         resonance_native_projectm_set_window_size(
           bridge,
@@ -723,9 +744,17 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
           Int(view.drawableHeight)
         )
       }
-      var targetFramebuffer: GLint = 0
-      glGetIntegerv(GLenum(GL_FRAMEBUFFER_BINDING), &targetFramebuffer)
-      resonance_native_projectm_set_target_framebuffer(bridge, UInt32(max(targetFramebuffer, 0)))
+      // GLKView binds the same drawable framebuffer for each frame. Query it
+      // only on first use or after a drawable resize; glGetIntegerv is a
+      // synchronous driver round trip and doing it at 60 Hz makes button
+      // animations and transitions compete with the renderer.
+      if targetFramebuffer == nil || drawableResized {
+        var framebuffer: GLint = 0
+        glGetIntegerv(GLenum(GL_FRAMEBUFFER_BINDING), &framebuffer)
+        let resolved = UInt32(max(framebuffer, 0))
+        targetFramebuffer = resolved
+        resonance_native_projectm_set_target_framebuffer(bridge, resolved)
+      }
       prepareNativeLyric(bridge: bridge)
       resonance_native_projectm_render(bridge)
       installPendingLyric(bridge: bridge)
@@ -918,6 +947,8 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
       }
       resetLyricState()
       bridge = nil
+      lastDrawableSize = .zero
+      targetFramebuffer = nil
       view = nil
     }
 

@@ -1,6 +1,23 @@
 # Resonance Beta v2.1 — ProjectM Fullscreen and Lyrics Foundation
 
-## Current beta — 2.1 (build 280)
+## Current beta — 2.1 (build 281)
+
+Build 281 removes two measured sources of ProjectM hitching. The GLKView framebuffer is queried and bound only on
+first use or drawable resize, and the transition compositor performs its GLES error safeguard only on the first
+composite of each transition instead of synchronously polling the driver before and after every frame. The fullscreen
+renderer is also equatable, so showing/hiding controls and toggling interface buttons no longer reconfigures the GL
+representable during SwiftUI animation.
+
+Timestamped lyrics now use the native MilkDrop progress animation to fade out after five seconds plus a short dissolve
+when the next synced line has not started; the existing feedback injection remains unchanged.
+
+Build 281 passed strict Swift 6 simulator and generic-device preflight, signed arm64 Release compilation, deep strict
+code-signature verification, and in-place installation on SaiyanDenawa. `devicectl` verified Resonance `2.1` / build
+`281`; Codex did not launch the physical app. Manual transition, controls, lyric-timing, and thermal acceptance
+remain user-run. The full regression script still reaches its pre-existing artwork assertion for
+`preservingArtworkOverride`.
+
+## Build 280 baseline
 
 Build 280 replaces the rejected SwiftUI lyric dissolve with a native adaptation of MilkDrop 2's song-title renderer.
 The current timestamped lyric is drawn as the original 16 by 8 animated title mesh; when its display interval ends,
@@ -70,13 +87,13 @@ The prior dials and dense hardware details were removed.
 ## Verified source and release artifact identity — 2026-08-08
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; build 280's implementation commit is `348a5d6`. The project’s default Xcode settings are
-version `2.1`, build `280`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; build 281 contains the current ProjectM hitch and lyric-timeout repair. The project’s
+default Xcode settings are version `2.1`, build `281`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Current source build: `2.1` (build `280`)
+Current source build: `2.1` (build `281`)
 
-Latest SaiyanDenawa installation: `2.1` (build `280`). The signed arm64 Release app passed deep strict signature
+Latest SaiyanDenawa installation: `2.1` (build `281`). The signed arm64 Release app passed deep strict signature
 verification, installed in place, and was verified by `devicectl`; Codex did not launch the physical app.
 
 ## Resonance Beta v2.0 build 268 — 2026-07-31 UTC

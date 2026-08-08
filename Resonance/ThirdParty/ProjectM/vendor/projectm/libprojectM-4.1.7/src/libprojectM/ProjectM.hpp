@@ -231,6 +231,7 @@ private:
     std::unique_ptr<Preset> m_transitioningPreset;                                //!< Destination preset when smooth preset switching.
     std::unique_ptr<Renderer::PresetTransition> m_transition;                     //!< Transition effect used for blending.
     bool m_holdOutgoingFrame{false};                                               //!< Keeps the outgoing preset visible for the first transition frame.
+    bool m_transitionValidationPending{false};                                     //!< Validates the first composite only; avoids per-frame GLES stalls.
     std::unique_ptr<TimeKeeper> m_timeKeeper;                                     //!< Keeps the different timers used to render and switch presets.
 };
 

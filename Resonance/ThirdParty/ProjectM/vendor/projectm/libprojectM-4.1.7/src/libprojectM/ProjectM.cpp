@@ -182,6 +182,7 @@ void ProjectM::RenderFrame()
             m_activePreset = std::move(m_transitioningPreset);
             m_transitioningPreset.reset();
             m_transition.reset();
+            m_transitionValidationPending = false;
         }
         else if (!m_holdOutgoingFrame)
         {
@@ -229,22 +230,30 @@ void ProjectM::RenderFrame()
         // resulting partial/slanted composite. The new preset has already
         // rendered into its own output texture, so use that clean texture for
         // this frame and let the transition resume on the next frame.
-        const auto renderError = ClearOpenGLErrors();
-        if (renderError != GL_NO_ERROR)
+        if (m_transitionValidationPending)
         {
-            // A failed transition composite must preserve the outgoing image.
-            // Copying the incoming texture here is the visible one-frame flash
-            // reported on the phone.
-            m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
+            // Validate only the first composite. These GLES error queries are
+            // synchronous driver round trips; polling before and after every
+            // transition frame was the source of visible transition hitches.
+            const auto renderError = ClearOpenGLErrors();
+            if (renderError != GL_NO_ERROR)
+            {
+                m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
+            }
+            else
+            {
+                m_transition->Draw(*m_activePreset, *m_transitioningPreset, renderContext, audioData);
+                const auto transitionError = ClearOpenGLErrors();
+                if (transitionError != GL_NO_ERROR)
+                {
+                    m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
+                }
+            }
+            m_transitionValidationPending = false;
         }
         else
         {
             m_transition->Draw(*m_activePreset, *m_transitioningPreset, renderContext, audioData);
-            const auto transitionError = ClearOpenGLErrors();
-            if (transitionError != GL_NO_ERROR)
-            {
-                m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
-            }
         }
         }
 #else
@@ -386,6 +395,7 @@ void ProjectM::StartPresetTransition(std::unique_ptr<Preset>&& preset, bool hard
     {
         m_activePreset = std::move(preset);
         m_timeKeeper->StartPreset();
+        m_transitionValidationPending = false;
     }
     else
     {
@@ -393,6 +403,7 @@ void ProjectM::StartPresetTransition(std::unique_ptr<Preset>&& preset, bool hard
         m_timeKeeper->StartSmoothing();
         m_transition = std::make_unique<Renderer::PresetTransition>(m_transitionShaderManager->RandomTransition(), m_softCutDuration);
         m_holdOutgoingFrame = true;
+        m_transitionValidationPending = true;
     }
 }
 
