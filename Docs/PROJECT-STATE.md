@@ -1,28 +1,58 @@
 # Resonance verified project state
 
-Last verified: 2026-08-01
+Last verified: 2026-08-08
+
+## Active ProjectM lyric-feedback and stall repair
+
+- `Tools/ProjectStateCheck.sh --source-only` verified branch `agent/alpha-3.7.4-source`, checkout
+  `d811b948fceb7697b85b0429399482e5c70b2a4a`, and project default `2.1`/build `279` before editing.
+- Build 279 is installed in place on SaiyanDenawa as `com.briangarcia.Resonance.saiyandenwa`; Codex did not launch it.
+- The build-279 SwiftUI lyric dissolve is rejected. The accepted behavior is the original MilkDrop 2 mechanism:
+  render text once to a texture, animate its 16-by-8 mesh, then burn the completed text into the feedback surface so
+  subsequent preset warps and shaders manipulate it.
+- The named baseline workload is `projectm-controls-lyrics-transitions`; evidence lives under
+  `performance-evidence/projectm-lyrics-native-round-01`. The current device log is privacy-audited and contains no
+  obvious sensitive values.
+- Static and device-log inspection identified three independent stall candidates to validate separately: texture search
+  paths are reset before every preset and ProjectM documents that this clears the texture manager and can lag; native
+  diagnostics perform synchronous GL state/error checks on every frame and pixel readback on error; adaptive drawable
+  scaling oscillates after brief transition FPS dips and reallocates ProjectM render targets.
+- Build 280 implements the native MilkDrop title path at the ProjectM feedback stage. UIKit/Core Graphics only prepares
+  the glyph texture; the 16-by-8 mesh, progress curves, two-pass blend, one-frame feedback burn, and later manipulation
+  are owned by ProjectM's OpenGL renderer. Text preparation is detached from the display callback.
+- The three identified avoidable stall sources are removed in build 280: identical texture paths are ignored, the
+  synchronous GL pixel probe is absent from the production native render entry point, and drawable scale remains fixed
+  at 0.75 instead of reallocating render targets after transition dips. Aggregate 120-frame timing windows replace
+  per-frame diagnostic synchronization.
+- Strict Swift 6 simulator and generic-device preflight passed for build 280. A signed arm64 Release build passed
+  deep strict code-signature verification and installed in place on SaiyanDenawa as
+  `com.briangarcia.Resonance.saiyandenwa`, version `2.1`, build `280`; Codex did not launch the app. A second clean
+  strict simulator build passed while the generated ProjectM XCFramework was physically absent, proving the target
+  reproduces the renderer from the checked-in vendored source and `Tools/BuildProjectMNativeIOS.sh`.
+- Physical lyric-feedback, transition smoothness, thermal, and before/after timing acceptance remain user-run. GitHub
+  publication is the exact continuation point.
+- The first-party/app diff passes `git diff --check`. The newly vendored upstream ProjectM tree intentionally preserves
+  its original CRLF and generated-source whitespace, so an all-path check reports vendor-only whitespace warnings.
 
 ## Source identity
 
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: pending local commit for the Brushed Metal artwork replacement.
+- Release commit: pending build-280 source publication commit.
 - GitHub tag/release: `Resonance-Beta-v2.0-build268` public prerelease publication.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
-- Project defaults: version `2.0`, build `268`, Swift language mode `5.0`.
+- Project defaults: version `2.1`, build `280`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
 ## Current beta source and installed artifact
 
-- Source product: Resonance Beta v2.0/build 268.
-- Bundle: `com.example.ResonancePrototype`.
-- Signed arm64 Release build passed with development team `98CWMFS26R`.
-- Deep strict code-signature verification passed.
-- The prior build-267 artifact was installed in place on `SaiyanDenawa`; build 268 was installed in place on Sarah’s and Chase’s iPhones.
-- Sarah’s and Chase’s physical artifacts are version `2.0`, build `268`; both were installed in place after signed verification.
-- A Debug `2.0`/`268` build was installed on the configured iPhone 17 Pro simulator for visual inspection.
-- Codex did not launch the physical apps; playback, keyboard behavior, and other physical runtime acceptance remain user-run checks.
+- Source product: Resonance Beta v2.1/build 280.
+- Bundle: `com.briangarcia.Resonance.saiyandenwa`.
+- Signed arm64 Release build passed with development team `98CWMFS26R`; deep strict code-signature verification passed.
+- Build 280 installed in place on `SaiyanDenawa`, and `devicectl` verified version `2.1`, build `280`.
+- Codex did not launch the physical app. Lyric-feedback appearance, transition smoothness, controls, rotation, thermal,
+  audio response, and timing metrics remain user-run acceptance.
 
 ## Final Waterfall custom-background crop work — 2026-08-01
 

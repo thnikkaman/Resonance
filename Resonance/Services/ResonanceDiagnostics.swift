@@ -117,3 +117,18 @@ final class ResonanceDiagnostics: @unchecked Sendable {
       .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
+
+@_cdecl("resonance_diagnostics_record")
+func resonance_diagnostics_record(
+  _ event: UnsafePointer<CChar>?,
+  _ key: UnsafePointer<CChar>?,
+  _ value: UnsafePointer<CChar>?
+) {
+  guard let event else { return }
+  let eventString = String(cString: event)
+  var details: [String: String] = [:]
+  if let key, let value {
+    details[String(cString: key)] = String(cString: value)
+  }
+  ResonanceDiagnostics.shared.record(eventString, details: details)
+}

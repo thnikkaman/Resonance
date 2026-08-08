@@ -58,6 +58,103 @@ struct RemoteBackgroundTaskSnapshot: Sendable {
     let taskDescription: String?
 }
 
+private final class ForegroundDownloadSession: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let destination: URL
+    private let progress: @Sendable (Int64, Int64) -> Void
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<(URL, URLResponse), Error>?
+    private var task: URLSessionDownloadTask?
+    private var session: URLSession?
+    private var finished = false
+
+    init(destination: URL, progress: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.destination = destination
+        self.progress = progress
+    }
+
+    func download(from url: URL) async throws -> (URL, URLResponse) {
+        try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                lock.withLock {
+                    self.continuation = continuation
+                    let configuration = URLSessionConfiguration.default
+                    configuration.waitsForConnectivity = true
+                    configuration.allowsExpensiveNetworkAccess = true
+                    configuration.allowsConstrainedNetworkAccess = true
+                    let delegateQueue = OperationQueue()
+                    delegateQueue.name = "com.example.Resonance.foreground-download"
+                    delegateQueue.maxConcurrentOperationCount = 1
+                    let session = URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
+                    self.session = session
+                    let task = session.downloadTask(with: URLRequest(url: url))
+                    self.task = task
+                    task.resume()
+                }
+            }
+        }, onCancel: {
+            self.cancel()
+        })
+    }
+
+    func cancel() {
+        lock.withLock {
+            task?.cancel()
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        progress(totalBytesWritten, totalBytesExpectedToWrite)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        do {
+            guard let response = downloadTask.response else {
+                throw RemoteDownloadError.invalidResponse
+            }
+            let directory = destination.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: location, to: destination)
+            finish(.success((destination, response)))
+        } catch {
+            try? FileManager.default.removeItem(at: location)
+            finish(.failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error else { return }
+        finish(.failure(error))
+    }
+
+    private func finish(_ result: Result<(URL, URLResponse), Error>) {
+        let continuation: CheckedContinuation<(URL, URLResponse), Error>? = lock.withLock {
+            guard !finished else { return nil }
+            finished = true
+            let continuation = self.continuation
+            self.continuation = nil
+            task = nil
+            session?.invalidateAndCancel()
+            session = nil
+            return continuation
+        }
+        guard let continuation else { return }
+        continuation.resume(with: result)
+    }
+}
+
 private struct RemoteBackgroundNotification: Sendable {
     let taskIdentifier: Int
     let trackID: UUID
@@ -386,6 +483,8 @@ final class RemoteDownloadManager: ObservableObject {
     private var backgroundTrackIDsByTask: [Int: UUID] = [:]
     private var backgroundReplacingExisting: [UUID: Bool] = [:]
     private var backgroundFinalizing: Set<UUID> = []
+    private var deferredLibraryRefreshes: [(library: LibraryStore, url: URL, parsedTrack: Track?)] = []
+    private let libraryRefreshBatchSize = 24
 
     init() {
         let center = NotificationCenter.default
@@ -437,6 +536,62 @@ final class RemoteDownloadManager: ObservableObject {
         if let first = dataByTrackID.values.first, !first.isEmpty {
             rememberArtwork(first, for: tracks)
         }
+    }
+
+    func flushDeferredLibraryRefreshes() {
+        guard !ProjectMActivityCoordinator.shared.isActive, !deferredLibraryRefreshes.isEmpty else { return }
+        let refreshes = deferredLibraryRefreshes
+        deferredLibraryRefreshes.removeAll()
+        Task { @MainActor [weak self] in
+            guard self != nil else { return }
+            await Self.applyLibraryRefreshBatch(refreshes)
+            ResonanceDiagnostics.shared.recordDeferred(
+                "download.library_refresh.deferred_flush",
+                details: ["trackCount": String(refreshes.count)]
+            )
+        }
+    }
+
+    private func refreshLibraryAfterDownload(
+        at url: URL,
+        parsedTrack: Track?,
+        library: LibraryStore
+    ) async {
+        deferredLibraryRefreshes.append((library: library, url: url, parsedTrack: parsedTrack))
+        if ProjectMActivityCoordinator.shared.isActive {
+            ResonanceDiagnostics.shared.recordDeferred("download.library_refresh.deferred")
+            return
+        }
+        guard deferredLibraryRefreshes.count >= libraryRefreshBatchSize else { return }
+        await flushPendingLibraryRefreshes()
+    }
+
+    private func flushPendingLibraryRefreshes() async {
+        guard !ProjectMActivityCoordinator.shared.isActive, !deferredLibraryRefreshes.isEmpty else { return }
+        let refreshes = deferredLibraryRefreshes
+        deferredLibraryRefreshes.removeAll()
+        await Self.applyLibraryRefreshBatch(refreshes)
+        ResonanceDiagnostics.shared.recordDeferred(
+            "download.library_refresh.batch",
+            details: ["trackCount": String(refreshes.count)]
+        )
+    }
+
+    @MainActor
+    private static func applyLibraryRefreshBatch(
+        _ refreshes: [(library: LibraryStore, url: URL, parsedTrack: Track?)]
+    ) async {
+        guard let firstLibrary = refreshes.first?.library else { return }
+        let sameLibrary = refreshes.allSatisfy { $0.library === firstLibrary }
+        guard sameLibrary else {
+            for refresh in refreshes {
+                await refresh.library.refreshDownloadedTrack(at: refresh.url, parsedTrack: refresh.parsedTrack)
+            }
+            return
+        }
+        await firstLibrary.refreshDownloadedTracks(
+            refreshes.map { (url: $0.url, parsedTrack: $0.parsedTrack) }
+        )
     }
 
     func requestDownload(_ remoteTracks: [RemoteTrackItem], into library: LibraryStore) {
@@ -724,6 +879,15 @@ final class RemoteDownloadManager: ObservableObject {
             currentCompletedBytes = 0
             currentTotalBytes = max(0, track.fileSizeBytes)
             activeTrackID = track.id
+            let trackStart = CACurrentMediaTime()
+            ResonanceDiagnostics.shared.recordDeferred(
+                "download.track.begin",
+                details: [
+                    "index": String(completedCount + 1),
+                    "totalCount": String(totalCount),
+                    "transport": Self.transportClass(for: track.streamURL)
+                ]
+            )
             do {
                 let progressStream = AsyncStream<DownloadByteProgress>.makeStream(
                     bufferingPolicy: .bufferingNewest(1)
@@ -778,14 +942,27 @@ final class RemoteDownloadManager: ObservableObject {
                         data: artworkData
                     )
                 }
-                await library.refreshDownloadedTrack(at: result.destination)
+                let libraryRefreshStart = CACurrentMediaTime()
+                let parsedTrack = await Self.parseDownloadedTrack(at: result.destination)
+                await refreshLibraryAfterDownload(
+                    at: result.destination,
+                    parsedTrack: parsedTrack,
+                    library: library
+                )
                 if let artworkData, !embeddedArtwork {
                     library.applyArtworkToApp(for: track.id, data: artworkData)
                 }
                 removePersistedTrack(track.id)
                 ResonanceDiagnostics.shared.recordDeferred(
                     "download.track.completed",
-                    details: ["completedCount": String(completedCount), "totalCount": String(totalCount)]
+                    details: [
+                        "completedCount": String(completedCount),
+                        "totalCount": String(totalCount),
+                        "bytes": String(result.bytes),
+                        "seconds": String(format: "%.2f", CACurrentMediaTime() - trackStart),
+                        "bytesPerSecond": String(format: "%.0f", Double(result.bytes) / max(0.001, CACurrentMediaTime() - trackStart)),
+                        "libraryRefreshSeconds": String(format: "%.3f", CACurrentMediaTime() - libraryRefreshStart)
+                    ]
                 )
             } catch is CancellationError {
                 activeWorker = nil
@@ -817,10 +994,19 @@ final class RemoteDownloadManager: ObservableObject {
                     )
                 )
                 lastMessage = "Download failed: \(error.localizedDescription)"
+                ResonanceDiagnostics.shared.recordDeferred(
+                    "download.track.failed",
+                    details: [
+                        "completedCount": String(completedCount),
+                        "totalCount": String(totalCount),
+                        "seconds": String(format: "%.2f", CACurrentMediaTime() - trackStart)
+                    ]
+                )
             }
         }
 
         let succeeded = completedCount - itemProgress.values.filter { $0.state == .failed || $0.state == .cancelled }.count
+        await flushPendingLibraryRefreshes()
         if Task.isCancelled || itemProgress.values.contains(where: { $0.state == .cancelled }) {
             lastMessage = "Download cancelled after \(succeeded) track\(succeeded == 1 ? "" : "s")"
         } else {
@@ -836,6 +1022,21 @@ final class RemoteDownloadManager: ObservableObject {
 
     private var experimentalBackgroundDownloadsEnabled: Bool {
         UserDefaults.standard.bool(forKey: Self.experimentalBackgroundDownloadsKey)
+    }
+
+    private nonisolated static func transportClass(for url: URL) -> String {
+        guard let host = url.host?.lowercased() else { return "unknown" }
+        if host.hasPrefix("100.") || host.hasSuffix(".ts.net") { return "tailscale" }
+        if host == "localhost" || host == "127.0.0.1" || host.hasPrefix("192.168.") || host.hasPrefix("10.") {
+            return "lan"
+        }
+        return "other"
+    }
+
+    private nonisolated static func parseDownloadedTrack(at url: URL) async -> Track? {
+        await Task.detached(priority: .utility) {
+            await MetadataReader().track(from: url)
+        }.value
     }
 
     private func startBackgroundDownload(
@@ -1129,7 +1330,12 @@ final class RemoteDownloadManager: ObservableObject {
                     data: artworkData
                 )
             }
-            await library.refreshDownloadedTrack(at: destination)
+            let parsedTrack = await Self.parseDownloadedTrack(at: destination)
+            await refreshLibraryAfterDownload(
+                at: destination,
+                parsedTrack: parsedTrack,
+                library: library
+            )
             if let artworkData, !embeddedArtwork {
                 library.applyArtworkToApp(for: track.id, data: artworkData)
             }
@@ -1308,54 +1514,40 @@ final class RemoteDownloadManager: ObservableObject {
             throw RemoteDownloadError.invalidURL
         }
 
-        let (bytes, response) = try await URLSession.shared.bytes(from: track.streamURL)
-        guard let http = response as? HTTPURLResponse else { throw RemoteDownloadError.invalidResponse }
-        guard (200..<300).contains(http.statusCode) else { throw RemoteDownloadError.httpStatus(http.statusCode) }
+        let directory = Self.destinationURL(for: track, in: root, extensionName: "part")
+            .deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        let extensionName = Self.fileExtension(for: response, fallback: track.streamURL.pathExtension)
-        let destination = Self.destinationURL(for: track, in: root, extensionName: extensionName)
-        let directory = destination.deletingLastPathComponent()
         let temporaryURL = directory.appendingPathComponent(".resonance-\(UUID().uuidString).part")
-        let expectedBytes = max(0, max(response.expectedContentLength, track.fileSizeBytes))
-        var completedBytes: Int64 = 0
+        let transfer = ForegroundDownloadSession(destination: temporaryURL, progress: progress)
+        let (downloadedURL, response) = try await transfer.download(from: track.streamURL)
 
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            FileManager.default.createFile(atPath: temporaryURL.path, contents: nil)
-            let handle = try FileHandle(forWritingTo: temporaryURL)
-            defer { try? handle.close() }
+            guard let http = response as? HTTPURLResponse else {
+                throw RemoteDownloadError.invalidResponse
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                throw RemoteDownloadError.httpStatus(http.statusCode)
+            }
 
-            var buffer = Data()
-            buffer.reserveCapacity(256 * 1024)
-            for try await byte in bytes {
-                try Task.checkCancellation()
-                buffer.append(byte)
-                if buffer.count >= 256 * 1024 {
-                    try handle.write(contentsOf: buffer)
-                    completedBytes += Int64(buffer.count)
-                    buffer.removeAll(keepingCapacity: true)
-                    progress(completedBytes, expectedBytes)
-                }
-            }
-            if !buffer.isEmpty {
-                try handle.write(contentsOf: buffer)
-                completedBytes += Int64(buffer.count)
-                progress(completedBytes, expectedBytes)
-            }
+            let extensionName = Self.fileExtension(for: response, fallback: track.streamURL.pathExtension)
+            let destination = Self.destinationURL(for: track, in: root, extensionName: extensionName)
+            let expectedBytes = max(0, max(response.expectedContentLength, track.fileSizeBytes))
+            let completedBytes = (try FileManager.default.attributesOfItem(atPath: downloadedURL.path)[.size] as? NSNumber)?.int64Value ?? 0
             guard completedBytes > 0 else { throw RemoteDownloadError.emptyResponse }
-            try handle.close()
+            progress(completedBytes, expectedBytes)
 
             if FileManager.default.fileExists(atPath: destination.path) {
                 guard replacingExisting else {
-                    try? FileManager.default.removeItem(at: temporaryURL)
+                    try? FileManager.default.removeItem(at: downloadedURL)
                     return DownloadResult(bytes: completedBytes, skipped: true, destination: destination)
                 }
                 try FileManager.default.removeItem(at: destination)
             }
-            try FileManager.default.moveItem(at: temporaryURL, to: destination)
+            try FileManager.default.moveItem(at: downloadedURL, to: destination)
             return DownloadResult(bytes: completedBytes, skipped: false, destination: destination)
         } catch {
-            try? FileManager.default.removeItem(at: temporaryURL)
+            try? FileManager.default.removeItem(at: downloadedURL)
             throw error
         }
     }

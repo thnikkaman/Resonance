@@ -41,6 +41,11 @@ library_view = (root / 'Resonance/Views/LibraryView.swift').read_text()
 album_detail = (root / 'Resonance/Views/AlbumDetailView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
 app_source = (root / 'Resonance/ResonanceApp.swift').read_text()
+projectm_view = (root / 'Resonance/Views/ProjectMFullscreenView.swift').read_text()
+projectm_bridge = (root / 'Resonance/Services/ResonanceProjectMBridge.mm').read_text()
+projectm_engine = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/ProjectM.cpp').read_text()
+projectm_preset = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/MilkdropPreset/MilkdropPreset.cpp').read_text()
+milkdrop_text = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/Renderer/MilkdropText.cpp').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
 views_contract = (root / 'Resonance/Views/AGENTS.md').read_text()
 services_contract = (root / 'Resonance/Services/AGENTS.md').read_text()
@@ -52,10 +57,10 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 268;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 280;') == 2
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 2.0;') == 2
+assert pbx.count('MARKETING_VERSION = 2.1;') == 2
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -692,6 +697,24 @@ assert 'Mark as Audiobook' in album_detail
 assert 'audiobookMenu(for: album)' in library_view
 assert 'audiobookMenu(for: album)' in streaming
 assert 'player.resumeAudiobookAlbum' in remote
+
+# Native MilkDrop title feedback and ProjectM render-performance contracts.
+assert 'ProjectMLyricsOverlay' not in projectm_view
+assert 'MilkDropLyricText' not in projectm_view
+assert 'resonance_projectm_prepare_lyric' in projectm_view
+assert 'Task.detached(priority: .userInitiated)' in projectm_view
+assert 'projectm.performance.window' in projectm_view
+assert 'glReadPixels' not in projectm_bridge.split(
+    'extern "C" void resonance_native_projectm_render', 1
+)[1].split('namespace {', 1)[0]
+assert 'primaryTexturePath == nextPrimary' in projectm_bridge
+assert 'm_milkdropText->Draw' in projectm_engine
+assert projectm_preset.index('ShouldBurnIntoFeedback') < projectm_preset.index('m_finalComposite.Draw')
+assert 'constexpr int Columns = 16;' in milkdrop_text
+assert 'constexpr int Rows = 8;' in milkdrop_text
+assert 'std::pow(rampedProgress, 1.8f) * 1.3f' in milkdrop_text
+assert 'GL_ONE_MINUS_SRC_COLOR' in milkdrop_text
+assert (root / 'Resonance/Resources/ProjectMD/MILKDROP2-TITLE-ANIMATION-LICENSE.txt').is_file()
 
 # Coordinate mapping should select the expected first, middle, and last rows.
 def mapped_index(y, top, row_height, count):

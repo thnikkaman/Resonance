@@ -125,6 +125,43 @@ oracle, and rollback point. Generated logs, diagnostics, screenshots, and build 
 
 ## Active feature work
 
+### R-PROJECTM-NATIVE-LYRICS — Port MilkDrop song-title feedback into ProjectM
+
+- Status: implemented, strictly built, signed, and installed in place in build 280; physical runtime acceptance pending.
+  Build 279's custom SwiftUI dissolve is rejected.
+- Goal: display the current timestamped LRCLIB line at the center using MilkDrop 2's original song-title mesh, then
+  inject the completed line into the preset feedback buffer so the active visualization manipulates it on later frames.
+- Owners: `LyricsService.swift` keeps LRCLIB/LRC data; `ProjectMFullscreenView.swift` forwards only the current lyric
+  identity and timing; `ResonanceProjectMBridge.mm` rasterizes text at line changes; vendored ProjectM owns the OpenGL
+  texture, original 16-by-8 mesh animation, and feedback injection stage.
+- Cross-boundary transition: a lightweight main-actor lyric feed transfers current line/timing to the GL coordinator;
+  a detached preparation task rasterizes only the changed line, and the current GL context uploads it and supplies
+  progress without making SwiftUI draw text.
+- Preserved invariants: audio routing and playback controls, preset catalog/order, shuffle/favorite/banish semantics,
+  fullscreen rotation, app-private ProjectMD assets, renderer teardown while inactive, and existing LRCLIB lookup/cache.
+- Named workload: `projectm-controls-lyrics-transitions`, one warmup and five repetitions of show controls, enable lyrics,
+  hide controls, and change preset while audio plays.
+- Behavior oracle: one centered current lyric line; no previous/next overlay; at the next timestamp the completed line is
+  visible in the ProjectM feedback and is subsequently warped by the preset; audio and preset advance remain correct.
+- Automated acceptance: Swift parse, focused native lyric/performance source contracts, strict simulator/device
+  preflight, signed Release build, signature verification, and in-place install passed. A clean strict simulator build
+  also passed with the generated ProjectM framework absent. The full regression script still reaches an unrelated,
+  pre-existing stale Streaming alphabet assertion; no ProjectM contract failed.
+- Manual acceptance: user runs the named workload on SaiyanDenawa and confirms the feedback behavior, no control/lyric
+  hitch, smooth transitions, orientation, audio response, and acceptable temperature. Physical runtime is not inferred
+  from build/install evidence.
+- Rollback: restore build 279 sources or reinstall its signed artifact without uninstalling.
+
+### R-PROJECTM-STALLS — Remove measured renderer contention without reducing preset behavior
+
+- Status: build-280 implementation complete; evidence round 01 physical after-sample pending.
+- Owner: ProjectM GL coordinator, native bridge, and vendored ProjectM integration only.
+- Applied levers: ignore unchanged texture search paths; remove synchronous native-render GL state/pixel probes;
+  stop transition-driven drawable-scale oscillation; move lyric glyph rasterization outside the GL display callback.
+- Performance oracle: equivalent workload and preset sequence, fewer long frame intervals and render-target resizes,
+  unchanged 60 FPS target, unchanged 0.75 drawable scale, and no black/slanted/partial transition regression.
+- Rollback: revert each isolated lever independently.
+
 ### R-AUDIOBOOK-RESUME — Persist audiobook flags, resume positions, and speed controls
 
 - Status: implemented, validated, and installed in place in Beta 2.0; physical runtime acceptance remains user-run.

@@ -1,6 +1,23 @@
-# Resonance Beta v2.0 — Audiobook Playback and Multi-Disc Metadata Safety
+# Resonance Beta v2.1 — ProjectM Fullscreen and Lyrics Foundation
 
-## Current beta — 2.0 (build 268)
+## Current beta — 2.1 (build 280)
+
+Build 280 replaces the rejected SwiftUI lyric dissolve with a native adaptation of MilkDrop 2's song-title renderer.
+The current timestamped lyric is drawn as the original 16 by 8 animated title mesh; when its display interval ends,
+the completed text is injected into ProjectM's feedback surface so later preset warp and composite stages manipulate it.
+Only the current line is shown. Text preparation runs away from the OpenGL frame, while the GL context owns the final
+texture upload and feedback injection.
+
+The ProjectM frame path no longer resets texture search paths for every preset, performs synchronous diagnostic pixel
+readback, or changes drawable scale in response to short transition FPS dips. Build 280 keeps a fixed 60 FPS target and
+75 percent drawable scale and records bounded two-second render and frame-gap summaries for device diagnosis.
+
+Strict Swift 6 simulator and generic-device preflight, signed arm64 Release compilation, deep signature verification,
+and in-place installation on SaiyanDenawa passed. A clean strict simulator build also passed with the generated ProjectM
+framework removed, proving the checked-in vendored source and build script are sufficient. `devicectl` verified
+Resonance `2.1` / build `280`; Codex did not launch the physical app. Physical lyric, transition, thermal, and timing
+acceptance remain user-run. The full regression script still reaches a pre-existing stale Streaming alphabet assertion;
+the focused build-280 ProjectM contracts pass.
 
 The current beta is the verified current source snapshot. It includes the layered navigation and animations,
 themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local

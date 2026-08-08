@@ -69,6 +69,13 @@ struct ResonanceApp: App {
 final class ResonanceAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        ResonanceOrientationCoordinator.shared.supportedOrientations
+    }
+
+    func application(
+        _ application: UIApplication,
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {

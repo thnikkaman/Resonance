@@ -1,0 +1,38 @@
+[
+  {
+    "candidate": "Ignore unchanged ProjectM texture search paths",
+    "confidence": 0.95,
+    "effort": 0.1,
+    "evidence": "ProjectM documents that SetTexturePaths clears the texture manager; Resonance called it for every preset",
+    "impact": 0.7,
+    "risk": 0.1,
+    "validation": "Focused source contract plus preset and texture manual transition workload"
+  },
+  {
+    "candidate": "Remove synchronous GL probes and pixel readback from production frames",
+    "confidence": 1.0,
+    "effort": 0.2,
+    "evidence": "Native render entry point called glGetError/glGetIntegerv/glCheckFramebufferStatus each frame and glReadPixels on errors",
+    "impact": 0.9,
+    "risk": 0.2,
+    "validation": "Focused source contract and aggregate frame-gap diagnostics"
+  },
+  {
+    "candidate": "Keep drawable scale fixed through short transition FPS dips",
+    "confidence": 1.0,
+    "effort": 0.2,
+    "evidence": "Build-279 diagnostics repeatedly alternated drawable dimensions between 1966x904 and 1756x808",
+    "impact": 0.85,
+    "risk": 0.25,
+    "validation": "Equivalent preset-transition workload and projectm.native.window_size count"
+  },
+  {
+    "candidate": "Prepare changed lyric textures outside the OpenGL display callback",
+    "confidence": 0.9,
+    "effort": 0.4,
+    "evidence": "UIKit/Core Graphics lyric rasterization was synchronous inside the frame callback",
+    "impact": 0.75,
+    "risk": 0.3,
+    "validation": "Strict concurrency build, generation-guard contract, and controls/lyrics transition workload"
+  }
+]

@@ -2,6 +2,7 @@
 DerivedData/
 build/
 build-*/
+Resonance/ThirdParty/ProjectM/ProjectM-4.1.7.xcframework/
 *.xcuserstate
 xcuserdata/
 

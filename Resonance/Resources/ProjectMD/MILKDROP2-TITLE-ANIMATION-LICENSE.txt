@@ -1,0 +1,24 @@
+MilkDrop 2 song-title animation compatibility renderer
+
+Copyright 2005-2013 Nullsoft, Inc.
+Copyright 2026 Resonance contributors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of Nullsoft nor the names of its contributors may be used
+   to endorse or promote products derived from this software without specific
+   prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED.
+
+The Resonance implementation adapts the 16 by 8 song-title mesh, progress
+curves, two-pass blending, and feedback-surface burn behavior from MilkDrop
+2.25c's milkdropfs.cpp. Platform-specific OpenGL ES coordinates, texture
+upload, and text rasterization replace the original Direct3D 9 and D3DX code.

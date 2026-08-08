@@ -378,32 +378,59 @@ final class LibraryStore: ObservableObject {
         await scanDocuments(forceMetadataRefresh: forceMetadataRefresh)
     }
 
-    func refreshDownloadedTrack(at url: URL) async {
-        guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else { return }
-        // Download finalization already knows the destination inside the app's
-        // Documents folder. Resolving symlinks here performs synchronous file
-        // system work on the main actor and can trip the iOS watchdog while a
-        // large background batch is completing.
-        let path = normalizedDownloadPath(url)
-        guard let parsed = await reader.track(from: url) else { return }
-        let existingIndex = tracks.firstIndex { track in
-            guard let fileURL = track.fileURL else { return false }
-            return normalizedDownloadPath(fileURL) == path
-        }
-        let existing = existingIndex.map { tracks[$0] }
-        let refreshed = applyMetadataOverride(preservingIdentity(of: parsed, existing: existing))
+    func refreshDownloadedTrack(at url: URL, parsedTrack: Track? = nil) async {
+        await refreshDownloadedTracks([(url: url, parsedTrack: parsedTrack)])
+    }
 
-        if let existingIndex {
-            tracks[existingIndex] = refreshed
-        } else {
-            tracks.append(refreshed)
-            sharedFolderTrackCount += 1
+    /// Applies several completed downloads as one visible library update. A
+    /// large download batch must not publish a SwiftUI/database/display
+    /// snapshot mutation for every file; that turns a network transfer into a
+    /// sustained main-actor workload even when the visualizer is closed.
+    func refreshDownloadedTracks(
+        _ refreshes: [(url: URL, parsedTrack: Track?)]
+    ) async {
+        guard !refreshes.isEmpty else { return }
+        var refreshedCount = 0
+        var addedCount = 0
+        var updatedTracks = tracks
+        for refresh in refreshes {
+            let url = refresh.url
+            guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else { continue }
+            // Download finalization already knows the destination inside the
+            // app's Documents folder. Resolving symlinks here performs
+            // synchronous file system work on the main actor and can trip the
+            // iOS watchdog while a large background batch is completing.
+            let path = normalizedDownloadPath(url)
+            let parsed: Track?
+            if let parsedTrack = refresh.parsedTrack {
+                parsed = parsedTrack
+            } else {
+                parsed = await reader.track(from: url)
+            }
+            guard let parsed else { continue }
+            let existingIndex = updatedTracks.firstIndex { track in
+                guard let fileURL = track.fileURL else { return false }
+                return normalizedDownloadPath(fileURL) == path
+            }
+            let existing = existingIndex.map { updatedTracks[$0] }
+            let refreshed = applyMetadataOverride(preservingIdentity(of: parsed, existing: existing))
+
+            if let existingIndex {
+                updatedTracks[existingIndex] = refreshed
+            } else {
+                updatedTracks.append(refreshed)
+                addedCount += 1
+            }
+            ignoredLocalPaths.remove(path)
+            knownModificationDates[path] = modificationDate(for: url)
+            await database.upsert(refreshed)
+            refreshedCount += 1
         }
-        ignoredLocalPaths.remove(path)
+        guard refreshedCount > 0 else { return }
+        tracks = updatedTracks
+        sharedFolderTrackCount += addedCount
         persistIgnoredLocalPaths()
-        knownModificationDates[path] = modificationDate(for: url)
         cleanPersistedCollections()
-        await database.upsert(refreshed)
         persistDisplaySnapshot()
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
