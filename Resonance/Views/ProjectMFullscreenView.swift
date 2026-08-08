@@ -12,6 +12,7 @@ struct ProjectMFullscreenView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var presets: [ResonanceProjectMPreset] = []
   @State private var selectedID = ""
+  @State private var isLoadingPresets = true
   @State private var controlsVisible = false
   @State private var lyricsEnabled = false
   @AppStorage("resonance.projectmd.favoritePresetIDs") private var favoriteIDsRaw = ""
@@ -58,8 +59,12 @@ struct ProjectMFullscreenView: View {
                 movePreset(by: horizontal < 0 ? 1 : -1)
               }
           )
+      } else if isLoadingPresets {
+        ProgressView("Loading visualizations…")
+          .tint(.white)
+          .foregroundStyle(.white)
       } else {
-        Text("No visualizations available")
+        Text("No visualizations found in ProjectMD")
           .foregroundStyle(.white)
       }
 
@@ -99,11 +104,16 @@ struct ProjectMFullscreenView: View {
     .interactiveDismissDisabled()
     .task {
       guard presets.isEmpty else { return }
+      let presetRoot = Bundle.main.resourceURL?.appendingPathComponent(
+        "ProjectMD/CreamOfTheCrop",
+        isDirectory: true
+      )
       let loaded = await Task.detached(priority: .utility) {
-        Self.loadPresets()
+        Self.loadPresets(from: presetRoot)
       }.value
       presets = loaded.filter { !banishedIDs.contains($0.id) }
       selectedID = presets.first?.id ?? ""
+      isLoadingPresets = false
     }
   }
 
@@ -156,9 +166,7 @@ struct ProjectMFullscreenView: View {
     selectedID = availablePresets[nextIndex].id
   }
 
-  nonisolated private static func loadPresets() -> [ResonanceProjectMPreset] {
-    let root = Bundle.main.url(forResource: "CreamOfTheCrop", withExtension: nil, subdirectory: "ProjectMD")
-      ?? Bundle.main.resourceURL?.appendingPathComponent("ProjectMD/CreamOfTheCrop", isDirectory: true)
+  nonisolated private static func loadPresets(from root: URL?) -> [ResonanceProjectMPreset] {
     guard let root, FileManager.default.fileExists(atPath: root.path) else { return [] }
     let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
     let urls = FileManager.default.enumerator(
@@ -205,7 +213,10 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
       guard loadedPresetID != preset.id else { return }
       let smooth = !loadedPresetID.isEmpty
       loadedPresetID = preset.id
-      let textureRoot = Bundle.main.url(forResource: "MilkDrop3Test", withExtension: nil, subdirectory: "ProjectMD")
+      let textureRoot = Bundle.main.resourceURL?.appendingPathComponent(
+        "ProjectMD/MilkDrop3Test",
+        isDirectory: true
+      )
       bridge?.setTextureSearchPaths([preset.url.deletingLastPathComponent().path, textureRoot?.path].compactMap { $0 })
       bridge?.loadPreset(atPath: preset.url.path, smooth: smooth)
     }
