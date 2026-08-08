@@ -2538,8 +2538,9 @@ through `AppStorage`.
 
 The native bridge now renders into the active GLKView framebuffer using projectM’s FBO entry point. It caps the
 projectM internal texture dimension at 1024 while preserving aspect ratio and sets the projectM mesh to 24×24. The
-full CreamOfTheCrop and MilkDrop3Test resources are bundled with the app, and audio PCM continues to come from the
-existing playback tap without changing playback ownership.
+full CreamOfTheCrop and MilkDrop3Test resources are bundled under the app-private `ProjectMD/` resource directory;
+the visualizer explicitly searches `ProjectMD/CreamOfTheCrop` and `ProjectMD/MilkDrop3Test`. Audio PCM continues to
+come from the existing playback tap without changing playback ownership.
 
 Automated validation: `Tools/PreflightBuild.sh`, signed arm64 Release compilation, deep strict code-signature
 verification, and in-place `devicectl` installation passed. The installed app is `com.briangarcia.Resonance.saiyandenwa`,

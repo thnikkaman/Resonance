@@ -274,6 +274,10 @@ reveals the fullscreen controls, double tap dismisses, horizontal swipes change 
 persists an exclusion. The bridge uses a 1024-pixel maximum internal texture dimension, preserves aspect ratio, and
 sets the projectM mesh to 24×24.
 
+The bundled visualizer resources are namespaced under the app bundle's `ProjectMD/` directory. The preset loader uses
+`Bundle.main` with subdirectory `ProjectMD` and the texture search path is likewise `ProjectMD/MilkDrop3Test`; no
+top-level preset directories are emitted.
+
 The existing regression script still stops at its known stale artwork assertion; `Tools/PreflightBuild.sh` passed after
 the actor-isolation repair and the bridge changes.
 

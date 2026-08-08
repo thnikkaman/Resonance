@@ -37,8 +37,7 @@
 		A0B000000000000000000001 /* ResonanceProjectMBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000002 /* ResonanceProjectMBridge.mm */; };
 		A0B000000000000000000003 /* ProjectMFullscreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000004 /* ProjectMFullscreenView.swift */; };
 		A0B000000000000000000005 /* ProjectM.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000006 /* ProjectM.xcframework */; };
-		A0B000000000000000000008 /* CreamOfTheCrop in Resources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000009 /* CreamOfTheCrop */; };
-		A0B00000000000000000000A /* MilkDrop3Test in Resources */ = {isa = PBXBuildFile; fileRef = A0B00000000000000000000B /* MilkDrop3Test */; };
+		A0B000000000000000000008 /* ProjectMD in Resources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000009 /* ProjectMD */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -75,8 +74,7 @@
 		A0B000000000000000000002 /* ResonanceProjectMBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ResonanceProjectMBridge.mm; sourceTree = "<group>"; };
 		A0B000000000000000000004 /* ProjectMFullscreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectMFullscreenView.swift; sourceTree = "<group>"; };
 		A0B000000000000000000006 /* ProjectM.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = ProjectM.xcframework; path = Resonance/ThirdParty/ProjectM/ProjectM.xcframework; sourceTree = "<group>"; };
-		A0B000000000000000000009 /* CreamOfTheCrop */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resonance/Resources/Presets/CreamOfTheCrop; sourceTree = "<group>"; };
-		A0B00000000000000000000B /* MilkDrop3Test */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resonance/Resources/Presets/MilkDrop3Test; sourceTree = "<group>"; };
+		A0B000000000000000000009 /* ProjectMD */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resonance/Resources/ProjectMD; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,7 +82,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		8D3FC6DB5D0827F168A73277 = {isa = PBXGroup; children = (CCDE4F9B3797631162024FE8 /* Resonance */, 86024CAD1E83101D97359D73 /* Products */, 786D348E95448121DC5B7387 /* libsqlite3.tbd */, A0B000000000000000000007 /* ProjectM */, A0B000000000000000000009 /* CreamOfTheCrop */, A0B00000000000000000000B /* MilkDrop3Test */,); sourceTree = "<group>"; };
+		8D3FC6DB5D0827F168A73277 = {isa = PBXGroup; children = (CCDE4F9B3797631162024FE8 /* Resonance */, 86024CAD1E83101D97359D73 /* Products */, 786D348E95448121DC5B7387 /* libsqlite3.tbd */, A0B000000000000000000007 /* ProjectM */, A0B000000000000000000009 /* ProjectMD */,); sourceTree = "<group>"; };
 		86024CAD1E83101D97359D73 /* Products */ = {isa = PBXGroup; children = (F5BF48AA40CAD7891EB709FC /* Resonance.app */,); name = Products; sourceTree = "<group>"; };
 		CCDE4F9B3797631162024FE8 /* Resonance */ = {isa = PBXGroup; children = (EA9D768859FEE075157283B8, F279894B2C0244AB14D9678A, 3091E55AA65C983704253602, D792C0B955B165029150ADCE, 715886BEA1C4326035BF2AB5, 7B4730292C2435CE042E7270,); path = Resonance; sourceTree = "<group>"; };
 		F279894B2C0244AB14D9678A /* Models */ = {isa = PBXGroup; children = (897E8C95CE1F18D93B3AA44D,); path = Models; sourceTree = "<group>"; };
@@ -102,7 +100,7 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		55B558C7EF820E6E00E5993B = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (575B533E50870490BCF1CADB /* Assets.xcassets in Resources */, A0B000000000000000000008 /* CreamOfTheCrop in Resources */, A0B00000000000000000000A /* MilkDrop3Test in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		55B558C7EF820E6E00E5993B = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (575B533E50870490BCF1CADB /* Assets.xcassets in Resources */, A0B000000000000000000008 /* ProjectMD in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */

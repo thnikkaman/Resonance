@@ -157,15 +157,16 @@ struct ProjectMFullscreenView: View {
   }
 
   nonisolated private static func loadPresets() -> [ResonanceProjectMPreset] {
-    guard let root = Bundle.main.url(forResource: "CreamOfTheCrop", withExtension: nil) else { return [] }
+    let root = Bundle.main.url(forResource: "CreamOfTheCrop", withExtension: nil, subdirectory: "ProjectMD")
+      ?? Bundle.main.resourceURL?.appendingPathComponent("ProjectMD/CreamOfTheCrop", isDirectory: true)
+    guard let root, FileManager.default.fileExists(atPath: root.path) else { return [] }
     let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
     let urls = FileManager.default.enumerator(
       at: root,
-      includingPropertiesForKeys: [.isRegularFileKey],
-      options: [.skipsHiddenFiles, .skipsPackageDescendants]
+      includingPropertiesForKeys: nil,
+      options: [.skipsHiddenFiles]
     )?.compactMap { $0 as? URL }.filter { url in
-      url.pathExtension.lowercased() == "milk"
-        && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+      url.pathExtension.caseInsensitiveCompare("milk") == .orderedSame
     }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending } ?? []
 
     return urls.map { url in
@@ -204,7 +205,7 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
       guard loadedPresetID != preset.id else { return }
       let smooth = !loadedPresetID.isEmpty
       loadedPresetID = preset.id
-      let textureRoot = Bundle.main.url(forResource: "MilkDrop3Test", withExtension: nil)
+      let textureRoot = Bundle.main.url(forResource: "MilkDrop3Test", withExtension: nil, subdirectory: "ProjectMD")
       bridge?.setTextureSearchPaths([preset.url.deletingLastPathComponent().path, textureRoot?.path].compactMap { $0 })
       bridge?.loadPreset(atPath: preset.url.path, smooth: smooth)
     }
