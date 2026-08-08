@@ -24,8 +24,6 @@ namespace {
 std::mutex gAudioMutex;
 std::vector<float> gPendingPCM;
 NSUInteger gPendingChannels = 2;
-constexpr size_t kProjectMMeshWidth = 24;
-constexpr size_t kProjectMMeshHeight = 24;
 
 // projectM's default resolver targets desktop GL loader libraries. iOS keeps
 // the OpenGL ES entry points in the OpenGLES framework, so resolve them from
@@ -61,7 +59,6 @@ void projectMPresetFailed(const char *filename, const char *message, void *) {
             projectm_set_fps(_instance, 60);
             projectm_set_preset_duration(_instance, 15.0);
             projectm_set_soft_cut_duration(_instance, 1.0);
-            projectm_set_mesh_size(_instance, kProjectMMeshWidth, kProjectMMeshHeight);
             [self resizeToWidth:view.drawableWidth height:view.drawableHeight];
         }
     }
