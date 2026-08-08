@@ -382,3 +382,14 @@ automated gates, and manual acceptance status are documented. Credentials, priva
   in-place install on Sarah's paired phone. A Chase-specific artifact was manually signed with the valid Chase
   profile; CoreDevice reported Chase's phone unavailable during its install attempt. Do not launch automatically.
 - Rollback: revert the single asset commit.
+
+### R-RESONANCE-PROJECTMD-FULLSCREEN — Replace broken projectM proof of concept
+
+- Status: implemented and installed; physical runtime acceptance remains user-run.
+- Goal: replace the black, diagnostics-only projectM proof of concept with the ProjectMD fullscreen visualization module. Tapping the current Playing-page album artwork opens fullscreen visualizations with ProjectMD’s single-tap controls, double-tap exit, swipe navigation, weighted favorites, persistent banish exclusions, and one-second transitions. The regular ProjectMD options/diagnostics shell is not imported.
+- Owners: `PlayerViews.swift` owns the album-art entry point and fullscreen presentation; new Resonance visualization view owns transient fullscreen gestures and controls; `ResonanceProjectMBridge.mm` owns the GL framebuffer/render/audio boundary; bundled preset resources own catalog discovery; `PlayerController`/`GaplessAudioEngine` remain playback owners.
+- Preserved invariants: playback, queue, Now Playing hierarchy, orientation policy, local/remote audio routing, credentials, and app data remain unchanged; visualization PCM input is a non-blocking projection of the existing audio tap.
+- Baseline: the old idle-preset proof of concept rendered black and reported `GL_INVALID_FRAMEBUFFER_OPERATION`; the replacement now renders to the active GLKView framebuffer through projectM’s FBO API. The renderer uses a 1024-pixel maximum dimension and a 24×24 projectM mesh.
+- Validation: Swift 6 strict simulator and generic-device preflight, signed arm64 Release build, deep code-signature verification, and in-place installation on `SaiyanDenawa` passed for version `2.0`/build `268`. The phone app was not launched automatically.
+- Acceptance oracle: album-art tap opens a visible fullscreen visualization; single tap toggles controls, double tap dismisses, swipes transition, Lyrics toggles its placeholder state, Favorite persists, Banish persists and excludes a preset, and playback continues. Physical runtime acceptance remains user-run.
+- Rollback: revert the focused ProjectMD bridge/view/resource/project-file changes and restore the prior proof-of-concept entry point.

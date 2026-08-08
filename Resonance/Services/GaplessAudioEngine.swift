@@ -615,6 +615,7 @@ final class GaplessAudioEngine: @unchecked Sendable {
       let channelCount = max(1, Int(buffer.format.channelCount))
       let bufferCount = buffer.format.isInterleaved ? 1 : channelCount
       let samplesPerBuffer = buffer.format.isInterleaved ? frameCount * channelCount : frameCount
+      ResonanceProjectMBridge.submitPCM(channels[0], count: UInt(frameCount), channels: 1)
       var sumSquares: Float = 0
       for channel in 0..<bufferCount {
         let samples = channels[channel]

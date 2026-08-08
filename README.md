@@ -2527,3 +2527,24 @@ describes the style as having no button chrome.
 
 The updated Debug simulator build 2.0/268 was installed on the configured iPhone 17 Pro simulator. The physical phone
 was not updated or launched.
+
+## ProjectMD fullscreen visualizations — physical build 268 — 2026-08-07
+
+The broken Settings proof-of-concept has been replaced by the ProjectMD fullscreen module. The regular ProjectMD
+options and diagnostics shell are not imported. Tapping album artwork on the Playing page presents the fullscreen
+visualizer; a single tap reveals or hides the Lyrics, Favorite, and Banish controls, a double tap returns to Playing,
+and horizontal swipes move through the bundled CreamOfTheCrop preset catalog. Favorites and banished presets persist
+through `AppStorage`.
+
+The native bridge now renders into the active GLKView framebuffer using projectM’s FBO entry point. It caps the
+projectM internal texture dimension at 1024 while preserving aspect ratio and sets the projectM mesh to 24×24. The
+full CreamOfTheCrop and MilkDrop3Test resources are bundled with the app, and audio PCM continues to come from the
+existing playback tap without changing playback ownership.
+
+Automated validation: `Tools/PreflightBuild.sh`, signed arm64 Release compilation, deep strict code-signature
+verification, and in-place `devicectl` installation passed. The installed app is `com.briangarcia.Resonance.saiyandenwa`,
+version `2.0`, build `268`; the previous app container was not uninstalled. The physical app was not launched.
+
+Manual test: launch Resonance on SaiyanDenawa, start playback, tap Playing-page album art, verify the visualizer is
+visible, tap once for controls, swipe left/right to change presets, favorite and banish a preset, and double-tap to
+return. Confirm playback continues and that a banished preset remains excluded after relaunch.

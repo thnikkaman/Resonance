@@ -9,6 +9,7 @@ struct NowPlayingView: View {
   @State private var showingQueue = false
   @State private var showingBookmarks = false
   @State private var showingPlaylistPicker = false
+  @State private var showingProjectMFullscreen = false
   let openLibrary: () -> Void
   let onHorizontalTabSwipeChanged: (CGFloat, CGFloat) -> Void
   let onHorizontalTabSwipeEnded: (CGFloat, CGFloat) -> Void
@@ -39,7 +40,9 @@ struct NowPlayingView: View {
   var body: some View {
     VStack(spacing: 18) {
       VStack(spacing: 14) {
-        NowPlayingArtworkPager()
+        NowPlayingArtworkPager {
+          showingProjectMFullscreen = true
+        }
 
         // This is the only tab-navigation hit-test region on Playing. Its
         // clear insets cover the gap around the metadata while leaving the
@@ -356,6 +359,9 @@ struct NowPlayingView: View {
           .presentationDetents([.medium, .large])
       }
     }
+    .fullScreenCover(isPresented: $showingProjectMFullscreen) {
+        ProjectMFullscreenView()
+    }
   }
 
   private func openCurrentAlbum() {
@@ -472,6 +478,11 @@ private struct NowPlayingArtworkPager: View {
   @State private var dragOffset: CGFloat = 0
   @State private var isCompletingTransition = false
   @State private var transitionToken = UUID()
+  let onTapArtwork: () -> Void
+
+  init(onTapArtwork: @escaping () -> Void = {}) {
+    self.onTapArtwork = onTapArtwork
+  }
 
   private var currentTrack: Track? {
     guard player.queue.indices.contains(player.currentQueueIndex) else { return player.currentTrack }
@@ -498,7 +509,7 @@ private struct NowPlayingArtworkPager: View {
       ZStack(alignment: .leading) {
         HStack(spacing: 0) {
           artworkPage(previousTrack, pageWidth: pageWidth)
-          artworkPage(currentTrack, pageWidth: pageWidth)
+          artworkPage(currentTrack, pageWidth: pageWidth, isCurrent: true)
           artworkPage(nextTrack, pageWidth: pageWidth)
         }
         .frame(width: pageWidth * 3, alignment: .leading)
@@ -540,7 +551,7 @@ private struct NowPlayingArtworkPager: View {
   }
 
   @ViewBuilder
-  private func artworkPage(_ track: Track?, pageWidth: CGFloat) -> some View {
+  private func artworkPage(_ track: Track?, pageWidth: CGFloat, isCurrent: Bool = false) -> some View {
     HStack {
       Spacer(minLength: 0)
       CachedPagerArtwork(
@@ -552,6 +563,11 @@ private struct NowPlayingArtworkPager: View {
       Spacer(minLength: 0)
     }
     .frame(width: pageWidth, height: 260)
+    .simultaneousGesture(
+      TapGesture().onEnded {
+        if isCurrent { onTapArtwork() }
+      }
+    )
   }
 
   private func completeTransition(toOffset: CGFloat, action: @escaping () -> Void) {

@@ -154,6 +154,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 
                 ThemePreview()
+
             }
 
             SettingsCategory(

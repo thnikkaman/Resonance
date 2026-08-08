@@ -264,3 +264,30 @@ Screenshot review identified four additional shared underline implementations: h
 hero menu labels, and text buttons. All Minimal Transparent underline capsules are now removed; the style description
 now says “no button chrome.” Simulator Debug build and in-place installation passed on the iPhone 17 Pro simulator.
 The physical phone was not updated or launched.
+
+## ProjectMD fullscreen replacement and physical push — 2026-08-07
+
+The broken projectM proof of concept was replaced by `ProjectMFullscreenView.swift` and the native
+`ResonanceProjectMBridge` FBO path. Playing-page album art now opens fullscreen visualizations from the bundled
+ProjectMD CreamOfTheCrop catalog. The regular ProjectMD options and diagnostics shell is not imported. Single tap
+reveals the fullscreen controls, double tap dismisses, horizontal swipes change presets, Favorite persists, and Banish
+persists an exclusion. The bridge uses a 1024-pixel maximum internal texture dimension, preserves aspect ratio, and
+sets the projectM mesh to 24×24.
+
+The existing regression script still stops at its known stale artwork assertion; `Tools/PreflightBuild.sh` passed after
+the actor-isolation repair and the bridge changes.
+
+The original `com.example.ResonancePrototype` profile was expired and could not be renewed for team `98CWMFS26R`, so
+the project Debug and Release bundle identity was changed to the unique `com.briangarcia.Resonance.saiyandenwa`.
+Automatic signing generated a new team profile. Signed arm64 Release compilation and deep strict code-signature
+verification passed. The app was installed on `SaiyanDenawa` as version `2.0`, build `268`, without uninstalling or
+launching. This is a separate app/data container; the existing `com.example.ResonancePrototype` installation remains
+untouched.
+
+Signed arm64 Release compilation, deep strict code-signature verification, and in-place installation passed on
+`SaiyanDenawa`. The installed bundle is `com.briangarcia.Resonance.saiyandenwa`, version `2.0`, build `268`; the old
+container remains installed and untouched. The app was not launched automatically.
+
+Manual continuation: launch the new Resonance app manually and verify visible rendering, fullscreen controls, swipe
+transitions, favorite/banish persistence, return-to-Playing behavior, playback continuity, and the old app container's
+data isolation.
