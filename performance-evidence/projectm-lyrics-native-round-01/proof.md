@@ -8,7 +8,7 @@ transition-driven drawable reallocations, and UIKit lyric rasterization inside t
 
 ## Workload
 - manifest: `performance-evidence/projectm-lyrics-native-round-01/manifest.json`
-- repository/ref/commit: `thnikkaman/Resonance`, `agent/alpha-3.7.4-source`, build-280 publication commit pending
+- repository/ref/commit: `thnikkaman/Resonance`, `agent/alpha-3.7.4-source`, implementation commit `348a5d6`
 - repetitions: one warmup plus five equivalent interaction sequences
 
 ## Performance evidence

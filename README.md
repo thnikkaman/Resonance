@@ -67,18 +67,17 @@ installations; existing users' saved preference is preserved.
 Electronic now uses a minimal dark circuit-board background with sparse fluorescent cyan, blue, and magenta traces.
 The prior dials and dense hardware details were removed.
 
-## Verified source and release artifact identity — 2026-07-31
+## Verified source and release artifact identity — 2026-08-08
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; the release source is the `Resonance-Beta-v2.0-build268` publication tag recorded below. The project’s
-default Xcode settings are version `2.0`, build `268`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; build 280's implementation commit is `348a5d6`. The project’s default Xcode settings are
+version `2.1`, build `280`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Release source build: `2.0` (build `268`)
+Current source build: `2.1` (build `280`)
 
-Latest device validation build: `2.0` (build `268`). The build was installed in place on Sarah’s iPhone and Chase’s
-iPhone; Codex did not launch either physical app. A matching Debug build was installed on the iPhone 17 Pro simulator
-for visual inspection.
+Latest SaiyanDenawa installation: `2.1` (build `280`). The signed arm64 Release app passed deep strict signature
+verification, installed in place, and was verified by `devicectl`; Codex did not launch the physical app.
 
 ## Resonance Beta v2.0 build 268 — 2026-07-31 UTC
 

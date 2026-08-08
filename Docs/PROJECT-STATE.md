@@ -39,8 +39,9 @@ Last verified: 2026-08-08
 - Repository: `thnikkaman/Resonance`
 - Branch: `agent/alpha-3.7.4-source`
 - Checkout: `/Users/brian/Resonance/Resonance-Alpha-3.7.4`
-- Release commit: pending build-280 source publication commit.
-- GitHub tag/release: `Resonance-Beta-v2.0-build268` public prerelease publication.
+- Build-280 implementation commit: `348a5d6` (`Integrate ProjectMD renderer and native MilkDrop lyrics`).
+- GitHub tag/release: `Resonance-Beta-v2.0-build268` remains the latest packaged public prerelease; build 280 is
+  published as source on `agent/alpha-3.7.4-source` rather than as a new packaged release.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
 - Project defaults: version `2.1`, build `280`, Swift language mode `5.0`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
