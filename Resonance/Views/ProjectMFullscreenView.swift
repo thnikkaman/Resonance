@@ -213,11 +213,22 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable {
       guard loadedPresetID != preset.id else { return }
       let smooth = !loadedPresetID.isEmpty
       loadedPresetID = preset.id
-      let textureRoot = Bundle.main.resourceURL?.appendingPathComponent(
-        "ProjectMD/MilkDrop3Test",
+      let projectMRoot = Bundle.main.resourceURL?.appendingPathComponent(
+        "ProjectMD",
         isDirectory: true
       )
-      bridge?.setTextureSearchPaths([preset.url.deletingLastPathComponent().path, textureRoot?.path].compactMap { $0 })
+      let textureRoot = projectMRoot?.appendingPathComponent(
+        "MilkDrop3Test",
+        isDirectory: true
+      )
+      let bundledTextureRoot = projectMRoot?.appendingPathComponent("MilkDrop3Test/textures", isDirectory: true)
+      let bundledSpritesRoot = projectMRoot?.appendingPathComponent("MilkDrop3Test/sprites", isDirectory: true)
+      bridge?.setTextureSearchPaths([
+        preset.url.deletingLastPathComponent().path,
+        bundledTextureRoot?.path,
+        bundledSpritesRoot?.path,
+        textureRoot?.path
+      ].compactMap { $0 })
       bridge?.loadPreset(atPath: preset.url.path, smooth: smooth)
     }
 

@@ -2537,7 +2537,7 @@ and horizontal swipes move through the bundled CreamOfTheCrop preset catalog. Fa
 through `AppStorage`.
 
 The native bridge now renders into the active GLKView framebuffer using projectM’s FBO entry point. It caps the
-projectM internal texture dimension at 1024 while preserving aspect ratio and sets the projectM mesh to 24×24. The
+projectM uses the actual drawable size while the framebuffer path is stabilized and sets the projectM mesh to 24×24. The
 full CreamOfTheCrop and MilkDrop3Test resources are bundled under the app-private `ProjectMD/` resource directory;
 the visualizer explicitly searches `ProjectMD/CreamOfTheCrop` and `ProjectMD/MilkDrop3Test`. Audio PCM continues to
 come from the existing playback tap without changing playback ownership.

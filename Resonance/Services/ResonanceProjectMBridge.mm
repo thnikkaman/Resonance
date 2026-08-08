@@ -1,7 +1,6 @@
 #import "ResonanceProjectMBridge.h"
 
 #include <algorithm>
-#include <cmath>
 #include <dlfcn.h>
 #include <mutex>
 #include <string>
@@ -27,7 +26,6 @@ std::vector<float> gPendingPCM;
 NSUInteger gPendingChannels = 2;
 constexpr size_t kProjectMMeshWidth = 24;
 constexpr size_t kProjectMMeshHeight = 24;
-constexpr size_t kProjectMMaximumTextureDimension = 1024;
 
 // projectM's default resolver targets desktop GL loader libraries. iOS keeps
 // the OpenGL ES entry points in the OpenGLES framework, so resolve them from
@@ -149,20 +147,7 @@ void projectMPresetFailed(const char *filename, const char *message, void *) {
 
 - (void)resizeToWidth:(NSUInteger)width height:(NSUInteger)height {
     if (_instance != nullptr && width > 0 && height > 0) {
-        const double scale = std::min(
-            1.0,
-            static_cast<double>(kProjectMMaximumTextureDimension) /
-                static_cast<double>(std::max(width, height))
-        );
-        const size_t renderWidth = std::max<size_t>(
-            1,
-            static_cast<size_t>(std::lround(static_cast<double>(width) * scale))
-        );
-        const size_t renderHeight = std::max<size_t>(
-            1,
-            static_cast<size_t>(std::lround(static_cast<double>(height) * scale))
-        );
-        projectm_set_window_size(_instance, renderWidth, renderHeight);
+        projectm_set_window_size(_instance, width, height);
     }
 }
 

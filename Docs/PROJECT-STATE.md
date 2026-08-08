@@ -271,8 +271,8 @@ The broken projectM proof of concept was replaced by `ProjectMFullscreenView.swi
 `ResonanceProjectMBridge` FBO path. Playing-page album art now opens fullscreen visualizations from the bundled
 ProjectMD CreamOfTheCrop catalog. The regular ProjectMD options and diagnostics shell is not imported. Single tap
 reveals the fullscreen controls, double tap dismisses, horizontal swipes change presets, Favorite persists, and Banish
-persists an exclusion. The bridge uses a 1024-pixel maximum internal texture dimension, preserves aspect ratio, and
-sets the projectM mesh to 24×24.
+persists an exclusion. The bridge uses the actual drawable size while the framebuffer path is stabilized and sets the
+projectM mesh to 24×24.
 
 The bundled visualizer resources are namespaced under the app bundle's `ProjectMD/` directory. The preset loader uses
 `Bundle.main` with subdirectory `ProjectMD` and the texture search path is likewise `ProjectMD/MilkDrop3Test`; no
