@@ -30,7 +30,7 @@ struct ProjectMFullscreenView: View {
   @State private var selectedID = ""
   @State private var isLoadingPresets = true
   @State private var controlsVisible = false
-  @State private var lyricsEnabled = false
+  @State private var lyricsEnabled = true
   @State private var rendererActive = false
   @State private var rendererGeneration = 0
   @State private var lowFPSBanishing = false
@@ -163,10 +163,12 @@ struct ProjectMFullscreenView: View {
       ResonanceOrientationCoordinator.shared.setFullscreenEnabled(true)
       ProjectMActivityCoordinator.shared.setActive(true)
       rendererActive = scenePhase == .active
+      UIApplication.shared.isIdleTimerDisabled = lyricsEnabled && rendererActive
     }
     .onDisappear {
       ResonanceOrientationCoordinator.shared.setFullscreenEnabled(false)
       ProjectMActivityCoordinator.shared.setActive(false)
+      UIApplication.shared.isIdleTimerDisabled = false
     }
     .onChange(of: scenePhase) { _, phase in
       // A CADisplayLink can remain retained while a full-screen cover is
@@ -174,9 +176,17 @@ struct ProjectMFullscreenView: View {
       // the native renderer so it cannot keep consuming GPU/CPU and audio
       // staging work while no frame can be presented.
       rendererActive = phase == .active
+      UIApplication.shared.isIdleTimerDisabled = lyricsEnabled && rendererActive
       ResonanceDiagnostics.shared.recordDeferred(
         "projectm.scene.renderer",
         details: ["phase": String(describing: phase), "active": String(phase == .active)]
+      )
+    }
+    .onChange(of: lyricsEnabled) { _, enabled in
+      UIApplication.shared.isIdleTimerDisabled = enabled && rendererActive && scenePhase == .active
+      ResonanceDiagnostics.shared.recordDeferred(
+        "projectm.idle_timer",
+        details: ["disabled": String(enabled && rendererActive && scenePhase == .active)]
       )
     }
     .onReceive(presetCycleTimer) { _ in
@@ -414,6 +424,8 @@ private final class ProjectMLyricsFeed: ObservableObject {
   private var trackDuration: TimeInterval = 0
   private var document: LyricsDocument?
   private var elapsed: TimeInterval = 0
+  private var elapsedAnchorMediaTime = CACurrentMediaTime()
+  private var isPlaying = false
   private var enabled = false
 
   func updateTrack(_ track: Track?) {
@@ -426,6 +438,7 @@ private final class ProjectMLyricsFeed: ObservableObject {
     trackDuration = track?.duration ?? 0
     document = nil
     elapsed = 0
+    elapsedAnchorMediaTime = CACurrentMediaTime()
   }
 
   func update(document: LyricsDocument?) {
@@ -434,6 +447,12 @@ private final class ProjectMLyricsFeed: ObservableObject {
 
   func update(elapsed: TimeInterval) {
     self.elapsed = elapsed
+    elapsedAnchorMediaTime = CACurrentMediaTime()
+  }
+
+  func update(isPlaying: Bool) {
+    self.isPlaying = isPlaying
+    elapsedAnchorMediaTime = CACurrentMediaTime()
   }
 
   func update(enabled: Bool) {
@@ -441,18 +460,21 @@ private final class ProjectMLyricsFeed: ObservableObject {
   }
 
   func snapshot() -> Snapshot? {
+    let currentElapsed = isPlaying
+      ? elapsed + max(0, CACurrentMediaTime() - elapsedAnchorMediaTime)
+      : elapsed
     guard enabled,
           !trackKey.isEmpty,
           let lines = document?.syncedLines,
           !lines.isEmpty,
-          elapsed >= lines[0].startTime
+          currentElapsed >= lines[0].startTime
     else { return nil }
 
     var low = 0
     var high = lines.count
     while low < high {
       let middle = (low + high) / 2
-      if lines[middle].startTime <= elapsed {
+      if lines[middle].startTime <= currentElapsed {
         low = middle + 1
       } else {
         high = middle
@@ -472,9 +494,9 @@ private final class ProjectMLyricsFeed: ObservableObject {
     } else {
       endTime = timeoutStart + 0.75
     }
-    guard elapsed < endTime else { return nil }
+    guard currentElapsed < endTime else { return nil }
     let duration = max(0.8, endTime - line.startTime)
-    let progress = Float(min(1, max(0, (elapsed - line.startTime) / duration)))
+    let progress = Float(min(1, max(0, (currentElapsed - line.startTime) / duration)))
     return Snapshot(
       key: "\(trackKey):\(line.id)",
       text: line.text,
@@ -497,6 +519,7 @@ private struct ProjectMLyricsFeedHost: View {
         feed.updateTrack(player.currentTrack)
         feed.update(document: lyricsStore.document)
         feed.update(elapsed: playbackProgress.elapsed)
+        feed.update(isPlaying: player.isPlaying)
         feed.update(enabled: enabled)
       }
       .onChange(of: enabled) { _, value in
@@ -505,6 +528,9 @@ private struct ProjectMLyricsFeedHost: View {
       }
       .onChange(of: player.currentTrack?.id) { _, _ in
         feed.updateTrack(player.currentTrack)
+      }
+      .onChange(of: player.isPlaying) { _, value in
+        feed.update(isPlaying: value)
       }
       .onReceive(playbackProgress.$elapsed) { elapsed in
         feed.update(elapsed: elapsed)
@@ -552,6 +578,7 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable, Equatable {
     private var loadedPresetID = ""
     private var lastDrawableSize = CGSize.zero
     private var targetFramebuffer: UInt32?
+    private var lastPresetChangeAt: CFTimeInterval?
     private var displayTickCount = 0
     private var lyricsFeed: ProjectMLyricsFeed?
     private var activeLyricKey: String?
@@ -656,6 +683,14 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable, Equatable {
       guard loadedPresetID != preset.id else { return }
       let smooth = !loadedPresetID.isEmpty
       loadedPresetID = preset.id
+      lastPresetChangeAt = CACurrentMediaTime()
+      ResonanceDiagnostics.shared.recordDeferred(
+        "projectm.preset.transition.begin",
+        details: [
+          "smooth": String(smooth),
+          "preset_hash": String(preset.id.hashValue)
+        ]
+      )
       lowPerformanceSince = nil
       lowPerformanceTriggered = false
       // Do not classify the intentional preset transition as a failed preset.
@@ -720,6 +755,18 @@ private struct ProjectMFullscreenGLView: UIViewRepresentable, Equatable {
           frameGapMaximum = max(frameGapMaximum, interval)
           if interval >= (1.0 / 30.0) { frameGapsOver33ms += 1 }
           if interval >= 0.05 { frameGapsOver50ms += 1 }
+          if interval >= 0.1 {
+            ResonanceDiagnostics.shared.recordDeferred(
+              "projectm.frame.stall",
+              details: [
+                "gap_ms": String(format: "%.1f", interval * 1000),
+                "preset_hash": String(loadedPresetID.hashValue),
+                "since_preset_change_ms": lastPresetChangeAt.map {
+                  String(format: "%.1f", (frameStart - $0) * 1000)
+                } ?? "unknown"
+              ]
+            )
+          }
           timingIntervals += 1
           timingElapsed += interval
           if timingIntervals >= 15 {

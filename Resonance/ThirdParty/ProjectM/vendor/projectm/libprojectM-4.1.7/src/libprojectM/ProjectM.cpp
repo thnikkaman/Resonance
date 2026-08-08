@@ -21,6 +21,8 @@
 
 #include "ProjectM.hpp"
 
+#include <cstdio>
+
 #include "Preset.hpp"
 #include "PresetFactoryManager.hpp"
 #include "TimeKeeper.hpp"
@@ -37,6 +39,10 @@
 #include <Renderer/PresetTransition.hpp>
 #include <Renderer/TextureManager.hpp>
 #include <Renderer/TransitionShaderManager.hpp>
+
+extern "C" void resonance_diagnostics_record(const char *event,
+                                               const char *key,
+                                               const char *value);
 
 namespace libprojectM {
 
@@ -238,6 +244,9 @@ void ProjectM::RenderFrame()
             const auto renderError = ClearOpenGLErrors();
             if (renderError != GL_NO_ERROR)
             {
+                char value[64];
+                snprintf(value, sizeof(value), "stage=before_draw error=0x%04x", renderError);
+                resonance_diagnostics_record("projectm.transition.validation", "result", value);
                 m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
             }
             else
@@ -246,7 +255,14 @@ void ProjectM::RenderFrame()
                 const auto transitionError = ClearOpenGLErrors();
                 if (transitionError != GL_NO_ERROR)
                 {
+                    char value[64];
+                    snprintf(value, sizeof(value), "stage=after_draw error=0x%04x", transitionError);
+                    resonance_diagnostics_record("projectm.transition.validation", "result", value);
                     m_textureCopier->Draw(m_activePreset->OutputTexture(), false, false);
+                }
+                else
+                {
+                    resonance_diagnostics_record("projectm.transition.validation", "result", "stage=first_draw error=0x0000");
                 }
             }
             m_transitionValidationPending = false;

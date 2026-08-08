@@ -2584,3 +2584,21 @@ Manual physical testing confirms the catalog loads, but the rendered output rema
 Next continuation: retrieve the physical device diagnostics after reproducing the black output, compare the active
 GL framebuffer/viewport with ProjectMDNativeVisualizerView.swift, and repair the remaining projectM OpenGL ES render
 target mismatch. Do not change playback or navigation code while isolating the renderer.
+
+### Build 281 follow-up — fullscreen defaults, lyric cadence, and diagnostic correlation — 2026-08-08
+
+The fullscreen ProjectM module now starts with Lyrics enabled, keeps the display awake while lyrics are active, and
+requests landscape-only orientation with both landscape directions available for a 180-degree rotation. Lyric timing
+is interpolated at display cadence between playback progress publications, so the synced line and native MilkDrop
+feedback progress no longer advance in visible 120 ms steps.
+
+The renderer now records privacy-safe transition begin/validation boundaries, frame stalls of at least 100 ms with
+their distance from the last preset change, orientation and idle-timer state, and the existing controls/favorite/lyrics
+events. This is enough to correlate the remaining hitch with a transition, a UI action, or a render stall, but a fresh
+physical-device reproduction is still required; the pre-change log copy was stale and the newly installed app has not
+yet been launched.
+
+Validation: focused source contracts, Swift 6 simulator and generic-device preflight, signed arm64 Release build,
+deep strict code-signature verification, and in-place installation on SaiyanDenawa passed. The installed app remains
+version `2.1`, build `281`; Codex did not launch the physical device. The full regression script still stops at the
+unrelated pre-existing `preservingArtworkOverride` assertion.

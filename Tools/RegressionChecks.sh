@@ -42,6 +42,7 @@ album_detail = (root / 'Resonance/Views/AlbumDetailView.swift').read_text()
 root_view = (root / 'Resonance/Views/RootView.swift').read_text()
 app_source = (root / 'Resonance/ResonanceApp.swift').read_text()
 projectm_view = (root / 'Resonance/Views/ProjectMFullscreenView.swift').read_text()
+orientation = (root / 'Resonance/Services/ResonanceOrientationCoordinator.swift').read_text()
 projectm_bridge = (root / 'Resonance/Services/ResonanceProjectMBridge.mm').read_text()
 projectm_engine = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/ProjectM.cpp').read_text()
 projectm_preset = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/MilkdropPreset/MilkdropPreset.cpp').read_text()
@@ -58,6 +59,12 @@ assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
 assert pbx.count('CURRENT_PROJECT_VERSION = 281;') == 2
+assert "@State private var lyricsEnabled = true" in projectm_view
+assert "isIdleTimerDisabled" in projectm_view
+assert "[.landscapeLeft, .landscapeRight]" in orientation
+assert "projectm.frame.stall" in projectm_view
+assert "projectm.transition.validation" in projectm_engine
+assert "elapsedAnchorMediaTime" in projectm_view
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
 assert pbx.count('MARKETING_VERSION = 2.1;') == 2
