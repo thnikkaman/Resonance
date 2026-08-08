@@ -2528,7 +2528,7 @@ describes the style as having no button chrome.
 The updated Debug simulator build 2.0/268 was installed on the configured iPhone 17 Pro simulator. The physical phone
 was not updated or launched.
 
-## ProjectMD fullscreen visualizations — physical build 268 — 2026-08-07
+## ProjectMD fullscreen visualizations — physical build 268 — 2026-08-07 — unresolved black output
 
 The broken Settings proof-of-concept has been replaced by the ProjectMD fullscreen module. The regular ProjectMD
 options and diagnostics shell are not imported. Tapping album artwork on the Playing page presents the fullscreen
@@ -2543,9 +2543,10 @@ the visualizer explicitly searches `ProjectMD/CreamOfTheCrop` and `ProjectMD/Mil
 come from the existing playback tap without changing playback ownership.
 
 Automated validation: `Tools/PreflightBuild.sh`, signed arm64 Release compilation, deep strict code-signature
-verification, and in-place `devicectl` installation passed. The installed app is `com.briangarcia.Resonance.saiyandenwa`,
-version `2.0`, build `268`; the previous app container was not uninstalled. The physical app was not launched.
+verification, and repeated in-place `devicectl` installation passed. The installed app is
+`com.briangarcia.Resonance.saiyandenwa`, version `2.0`, build `268`; the previous app container was not uninstalled.
+Manual physical testing confirms the catalog loads, but the rendered output remains black.
 
-Manual test: launch Resonance on SaiyanDenawa, start playback, tap Playing-page album art, verify the visualizer is
-visible, tap once for controls, swipe left/right to change presets, favorite and banish a preset, and double-tap to
-return. Confirm playback continues and that a banished preset remains excluded after relaunch.
+Next continuation: retrieve the physical device diagnostics after reproducing the black output, compare the active
+GL framebuffer/viewport with ProjectMDNativeVisualizerView.swift, and repair the remaining projectM OpenGL ES render
+target mismatch. Do not change playback or navigation code while isolating the renderer.

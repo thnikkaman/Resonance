@@ -292,6 +292,7 @@ Signed arm64 Release compilation, deep strict code-signature verification, and i
 `SaiyanDenawa`. The installed bundle is `com.briangarcia.Resonance.saiyandenwa`, version `2.0`, build `268`; the old
 container remains installed and untouched. The app was not launched automatically.
 
-Manual continuation: launch the new Resonance app manually and verify visible rendering, fullscreen controls, swipe
-transitions, favorite/banish persistence, return-to-Playing behavior, playback continuity, and the old app container's
-data isolation.
+Physical acceptance remains unresolved: the catalog loads on SaiyanDenawa, but fullscreen output is still black after
+the namespaced-resource and FBO-path builds. The next continuation is to retrieve device diagnostics and compare the
+active framebuffer, viewport, target attachment, and render-call sequence against ProjectMDNativeVisualizerView.swift.
+Do not change playback or navigation code while isolating the renderer.
