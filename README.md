@@ -1,6 +1,10 @@
 # Resonance Beta v2.1 — ProjectM Fullscreen and Lyrics Foundation
 
-## Current beta — 2.1 (build 281)
+## Current standard build — 2.1 (build 313)
+
+Build 313 is the designated Resonance standard build for the development branch. The Xcode project build number and regression contract are aligned to `313`. This record is a standard-build designation; build 313 compilation, signed-artifact, installation, and physical-device acceptance evidence must be synchronized from the active development checkout before being claimed.
+
+## Build 281 baseline
 
 Build 281 removes two measured sources of ProjectM hitching. The GLKView framebuffer is queried and bound only on
 first use or drawable resize, and the transition compositor performs its GLES error safeguard only on the first
@@ -91,9 +95,9 @@ The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
 default Xcode settings are version `2.1`, build `281`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Current source build: `2.1` (build `281`)
+Last verified source build: `2.1` (build `281`); designated standard build: `2.1` (build `313`)
 
-Latest SaiyanDenawa installation: `2.1` (build `281`). The signed arm64 Release app passed deep strict signature
+Latest recorded SaiyanDenawa installation: `2.1` (build `281`). Build 313 installation evidence is not yet synchronized. The signed arm64 Release app passed deep strict signature
 verification, installed in place, and was verified by `devicectl`; Codex did not launch the physical app.
 
 ## Resonance Beta v2.0 build 268 — 2026-07-31 UTC

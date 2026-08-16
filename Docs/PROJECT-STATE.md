@@ -1,5 +1,11 @@
 # Resonance verified project state
 
+## Current standard build — user-designated build 313
+
+- The designated Resonance standard build is version `2.1`, build `313`.
+- The development branch Xcode project and regression contract are aligned to build `313`.
+- This is a standard-build designation, not a claim of build 313 compilation, installation, device runtime, or physical acceptance; those records must be synchronized from the active development checkout.
+
 Last verified: 2026-08-08
 
 ## Active ProjectM lyric-feedback and stall repair
@@ -43,12 +49,12 @@ Last verified: 2026-08-08
 - GitHub tag/release: `Resonance-Beta-v2.0-build268` remains the latest packaged public prerelease; build 280 is
   published as source on `agent/alpha-3.7.4-source` rather than as a new packaged release.
 - GitHub PR: not applicable; the development branch has no common history with the ZIP-history `main` branch.
-- Project defaults: version `2.1`, build `280`, Swift language mode `5.0`.
+- Last verified project defaults: version `2.1`, build `280`, Swift language mode `5.0`; designated standard build: version `2.1`, build `313`.
 - Untracked build outputs, logs, diagnostics, and screenshots are not release files and remain outside Git.
 
 ## Current beta source and installed artifact
 
-- Source product: Resonance Beta v2.1/build 280.
+- Last verified source product: Resonance Beta v2.1/build 280; designated standard build: Resonance Beta v2.1/build 313.
 - Bundle: `com.briangarcia.Resonance.saiyandenwa`.
 - Signed arm64 Release build passed with development team `98CWMFS26R`; deep strict code-signature verification passed.
 - Build 280 installed in place on `SaiyanDenawa`, and `devicectl` verified version `2.1`, build `280`.

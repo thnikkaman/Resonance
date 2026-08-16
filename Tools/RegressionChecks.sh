@@ -58,7 +58,7 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 281;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 313;') == 2
 assert "@State private var lyricsEnabled = true" in projectm_view
 assert "isIdleTimerDisabled" in projectm_view
 assert "[.landscapeLeft, .landscapeRight]" in orientation
