@@ -13,7 +13,7 @@ Last verified: 2026-08-16
 - `git diff --check`, source-contract regression checks, signed arm64 Release archive, deep strict signature
   verification, and in-place installation passed. `devicectl` verified MeiKyo `com.briangarcia.meikyo`, version 1.0/build
   336 on `SaiyanDenawa`. The app was not launched; physical redownload acceptance remains user-run.
-- The production handoff/source commit is `5133d6c` (`Preserve original audiobook download filenames`).
+- The production handoff/source commit is `17360a8` (`Preserve original audiobook download filenames`).
 - Standard non-blocking warnings remained: Xcode's `IDERunDestination: Supported platforms for the buildables in the
   current scheme is empty`, the no-scheme generic-destination warning from preflight, the AppIntents SSU archive warning
   because this target has no AppIntents dependency, and existing vendored HLSL `format-extra-args`/deprecated `sprintf`

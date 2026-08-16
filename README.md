@@ -8,7 +8,7 @@ catalog/path filename first, keeps the HTTP suggestion as a fallback, and leaves
 last fallback. Existing files are not renamed automatically.
 
 The focused source-contract checks, signed arm64 Release archive, strict code-signature verification, and in-place
-installation passed. Source commit `5133d6c` records the production handoff. `devicectl` verified MeiKyo version
+installation passed. Source commit `17360a8` records the production handoff. `devicectl` verified MeiKyo version
 1.0/build 336 on `SaiyanDenawa`; the app was not launched.
 The standard non-blocking warnings remained: Xcode's empty supported-platforms/no-scheme destination warning, the
 AppIntents SSU archive warning because the target has no AppIntents dependency, and existing vendored HLSL
