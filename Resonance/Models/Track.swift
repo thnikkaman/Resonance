@@ -41,7 +41,7 @@ struct Track: Identifiable, Hashable, Codable, Sendable {
     }
     var isRemote: Bool {
         guard let scheme = fileURL?.scheme?.lowercased() else { return false }
-        return scheme == "http" || scheme == "https"
+        return scheme == "https"
     }
 
 }

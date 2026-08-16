@@ -1,6 +1,16 @@
 import Foundation
 import CryptoKit
 
+private func remoteOriginalFileName(fromPath path: String?) -> String? {
+    guard let path = path?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
+        return nil
+    }
+    let decoded = path.removingPercentEncoding ?? path
+    let fileName = URL(fileURLWithPath: decoded).lastPathComponent
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    return fileName.isEmpty ? nil : fileName
+}
+
 struct RemoteLibraryManifest: Decodable, Sendable {
     let version: Int?
     let name: String?
@@ -18,6 +28,7 @@ struct RemoteTrackRecord: Decodable, Sendable {
     let releaseYear: Int?
     let duration: Double?
     let fileSize: Int64?
+    let fileName: String?
     let path: String
     let artwork: String?
     let artworkBase64: String?
@@ -36,6 +47,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
     let duration: Double
     let fileSizeBytes: Int64
     let fileExtension: String?
+    let originalFileName: String?
     let streamURL: URL
     let artworkURL: URL?
     let artworkBase64: String?
@@ -80,6 +92,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             duration: duration,
             fileSizeBytes: fileSizeBytes,
             fileExtension: fileExtension,
+            originalFileName: originalFileName,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -104,6 +117,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             duration: duration,
             fileSizeBytes: fileSizeBytes,
             fileExtension: fileExtension,
+            originalFileName: originalFileName,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -128,6 +142,7 @@ struct RemoteTrackItem: Identifiable, Hashable, Codable, Sendable {
             duration: duration,
             fileSizeBytes: fileSizeBytes,
             fileExtension: fileExtension,
+            originalFileName: originalFileName,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: artworkBase64,
@@ -189,6 +204,7 @@ private struct CachedRemoteTrack: Codable, Sendable {
     let duration: Double
     let fileSizeBytes: Int64
     let fileExtension: String?
+    let originalFileName: String?
     let coverArtID: String?
     let starred: Bool?
     let dateAdded: Date?
@@ -208,6 +224,7 @@ private struct CachedRemoteTrack: Codable, Sendable {
         self.duration = track.duration
         self.fileSizeBytes = track.fileSizeBytes
         self.fileExtension = track.fileExtension
+        self.originalFileName = track.originalFileName
         self.coverArtID = track.coverArtID
         self.starred = track.starred
         self.dateAdded = track.dateAdded
@@ -462,16 +479,16 @@ final class RemoteLibraryStore: ObservableObject {
             connectionStatus = tracks.isEmpty ? "Cached Navidrome catalog ready" : "Cached Navidrome library ready"
             catalogSyncStatus = "Cached catalog: \(cached.tracks.count) tracks"
         } else if let cached = state.manifestCatalog {
-            tracks = cached.tracks
+            tracks = cached.tracks.compactMap(Self.secureManifestTrack)
             cachedManifestIdentity = cached.serverIdentity
-            connectionStatus = cached.tracks.isEmpty ? "Not connected" : "Cached manifest library available"
-            catalogSyncStatus = cached.tracks.isEmpty ? "No cached remote catalog" : "Cached manifest: \(cached.tracks.count) tracks"
+            connectionStatus = tracks.isEmpty ? "Not connected" : "Cached manifest library available"
+            catalogSyncStatus = tracks.isEmpty ? "No cached remote catalog" : "Cached manifest: \(tracks.count) tracks"
         } else if let cached = state.legacyTracks {
             // Legacy manifest caches have no server identity and must be
             // discarded the first time the active server is verified.
-            tracks = cached
+            tracks = cached.compactMap(Self.secureManifestTrack)
             connectionStatus = cached.isEmpty ? "Not connected" : "Legacy cached manifest library"
-            catalogSyncStatus = cached.isEmpty ? "No cached remote catalog" : "Legacy cached catalog pending verification"
+            catalogSyncStatus = tracks.isEmpty ? "No cached remote catalog" : "Legacy cached catalog pending verification"
         }
     }
 
@@ -1068,9 +1085,7 @@ final class RemoteLibraryStore: ObservableObject {
                 serverName = server.displayName
                 connectionStatus = "Connected — \(server.displayName)"
             case .resonanceManifest:
-                guard let url = configuredContentURL(path: settings.streamManifestPath, using: settings) else {
-                    throw RemoteLibraryError.missingServerAddress
-                }
+                let url = try configuredContentURL(path: settings.streamManifestPath, using: settings)
                 connectionStatus = "Testing \(url.host ?? "server")…"
                 let (data, response) = try await URLSession.shared.data(for: request(for: url))
                 try validate(response: response, data: data)
@@ -1212,7 +1227,7 @@ final class RemoteLibraryStore: ObservableObject {
 
     func artworkData(for item: RemoteTrackItem) async -> Data? {
         if let encoded = item.artworkBase64, let data = Data(base64Encoded: encoded) { return data }
-        guard let url = item.artworkURL else { return nil }
+        guard let url = item.artworkURL, RemoteURLSupport.isHTTPS(url) else { return nil }
         if let cached = artworkCache.object(forKey: url as NSURL) { return cached as Data }
 
         do {
@@ -1369,9 +1384,7 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     private func refreshManifest(using settings: AppSettings) async throws {
-        guard let manifestURL = configuredContentURL(path: settings.streamManifestPath, using: settings) else {
-            throw RemoteLibraryError.missingServerAddress
-        }
+        let manifestURL = try configuredContentURL(path: settings.streamManifestPath, using: settings)
         connectionStatus = "Loading Resonance manifest…"
         let (data, response) = try await URLSession.shared.data(for: request(for: manifestURL))
         try validate(response: response, data: data)
@@ -1465,6 +1478,7 @@ final class RemoteLibraryStore: ObservableObject {
             duration: cached.duration,
             fileSizeBytes: cached.fileSizeBytes,
             fileExtension: cached.fileExtension,
+            originalFileName: cached.originalFileName,
             streamURL: URL(string: "resonance-cache://remote/\(cached.id.uuidString)")!,
             artworkURL: nil,
             artworkBase64: nil,
@@ -1492,9 +1506,7 @@ final class RemoteLibraryStore: ObservableObject {
             throw RemoteLibraryError.missingUsername
         }
         guard !settings.streamPassword.isEmpty else { throw RemoteLibraryError.missingPassword }
-        guard let apiURL = configuredContentURL(path: settings.streamManifestPath, using: settings) else {
-            throw RemoteLibraryError.missingServerAddress
-        }
+        let apiURL = try configuredContentURL(path: settings.streamManifestPath, using: settings)
         return SubsonicClient(
             apiBaseURL: apiURL,
             username: settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1507,7 +1519,7 @@ final class RemoteLibraryStore: ObservableObject {
             settings.streamBackend.rawValue,
             settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
             settings.streamPort.trimmingCharacters(in: .whitespacesAndNewlines),
-            settings.streamUseHTTPS ? "https" : "http",
+            "https",
             settings.streamManifestPath.trimmingCharacters(in: .whitespacesAndNewlines),
             settings.streamUsername.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         ].joined(separator: "|")
@@ -1536,16 +1548,25 @@ final class RemoteLibraryStore: ObservableObject {
         activeServerIdentity = identity
     }
 
-    private func configuredContentURL(path: String, using settings: AppSettings) -> URL? {
+    private func configuredContentURL(path: String, using settings: AppSettings) throws -> URL {
         let rawHost = settings.streamHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !rawHost.isEmpty else { return nil }
+        guard !rawHost.isEmpty else { throw RemoteLibraryError.missingServerAddress }
 
         var components: URLComponents
-        if rawHost.contains("://"), let supplied = URLComponents(string: rawHost) {
+        if rawHost.contains("://") {
+            guard let supplied = URLComponents(string: rawHost) else {
+                throw RemoteLibraryError.invalidServerAddress
+            }
+            guard supplied.scheme?.caseInsensitiveCompare("https") == .orderedSame else {
+                if supplied.scheme?.caseInsensitiveCompare("http") == .orderedSame {
+                    throw RemoteLibraryError.insecureServerAddress
+                }
+                throw RemoteLibraryError.invalidServerAddress
+            }
             components = supplied
         } else {
             components = URLComponents()
-            components.scheme = settings.streamUseHTTPS ? "https" : "http"
+            components.scheme = "https"
             components.host = rawHost
         }
 
@@ -1554,7 +1575,11 @@ final class RemoteLibraryStore: ObservableObject {
         components.query = nil
         components.fragment = nil
 
-        return RemoteURLSupport.appendingPath(path, to: components, clearQueryAndFragment: true)
+        guard let url = RemoteURLSupport.appendingPath(path, to: components, clearQueryAndFragment: true) else {
+            throw RemoteLibraryError.invalidServerAddress
+        }
+        guard RemoteURLSupport.isHTTPS(url) else { throw RemoteLibraryError.insecureServerAddress }
+        return url
     }
 
     private func preparePlaybackTracks(
@@ -1588,6 +1613,34 @@ final class RemoteLibraryStore: ObservableObject {
         return request
     }
 
+    private nonisolated static func secureManifestTrack(_ track: RemoteTrackItem) -> RemoteTrackItem? {
+        guard RemoteURLSupport.isHTTPS(track.streamURL) else { return nil }
+        let secureArtworkURL = track.artworkURL.flatMap { RemoteURLSupport.isHTTPS($0) ? $0 : nil }
+        guard secureArtworkURL != track.artworkURL else { return track }
+        return RemoteTrackItem(
+            id: track.id,
+            sourceID: track.sourceID,
+            title: track.title,
+            artist: track.artist,
+            albumArtist: track.albumArtist,
+            album: track.album,
+            trackNumber: track.trackNumber,
+            discNumber: track.discNumber,
+            releaseYear: track.releaseYear,
+            duration: track.duration,
+            fileSizeBytes: track.fileSizeBytes,
+            fileExtension: track.fileExtension,
+            originalFileName: track.originalFileName,
+            streamURL: track.streamURL,
+            artworkURL: secureArtworkURL,
+            artworkBase64: track.artworkBase64,
+            coverArtID: track.coverArtID,
+            starred: track.starred,
+            dateAdded: track.dateAdded,
+            lastPlayed: track.lastPlayed
+        )
+    }
+
     private func validate(response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw RemoteLibraryError.invalidResponse }
         guard (200..<300).contains(http.statusCode) else {
@@ -1596,8 +1649,8 @@ final class RemoteLibraryStore: ObservableObject {
     }
 
     private func resolveManifestTrack(_ record: RemoteTrackRecord, relativeTo manifestURL: URL) -> RemoteTrackItem? {
-        guard let streamURL = RemoteURLSupport.resolve(record.path, relativeTo: manifestURL) else { return nil }
-        let artworkURL = record.artwork.flatMap { RemoteURLSupport.resolve($0, relativeTo: manifestURL) }
+        guard let streamURL = RemoteURLSupport.resolveHTTPS(record.path, relativeTo: manifestURL) else { return nil }
+        let artworkURL = record.artwork.flatMap { RemoteURLSupport.resolveHTTPS($0, relativeTo: manifestURL) }
         let stableSource = record.id?.nonEmpty ?? streamURL.absoluteString
         return RemoteTrackItem(
             id: UUID(uuidString: stableSource) ?? Self.stableUUID(for: stableSource),
@@ -1612,6 +1665,8 @@ final class RemoteLibraryStore: ObservableObject {
             duration: max(0, record.duration ?? 0),
             fileSizeBytes: max(0, record.fileSize ?? 0),
             fileExtension: streamURL.pathExtension.nonEmpty,
+            originalFileName: record.fileName?.nonEmpty
+                ?? remoteOriginalFileName(fromPath: record.path),
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: record.artworkBase64,
@@ -1816,6 +1871,7 @@ private struct SubsonicClient: Sendable {
             duration: max(0, song.duration ?? 0),
             fileSizeBytes: max(0, song.size ?? 0),
             fileExtension: song.suffix?.nonEmpty,
+            originalFileName: remoteOriginalFileName(fromPath: song.path),
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: nil,
@@ -1857,6 +1913,7 @@ private struct SubsonicClient: Sendable {
             duration: cached.duration,
             fileSizeBytes: cached.fileSizeBytes,
             fileExtension: cached.fileExtension,
+            originalFileName: cached.originalFileName,
             streamURL: streamURL,
             artworkURL: artworkURL,
             artworkBase64: nil,
@@ -1907,7 +1964,8 @@ private struct SubsonicClient: Sendable {
     }
 
     private func endpointURL(_ endpoint: String, queryItems: [URLQueryItem]) throws -> URL {
-        guard let baseComponents = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false),
+        guard RemoteURLSupport.isHTTPS(apiBaseURL),
+              let baseComponents = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false),
               let endpointURL = RemoteURLSupport.appendingPath(endpoint, to: baseComponents),
               var components = URLComponents(url: endpointURL, resolvingAgainstBaseURL: false) else {
             throw RemoteLibraryError.invalidServerAddress
@@ -1921,10 +1979,12 @@ private struct SubsonicClient: Sendable {
             URLQueryItem(name: "t", value: token),
             URLQueryItem(name: "s", value: salt),
             URLQueryItem(name: "v", value: "1.16.1"),
-            URLQueryItem(name: "c", value: "Resonance"),
+            URLQueryItem(name: "c", value: "MeiKyo"),
             URLQueryItem(name: "f", value: "json")
         ] + queryItems
-        guard let url = components.url else { throw RemoteLibraryError.invalidServerAddress }
+        guard let url = components.url, RemoteURLSupport.isHTTPS(url) else {
+            throw RemoteLibraryError.insecureServerAddress
+        }
         return url
     }
 
@@ -2024,6 +2084,7 @@ private struct SubsonicSong: Decodable, Sendable {
     let duration: Double?
     let size: Int64?
     let suffix: String?
+    let path: String?
     let coverArt: String?
     let starred: String?
     let created: String?
@@ -2087,6 +2148,7 @@ private struct SubsonicPlaylistEnvelope: Decodable, Sendable {
 enum RemoteLibraryError: LocalizedError {
     case invalidResponse
     case invalidServerAddress
+    case insecureServerAddress
     case missingServerAddress
     case missingUsername
     case missingPassword
@@ -2100,6 +2162,8 @@ enum RemoteLibraryError: LocalizedError {
             return "The server returned an invalid response."
         case .invalidServerAddress:
             return "The server address or API path is invalid."
+        case .insecureServerAddress:
+            return "Remote servers must use HTTPS (https://). HTTP addresses are not supported."
         case .missingServerAddress:
             return "Enter a server URL or Tailscale host first."
         case .missingUsername:

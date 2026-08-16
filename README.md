@@ -1,25 +1,518 @@
-# Resonance Beta v2.1 — ProjectM Fullscreen and Lyrics Foundation
+# MeiKyo 鳴響 — Project Resonance v1.0 Full Release
 
-## Current standard build — 2.1 (build 313)
+## MeiKyo development build 336 — corrected audiobook download filename precedence — 2026-08-16
 
-Build 313 is the designated Resonance standard build for the development branch. The Xcode project build number and regression contract are aligned to `313`. This record is a standard-build designation; build 313 compilation, signed-artifact, installation, and physical-device acceptance evidence must be synchronized from the active development checkout before being claimed.
+Build 335 still let an HTTP suggested filename override the original remote catalog/path filename, which caused
+metadata-generated names such as `01 - Chapter 01_ An Unexpected Party.mp3` to be saved. Build 336 puts the original
+catalog/path filename first, keeps the HTTP suggestion as a fallback, and leaves the generated metadata name as the
+last fallback. Existing files are not renamed automatically.
 
-## Build 281 baseline
+The focused source-contract checks, signed arm64 Release archive, strict code-signature verification, and in-place
+installation passed. Source commit `5133d6c` records the production handoff. `devicectl` verified MeiKyo version
+1.0/build 336 on `SaiyanDenawa`; the app was not launched.
+The standard non-blocking warnings remained: Xcode's empty supported-platforms/no-scheme destination warning, the
+AppIntents SSU archive warning because the target has no AppIntents dependency, and existing vendored HLSL
+`format-extra-args`/deprecated `sprintf` warnings. None blocked the build or installation.
 
-Build 281 removes two measured sources of ProjectM hitching. The GLKView framebuffer is queried and bound only on
-first use or drawable resize, and the transition compositor performs its GLES error safeguard only on the first
-composite of each transition instead of synchronously polling the driver before and after every frame. The fullscreen
-renderer is also equatable, so showing/hiding controls and toggling interface buttons no longer reconfigures the GL
-representable during SwiftUI animation.
+## MeiKyo development build 335 — proven audiobook filename reconciliation — 2026-08-16
 
-Timestamped lyrics now use the native MilkDrop progress animation to fade out after five seconds plus a short dissolve
-when the next synced line has not started; the existing feedback injection remains unchanged.
+Build 334 was user-tested and still loaded no adjacent audiobook lyrics. Physical-device evidence established the
+actual boundary: the scan enumerated 36 LRC files but cached zero, and the phone database stores the first downloaded
+audio file as `01 - Chapter 01_ An Unexpected Party.mp3` while its adjacent sidecar is
+`Chapter 01 - An Unexpected Party.lrc`. MeiKyo's downloader had generated the numbered MP3 name from metadata and
+replaced the title's colon with an underscore, so literal basename matching could never pair those two files.
 
-Build 281 passed strict Swift 6 simulator and generic-device preflight, signed arm64 Release compilation, deep strict
-code-signature verification, and in-place installation on SaiyanDenawa. `devicectl` verified Resonance `2.1` / build
-`281`; Codex did not launch the physical app. Manual transition, controls, lyric-timing, and thermal acceptance
-remain user-run. The full regression script still reaches its pre-existing artwork assertion for
-`preservingArtworkOverride`.
+Build 335 moves representation matching into one production `LyricsCompanionMatcher`. It normalizes the downloader-added
+number/punctuation difference while retaining the normalized parent folder in the key, so files from different folders
+cannot cross-match. Both playback-time sibling lookup and library-scan caching use this matcher, and a v3 migration forces
+one fresh companion scan after upgrade. The executable fixture compiles with the production matcher and proves the exact
+Chapter 01 device representation plus Chapters 02 and 04, while rejecting another chapter and another folder.
+
+Future remote downloads retain an original filename supplied by the HTTP response or remote catalog path. The existing
+generated `<track number> - <title>` filename remains only as a fallback when the server supplies no usable audio filename.
+Existing files are not renamed automatically. No LRC is copied into MeiKyo's music folder, and manual lyric overrides
+retain priority. Compilation, signing, installation, and physical runtime acceptance are recorded separately below when
+completed.
+
+Build 335 passed source-contract regression checks, Swift 6 strict simulator and generic-device preflight, signed arm64
+Release compilation, deep strict code-signature verification, and in-place installation on SaiyanDenawa. `devicectl`
+verified `com.briangarcia.meikyo`, version 1.0/build 335. The app was not launched; audiobook runtime acceptance remains
+user-run.
+
+## MeiKyo development build 334 — direct dual-name LRC scan — 2026-08-16
+
+Build 334 corrects the empty build-333 companion cache. For every scanned audio URL, the scanner directly tries both
+`<audio stem>.lrc` and `<complete audio filename>.lrc` while selected-folder coordination is active, then uses
+case-insensitive enumerated matches as a fallback. It no longer requires the File Provider directory listing to expose
+an LRC before attempting the exact URL. Always-on aggregate diagnostics report LRC listings, derived candidates,
+enumerated matches, and readable companions without recording filenames or paths.
+Build 334 passed source checks, signed Release compilation, deep signature verification, and in-place installation;
+the phone reports MeiKyo version 1.0/build 334. The physical app was not launched automatically.
+
+## MeiKyo development build 333 — scan and cache adjacent LRC contents — 2026-08-16
+
+Build 333 removes the failed playback-time File Provider rediscovery. While the authorized selected-library scan is
+already enumerating files, it reads each exact same-folder, same-basename `.lrc` and replaces a private Application
+Support cache. Playback uses those bytes through the same parser as manual import. Existing cached libraries perform
+one automatic companion scan after this upgrade. No files are copied into the MeiKyo music folder.
+Build 333 passed source contracts, signed Release compilation, deep signature verification, and in-place installation;
+the phone reports MeiKyo version 1.0/build 333. The physical app was not launched automatically.
+
+Build 332 was installed and user-tested with no behavior change. Fresh diagnostics proved playback still received no
+bytes from any sibling URL and that the post-upgrade library scan needed to populate companion data had not run.
+
+## MeiKyo development build 332 — selected-folder exact-basename LRC read — 2026-08-16
+
+Build 332 fixes the remaining File Provider boundary directly. During the selected-library scan, the app retains a
+security-scoped bookmark for each exact same-basename `.lrc`; during playback it first derives that `.lrc` from the
+selected folder's URL and reads it under the folder's security scope. It does not copy or import the sidecar. The scan
+also records how many companion files it found so a device test can distinguish “not discovered” from “not readable.”
+Source checks, signed Release build, deep signature verification, and in-place installation passed; the phone reports
+MeiKyo version 1.0/build 332. The app was not launched automatically. Runtime lyrics acceptance remains user-run.
+
+Build 331 was installed and user-tested, but produced no behavior change; that result is retained as a failed runtime
+attempt, not treated as validation.
+
+## MeiKyo development build 331 — direct exact-basename LRC read — 2026-08-16
+
+Build 331 corrects the adjacent-audiobook-lyrics implementation using physical-device evidence. The installed library
+database shows that every Hobbit chapter already uses its external Files URL, so path rebasing and file copying were not
+the failure. LyricsService now keeps the selected library's security scope active, coordinates the audio file's parent
+audio item, inspects its parent directory while that item is coordinated, finds the exact same-basename `.lrc`, and reads its bytes inside that same coordination window. All file-provider
+I/O and the last-resort selected-folder search run off the main thread; imported overrides retain priority and no files are
+copied into MeiKyo.
+
+Build 329 passed source contracts, dual-architecture simulator compilation, Swift 6 strict simulator and generic-device
+preflight, signed arm64 Release compilation, and deep signature verification. It was installed in place on
+`SaiyanDenawa`; `devicectl` verified MeiKyo 1.0/build 329. The physical app was not launched automatically.
+
+## MeiKyo development build 328 — search selected library for exact LRC basename — 2026-08-16
+
+Build 328 removes the remaining dependency on cached audio paths. When a selected library folder bookmark is available,
+LyricsService recursively searches that folder for an `.lrc` with the exact same basename as the playing audio file.
+Files remain in place.
+
+## MeiKyo development build 327 — use selected audiobook folder in place — 2026-08-16
+
+Build 327 makes directory selection authoritative. Selecting a folder now stores its security-scoped bookmark and scans
+the folder in place instead of copying audio into MeiKyo’s managed folder, preserving direct access to adjacent `.lrc`
+files for Now Playing and the visualizer.
+
+## MeiKyo development build 326 — resolve companion LRCs from the selected folder — 2026-08-16
+
+Build 326 adds an immediate lyrics-layer fallback for stale managed-folder playback URLs. It resolves the persisted
+selected folder bookmark, maps the audio path relative to the legacy managed folder, and checks the matching adjacent
+LRC there without copying files.
+
+## MeiKyo development build 325 — rebase cached tracks into the selected library folder — 2026-08-16
+
+Build 325 fixes the confirmed failure where cached playback tracks still pointed at MeiKyo’s managed copy. When a
+user-selected external library folder is active, stale cached/database URLs under the managed folder are rebased to the
+matching path in that selected folder before playback, allowing adjacent LRC files to be found without copying them.
+The physical app was not launched automatically.
+
+## MeiKyo development build 324 — decode audiobook LRC companion files reliably — 2026-08-16
+
+Build 324 keeps the selected external library folder authoritative and reads the same-basename `.lrc` beside the
+actual audio file without copying it. Local lyrics now accept UTF-8, UTF-16, UTF-32, and ISO-Latin-1 source files,
+covering common audiobook LRC exports. Cached library entries are rebased into the selected folder before entering the
+playback queue, so an old managed-folder cache cannot hide external companions. Privacy-safe diagnostics record whether
+the audio URL, sibling candidate, and parser succeeded. The physical app was not launched automatically.
+
+## MeiKyo development build 323 — read audiobook LRCs beside the original audio — 2026-08-16
+
+Build 323 corrects the audiobook design: MeiKyo no longer copies `.lrc` files into its managed music folder. When a
+marked audiobook track begins loading, LyricsService reads the matching same-basename `.lrc` directly beside the actual
+audio file, including coordinated access for the selected external library folder. The file is parsed into the shared
+lyrics store for Now Playing and visualizer use. Build 323 is installed in place on `SaiyanDenawa` without uninstalling;
+the physical app was not launched automatically.
+
+## MeiKyo development build 322 — import audiobook LRC companions — 2026-08-16
+
+Build 322 fixes the remaining audiobook case: folder/file import previously copied MP3s but skipped adjacent `.lrc`
+files, leaving the matcher with no companion to read. Imports now copy each exact same-basename LRC beside its audio
+file, including case-insensitive LRC extension matching. Existing imported audiobook folders must be re-imported once
+to bring their sidecars into MeiKyo; manually imported lyric overrides remain intact. Build 322 is installed in place on
+`SaiyanDenawa` without uninstalling, and the physical app was not launched automatically.
+
+## MeiKyo development build 321 — fullscreen local lyrics refresh — 2026-08-16
+
+Build 321 makes the fullscreen visualizer explicitly refresh the shared lyrics store for the active track when it opens.
+This closes the lifecycle gap where the parent Now Playing lyrics task had not completed yet; local same-basename `.lrc`
+lookup remains first, with imported overrides retaining priority. Build 321 is installed in place on `SaiyanDenawa` without
+uninstalling, and the physical app was not launched automatically.
+
+## MeiKyo development build 320 — visualizer transport and local audiobook LRC lookup — 2026-08-16
+
+Build 320 keeps the visualizer actions in one dismissible HUD, places Exit in the former play/pause position, and puts
+previous, play/pause, and next transport controls in the former Exit position with a seek bar and time labels beneath.
+Local same-basename `.lrc` companions are now checked for every local audio track before provider lookup, so marked
+audiobook albums recognize their adjacent lyric files without manual import while imported app overrides retain priority.
+The physical device install and runtime interaction checklist are separate: after validation, build 320 is installed in
+place on `SaiyanDenawa` without uninstalling, but the app is not launched automatically.
+
+## MeiKyo development build 319 — visualizer opening title and ProjectM safety cap — 2026-08-16
+
+Build 319 keeps the global ProjectM custom-shape safety budget from build 317 and adds an immediate opening cue to
+the native visualizer lyrics path. When fullscreen visualizer lyrics are enabled, the current track title is rendered
+from playback start, yielding immediately if the first synced lyric begins, or holding for five seconds when lyrics do
+not start promptly; the existing synced-lyrics timing and five-second fallback behavior continues. This does not
+change lyric lookup, playback, or the render loop. The signed arm64 Release build passed deep signature verification
+and was installed in place on `SaiyanDenwa` without uninstalling; `devicectl` verified version 1.0/build 319. Manual
+acceptance: start several tracks in the visualizer, confirm each title appears immediately and hands off to synced lyrics when available,
+confirm title-only tracks clear after five seconds, and exercise the reported shape-heavy presets to compare
+low-framerate auto-banishment with build 317. Xcode retained the known no-scheme destination, vendored HLSL parser,
+and AppIntents SSU archive warnings; none blocked the build or install.
+
+## MeiKyo development build 317 — ProjectM global shape-instance safety budget — 2026-08-16
+
+Build 317 adds a global ProjectM engine safety budget for custom-shape instances. Review of 50 internal low-framerate
+events found that every reported preset used a custom warp shader, 41 requested at least 129 shape instances, and none
+used per-pixel mesh code; the reported set therefore does not indicate an oversized mesh as the common cause. The
+vendored engine now clamps `num_inst` to 128 at preset load, without editing or deleting individual visualization files.
+The global per-pixel mesh remains at the restored 32×24 configuration, and the existing low-framerate auto-banish
+telemetry remains the runtime acceptance guard.
+
+This is an engine-level experiment, not yet a claim of repaired device performance. The physical phone has not been
+launched for this build. Manual acceptance: rotate through the reported heavy presets with audio playing and downloads
+stopped, compare the native render windows and low-framerate banishments with the prior build, and inspect shape-heavy
+presets for acceptable visual continuity. If the same presets remain below the frame-rate threshold after this change,
+remove those preset IDs from the catalog in the next build rather than continuing to tune them individually.
+
+## MeiKyo development build 316 — Settings, visualizer HUD, and lyrics persistence — 2026-08-16
+
+Build 316 modernizes Settings into a non-scrolling category hub with one dedicated page per category. A single tap on a
+category pushes its full controls page using the existing navigation stack; the native back button and interactive edge
+swipe reveal the parent Settings hub again. Existing settings state, pickers, alerts, and persistence are unchanged.
+
+Now Playing also has an explicit Visualizer button that uses the existing photosensitivity acknowledgment gate, and the
+fullscreen visualizer places Exit inside the same dismissible HUD as the other visualizer actions while retaining
+double-tap dismissal. Lyrics over album art now stay open across seek, pause, and resume, and close through their X
+instead of transient lyrics-document refreshes. Regression checks, strict simulator/generic-device preflight, signed
+arm64 Release compilation, deep signature verification, and in-place install passed. The signed
+`com.briangarcia.meikyo` version 1.0/build 316 was installed over build 314 on `SaiyanDenawa` without uninstalling;
+Codex did not launch the physical app. Manual UI acceptance remains the next step.
+
+## Current public identity — MeiKyo 鳴響, version 1.0 (build 308)
+
+The public iPhone app is now named **MeiKyo 鳴響** with bundle identifier
+`com.briangarcia.meikyo`. The repository, Xcode project, source namespace, compatibility keys, diagnostic filenames,
+server protocols, and historical handoff remain **Project Resonance** by design. This is a product rebrand and bundle
+identity change, not a repository rename. Existing Resonance test installations are a different iOS app identity and
+will not upgrade in place to MeiKyo.
+
+Build 308 is the full-release App Store Connect build using the MeiKyo identity. It retains the public/no-telemetry
+behavior; telemetry remains compiled out of the public release, and the earlier build-305 archive remains an internal
+Resonance test artifact.
+
+Build 305 was the internal telemetry test build previously installed on SaiyanDenawa. It included the opt-in anonymous
+low-framerate visualizer diagnostics control. Build 306 was the previous public-preparation build; telemetry is compiled
+out, the public privacy manifest declares no collected performance data, and the telemetry control is unavailable. The
+phone now contains a separate legacy-bundle compatibility build 2.1/build 311 for testing the lyrics lookup fix and a
+MeiKyo 1.0/build 313 physical-device Now Playing lyrics beta; the public App Store submission remains build 308.
+
+The latest read-only device check on 2026-08-14 supersedes that current-device wording: `SaiyanDenwa` currently
+reports `com.briangarcia.meikyo` version 2.1/build 307. The checkout’s default source remains version 1.0/build 313;
+this source-only metadata-race repair has not been installed on the phone.
+
+## Local metadata scan publication guard — source build 313
+
+`LibraryStore` now generation-gates a full file scan against targeted metadata/download refreshes and explicit local
+removals. If a newer targeted mutation occurs, the older scan is discarded before it can replace the in-memory catalog;
+the database-write boundary is checked as well. The privacy-safe `library.scan.discarded` diagnostic records only the
+reason, count, and timing. Replacement downloads continue to use their documented remote album metadata policy.
+
+Regression checks, project-state checks, `git diff --check`, and strict simulator/generic-device Swift 6 preflight passed.
+The source change has not been installed or runtime-tested on a device.
+
+## MeiKyo local lyrics rescan — version 1.0/build 313
+
+Build 313 re-reads the current local lyrics source whenever playback starts or restarts. This covers pause/resume and
+the local gapless backend restart used by seeking, so replacing an audiobook's sibling `.lrc` file with corrected
+timestamps is picked up without changing tracks. The shared `LyricsStore` coalesces the restart event across Now
+Playing layers, performs the file read off the main actor, preserves imported app-private override precedence, and
+leaves remote tracks on their existing provider/cache path. Regression checks, strict simulator/generic-device
+preflight, signed Release compilation, deep signature verification, and in-place installation on `SaiyanDenawa` passed;
+Codex did not launch the phone. Manual replacement/restart and seek acceptance remains user-run.
+
+## MeiKyo Now Playing lyrics beta — version 1.0/build 312
+
+Build 312 keeps the shared Now Playing/fullscreen lyrics store and opaque artwork bubble from build 310. The synced
+lyrics bubble now follows the active timestamped line automatically and scrolls it to the vertical center of the
+window, with additional top and bottom breathing room so the first and last lines can also be centered. Plain lyrics
+remain manually scrollable. The current follow-up makes the bubble a centered artwork overlay with a 90% opaque
+background, adds a touch-and-hold `.lrc` file importer, and persists imported lyrics in the app-private Application
+Support container. For a locally saved audiobook, MeiKyo first checks the audio file's parent folder for a
+case-insensitive basename match such as `Chapter 01.m4b` + `Chapter 01.lrc`, then falls back to the configured remote
+provider. The signed `com.briangarcia.meikyo` app was rebuilt, signature-verified, and installed in place on
+`SaiyanDenawa` without uninstalling or launching it. Manual acceptance remains pending.
+
+The latest build-312 UI follow-up uses a bounded animated transition for the 90% opaque panel over the album artwork.
+The panel now has a maximize control
+that opens a full-screen lyrics view; the full-screen view can be restored over the artwork or closed. The updated
+build was installed in place on `SaiyanDenawa` without uninstalling or launching it.
+
+The build-312 follow-up repairs the lyrics panel geometry reported on the physical phone. The panel is now an explicit
+centered overlay inside the constrained artwork frame, uses a bounded scale/fade transition without matched geometry,
+the artwork region clips overflow, and the region receives stacking priority over adjacent Now Playing controls. This
+keeps Close, Maximize, and Restore reachable without changing lyrics data, playback, or the visualizer. Regression
+checks, strict preflight, signed Release compilation, deep signature verification, and in-place installation passed;
+the phone was not launched.
+
+After the first geometry repair made the panel invisible on the physical phone, the final build-312 repair removed the
+remaining matched-geometry coupling between the always-present Lyrics button and the destination bubble. The panel now
+appears through a normal bounded center scale/fade transition, so its visibility and final position are independent of
+the button's location. The signed app was rebuilt and replaced in place on `SaiyanDenawa` without uninstalling or
+launching it.
+
+The latest build-312 follow-up fixes synced-lyrics updates after seeking. The Now Playing lyrics bubble now observes the
+shared `PlaybackProgress` publisher used by the seek bar instead of sampling a separate 250 ms timer snapshot. Seeking
+while playing or paused therefore recalculates the active timestamped line and its centered scroll position immediately.
+Regression checks, strict preflight, signed Release compilation, deep signature verification, and in-place installation
+passed; the phone was not launched.
+
+The follow-up device log confirmed that the audiobook was using the local gapless backend. Its elapsed clock previously
+advanced by wall time even when the audiobook time-pitch rate was faster or slower, causing the audio and lyric
+timestamps to drift apart. The gapless clock now advances by the effective audiobook rate and re-anchors whenever that
+rate changes. The signed app was rebuilt and replaced in place on `SaiyanDenawa` without uninstalling or launching it.
+
+## MeiKyo FLAC metadata writer repair — version 1.0/build 312
+
+The FLAC Vorbis-comment writer now derives its vendor-length field from the actual `MeiKyo` vendor bytes. During the
+rebrand, the vendor text changed from `Resonance` (9 bytes) to `MeiKyo` (6 bytes) while the length remained 9; every
+subsequent FLAC comment was therefore parsed three bytes out of alignment after a metadata save, producing the
+numeric and hyphenated album, artist, and title values reported for Tool's `10,000 Days`. The source-contract
+regression check now prevents that stale constant from returning. Regression checks, strict simulator/generic-device
+preflight, signed Release compilation, deep signature verification, and in-place installation on `SaiyanDenawa` passed.
+The phone was not launched. Files already written with the malformed block must be restored from the original library or
+re-downloaded; the app cannot safely infer their original titles from corrupted tags.
+
+## MeiKyo Now Playing lyrics test build — version 1.0/build 310
+
+Build 310 adds a shared lyrics store used by Now Playing and the fullscreen visualizer. The Now Playing controls include
+a grey disabled Lyrics button when the configured provider has no readable lyrics and a gold button when synchronized or
+plain lyrics are available. Tapping it opens the lyrics in an opaque, scrollable bubble over the album artwork; synced
+lyrics highlight the current line at a low update cadence. Lyrics provider requests remain cached and are not duplicated
+between Now Playing and the visualizer. The signed `com.briangarcia.meikyo` app was built, verified, and installed in
+place on `SaiyanDenawa` without uninstalling or launching it; manual UI acceptance remains user-run.
+
+## MeiKyo lyric-layout test build — version 1.0/build 309
+
+Build 309 widens the native MilkDrop lyric mesh from 68% to approximately 80% of the visualization width. It retains the
+1536×256 lyric raster, full vertical sampling, three-row font fitting, lyric timing/provider behavior, entry scaling,
+fade/feedback animation, audio, presets, transitions, and controls. The signed `com.briangarcia.meikyo` app was built,
+verified, and installed in place on `SaiyanDenawa` without uninstalling or launching it; manual long-verse acceptance
+remains user-run.
+
+Settings now ends with an About section describing MeiKyo, projectM/MilkDrop, the relevant licenses, network
+services, and the public privacy policy. The former Prototype Status category is now App Feature List: it retains the
+feature inventory without the prototype stage-completion display. The internal/public privacy manifests are selected by
+`Tools/SelectPrivacyManifest.sh` during the build. The build-305 telemetry archive and build-306 public-preparation
+archive are saved in `/Users/brian/Downloads`; Codex did not launch the phone after installing the compatibility build.
+
+The signed full-release archive is
+`/Users/brian/Downloads/MeiKyo-1.0-build-308-AppStore.xcarchive`; it reports bundle
+`com.briangarcia.meikyo`, `CFBundlePackageType = APPL`, version 1.0/build 308, and passes deep strict code-signature
+verification. App Store Connect accepted the upload and reported that the package is processing. No physical-device
+installation or launch was performed for the new MeiKyo bundle.
+
+The first upload attempt was rejected with Apple error 90183 because `CFBundlePackageType` was absent from the source
+plist. The source now declares `CFBundlePackageType = APPL`, and plist validation, source-contract regression checks,
+strict signed compilation, deep code-signature verification, and the corrected upload passed. For the current export-
+compliance encryption question, select “None of the algorithms mentioned above”: SHA-256 and MD5 are used only as
+hashes, while HTTPS/TLS and Keychain/Security services are provided by Apple system frameworks.
+
+Build 307 was also built, installed, and launched on the available iPhone 17 Pro Max iOS 26.5 simulator using a
+short derived-data path. The initial privacy-policy sheet fit the larger portrait layout without visible clipping.
+This is layout evidence only; physical-device audio, OpenGL performance, and full runtime acceptance remain separate.
+
+Build 302 adds persistent local-library storage. Settings now lets the user choose a folder owned by the Files app,
+copies the existing `Resonance Music` contents into that folder without deleting the original, and uses the selected
+folder for scans, imports, downloads, metadata edits, and file removal. The folder tree is therefore outside the
+Resonance app container and survives deleting the app. The existing Finder File Sharing folder is clearly labeled as
+legacy temporary storage; users must choose the persistent Files folder before deleting Resonance to preserve music.
+The folder bookmark is stored in Keychain and is resolved again after reinstall when iOS preserves the authorization.
+External-folder migration, scanning, imports, downloads, metadata/artwork writes, duplicate checks, and file removal
+use `NSFileCoordinator` arbitration so Files, iCloud Drive, and other File Provider implementations can coordinate
+access with Resonance and other apps. The signed arm64 Release build and deep strict code-signature verification are
+passed for build 303. Build 304 preserves the original security-scoped URL returned by Files before requesting access,
+fixing folder selections that were rejected after URL normalization. Build 304 is installed in place on SaiyanDenwa
+and was not launched by Codex; manual deletion/reinstall and external-provider acceptance remain pending.
+
+Build 301 adds a QR scanner beside the user-configured lyrics-provider toggle. A versioned JSON provider profile can
+populate the provider name, HTTPS endpoint, request method, response format, request parameter names, JSON response
+paths, authorization mode/name/token, enabled state, and User-Agent in one scan. QR profiles are validated as HTTPS
+profiles before being applied; a token is written through the existing Keychain-backed setting and is never logged.
+
+Build 300 fixes the fullscreen visualizer exit crash introduced with the FPS counter. Native teardown now detaches
+SwiftUI callbacks before dismantling the GLKView and resets the FPS window without mutating SwiftUI state during view
+graph destruction. The signed token-provisioned build passed validation and was installed in place on SaiyanDenawa; it
+has not been launched by Codex.
+
+Build 299 is the token-provisioned follow-up to build 298. It adds an opt-in visualizer diagnostics share setting. When enabled, Resonance posts one validated automatic
+low-framerate banishment event at a time over HTTPS to `music.koolkidz.us`; the payload follows the server’s exact
+`eventId`/`presetId`/`visualization`/`banishmentReason`/`fps`/`frameGapMilliseconds`/`appBuild`/`osMajor`/`occurredAt`
+contract. It contains no track, lyric, credential, configured-server, account, or device identifiers. The setting is
+off by default, the queue is bounded and in-memory, retries are idempotent, and failed submissions never block
+rendering, controls, playback, or downloads. The bearer token is supplied through a private build setting and is not
+checked into source. The bearer token is supplied only to this private build and is not checked into source, logs, or
+documentation. Build 299 replaced build 298 in place on SaiyanDenawa and has not been launched by Codex.
+
+Build 299 retains the optional visualizer FPS counter. It displays only the rounded rendered-frames-per-second number
+in the upper-right corner and updates once per second; the counter is disabled by default and does not show frame time,
+response time, or a surrounding frame.
+
+Build 299 retains the first fullscreen visualizer launch gate with a photosensitivity and seizure warning. The user must
+check the acknowledgment box before Continue becomes available; Cancel leaves the visualizer closed, and the
+acknowledgment is persisted for later launches.
+
+Build 294 removes the built-in LRCLIB lyrics endpoint. Lyrics are now opt-in through a user-configured HTTPS provider
+with configurable GET/POST JSON requests, LRC/text responses, request-field names, JSON response paths, token
+authorization, and User-Agent. The Visualizer Settings section sits between Finder File Sharing and Reported Errors;
+it exposes ProjectM lyrics, shuffle, auto-cycle, frame diagnostics, staged catalog behavior, and the current
+visualizer/lyrics-provider status. Signed build 294 is installed in place on SaiyanDenawa; the app has not been
+launched for runtime acceptance.
+
+The current source uses the corresponding `/search` path first for a user-configured GET profile named LRCLIB, then
+retains exact and sequential -1/+1 through -5/+5 duration requests when search does not produce a match. Search
+accepts only a normalized title/artist/optional-album/duration match. This accommodates provider duration rounding,
+encoder differences, release-quality album suffixes, and metadata lookup edge cases such as the known
+Kolm/Yugen/Mycelia record without enabling a built-in lyrics service. The source passed regression checks, Swift
+parsing, and strict simulator/generic-device preflight. A signed temporary legacy-bundle compatibility build 2.1/
+build 311 was installed in place over the old Resonance app on SaiyanDenawa without uninstalling or launching it; the
+separate MeiKyo bundle remains untouched. The already-uploaded public build 308 does not contain this follow-up.
+
+## App Store readiness materials
+
+This source now includes the required-reason privacy manifest and the working documents for App Store privacy
+disclosure, the publication privacy policy, and Apple review-server setup:
+
+- `Resonance/PrivacyInfo.xcprivacy`
+- `Docs/APP-PRIVACY-QUESTIONNAIRE.md`
+- `Docs/PRIVACY-POLICY.md`
+- `Docs/APP-REVIEW-SERVER-SETUP.md`
+
+The privacy documentation pass remains conditional on confirming who operates and retains data on each remote service;
+replace its placeholders before submission. The HTTPS-only transport hardening below does not change Finder file
+sharing, credential storage, playback, lyrics, artwork, or ProjectM behavior.
+
+Remote Navidrome/Subsonic and Resonance Manifest connections now require HTTPS. Bare hostnames are treated as HTTPS,
+explicit `http://` addresses are rejected, and server-provided stream, manifest, artwork, API, playback, and download
+URLs are checked before use. The tested review endpoint is `https://music.koolkidz.us`; the included HTTP-only companion
+server is a development fixture and must be placed behind TLS before the app can use it.
+
+Build 292 adds a prominent Streaming Library notice explaining that remote streaming is intended for private,
+non-commercial use with music the user lawfully acquired and is legally entitled to access, play, and stream. The
+notice places responsibility for licenses, permissions, server content, and compliance with applicable law on the user.
+
+Build 293 adds a first-use, OK-only notice before manual online artwork search begins. It explains that MusicBrainz
+provides community-maintained metadata, Cover Art Archive provides the images, MusicBrainz request identification and
+rate-limit requirements, the core/supplementary data licenses, commercial-use caveats, provider privacy implications,
+and the user’s responsibility to obtain rights to downloaded artwork. Automatic remote artwork fallback is unchanged.
+
+The current online artwork path uses MusicBrainz and Cover Art Archive only. Apple’s iTunes artwork provider has been
+removed pending separate commercial-use and artwork-rights confirmation.
+
+Build 290 widens the synced-lyrics raster canvas from 1024 to 1536 pixels and
+widens the bounded native lyric display band, while capping the entry zoom and
+sampling the complete lyric texture vertically so wrapped final words remain
+visible.
+
+Build 289 uses all 9,795 bundled ProjectM visualizations in automatic rotation.
+The full catalog is owned by a background actor; fullscreen SwiftUI state holds
+only the focused startup list and the one currently active archive preset. Each
+timer or swipe advance loads one preset at a time, with archive changes using
+hard cuts so the full catalog does not create a second live transition renderer.
+Browse uses the same catalog. Native synced lyric text is half the previous mesh
+width, and browser names use compact multi-line text.
+
+The first build-289 catalog implementation was rejected after physical testing
+reported the old interaction lock returning. This repair was rebuilt and installed
+in place over that build; physical acceptance of the repair is pending.
+
+The build-288 focused-only path was user-reported flawless before this catalog
+browser change. Fresh earlier SaiyanDenawa diagnostics showed 84 stalls when
+Cream of the Crop entries were rotated automatically, with a 183 ms median and
+445 ms p95 stall gap.
+
+The build-286 GLKView framebuffer-refresh hypothesis was disproven by physical testing: the fresh post-test diagnostics
+contained no new OpenGL framebuffer errors and the user reported no behavior change. The common cause remains the
+synchronous ProjectM render call on the main run loop. Normal frames measured approximately 23–26 ms at the old 0.75
+drawable scale, while pathological presets blocked the run loop for approximately 183–400 ms, making controls,
+favorites, and transitions appear locked even with music paused and no downloads.
+
+Build 287 applies a bounded renderer budget: the drawable is fixed at 0.5 scale, and low-FPS auto-banish no longer tears
+down and recreates the GLKView/ProjectM bridge during interaction. Audio, PCM, lyrics, downloads, preset data, and
+in-place app storage behavior are otherwise unchanged. It was signed and installed in place on SaiyanDenawa as build
+287; Codex did not launch the physical app.
+
+The current source repair addresses the common ProjectM integration hot path: Resonance now submits at most the same
+bounded 480-frame visualization PCM window used by standalone ProjectMD, discarding stale visualization backlog before
+each render. This prevents pending audio history from expanding main-thread render work and starving controls. The
+repair was rebuilt, signed, and installed in place as build 286; the phone now contains this change and the app has
+not been launched by Codex.
+
+The current source repair for the no-download fullscreen lockup removes the visualizer lyric host's 120 ms
+`PlaybackProgress` SwiftUI observation. Lyric timing now uses 250 ms anchors with interpolation, reducing main-run-loop
+competition with ProjectM controls and preset changes. It was signed and installed in place as build 286; Codex did
+not launch the physical device.
+
+Build 286 repairs the download-driven 2–5 FPS ProjectM regression measured on SaiyanDenawa after build 285. The
+renderer itself remained fast, but its display link was starved by repeated main-actor work: each accepted 400 ms
+background-progress event still changed several manager-wide published values and rewrote the complete download
+dictionary and queue array. The latest reproduction recorded 23 fullscreen frame stalls with a 403.8 ms median gap
+while native rendering and lyric uploads remained only a few milliseconds.
+
+Live byte progress now uses one small active-transfer publisher. The full queue changes only at actual track-state
+boundaries such as start, completion, failure, cancellation, and requeue. Compact byte progress and the expanded active
+queue row still update at the existing 400 ms cadence. Network bytes, one-file concurrency, queue order, persistence,
+resume, replacement behavior, metadata parsing, library refresh, playback, ProjectM quality, audio, and transitions are
+unchanged.
+
+Focused source contracts, Swift parsing, `git diff --check`, equivalent workload manifests, strict Swift 6 simulator
+and generic-device preflight, signed arm64 Release compilation, and deep strict code-signature verification passed.
+Build 286 installed in place on SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `286`. Codex did not launch
+the physical app. The full regression script reaches its unrelated existing Streaming alphabet assertion at line 196.
+Physical frame-rate acceptance while the large download batch runs remains user-tested.
+
+## Build 285 background-progress baseline
+
+Build 285 repairs a measured background-download publication storm. SaiyanDenawa had
+`experimentalBackgroundDownloads=true`; unlike the foreground path, the background URLSession delegate decoded its
+persisted task record and sent progress through NotificationCenter, the main actor, and multiple `@Published` values
+for every network callback. That continuously invalidated download UI and could also compete with fullscreen ProjectM.
+
+Background progress is now coalesced before persistence or main-actor work to the same 400 ms cadence already used by
+foreground downloads. The delegate obtains the track identity from the URLSession task description instead of
+decoding UserDefaults on every chunk, always publishes final progress, and records one privacy-safe per-file
+`download.background_progress.summary` with callback and publication counts. Transfer concurrency, throughput,
+cancellation, queue persistence, completion finalization, metadata parsing, library refresh, and ProjectM quality are
+unchanged.
+
+Focused download contracts, Swift parsing, `git diff --check`, strict Swift 6 simulator and generic-device preflight,
+signed arm64 Release compilation, and deep strict signature verification passed. Build 285 installed in place on
+SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `285`. Codex did not launch the physical app. The full
+regression script still reaches its unrelated stale Streaming alphabet assertion at line 196. Physical thermal
+improvement remains a user-run acceptance test.
+
+## Build 284 PCM baseline
+
+Build 284 removes Resonance's mutex and growable `std::vector` from the real-time PCM handoff between the
+`AVAudioEngine` mixer tap and ProjectM. The bridge now uses fixed, preallocated single-producer/single-consumer storage
+and a renderer-owned scratch buffer, so neither the audio callback nor the 60 Hz render path allocates, erases, swaps,
+or destroys PCM containers. The existing mono sample order, ProjectM PCM API, playback graph, explicit surround
+routing, preset quality, transition behavior, lyrics, drawable scale, and frame target are unchanged.
+
+Renderer teardown disables PCM acceptance before clearing the staging buffer. A privacy-safe summary records submitted,
+consumed, and dropped frame counts when fullscreen closes, allowing device testing to confirm that the bounded handoff
+did not lose audio windows without logging audio or track data.
+
+Build 284 passed the focused PCM source contract, equivalent-workload manifest check, `git diff --check`, strict Swift
+6 simulator and generic-device preflight, signed arm64 Release compilation, and deep strict code-signature verification.
+It installed in place on SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `284`. Codex did not launch the
+physical app. Later physical testing found that the phone still heated, so build 284 did not pass thermal acceptance.
+The full regression script reaches its existing unrelated Streaming alphabet assertion at line 196; all new PCM
+assertions pass.
 
 ## Build 280 baseline
 
@@ -91,13 +584,14 @@ The prior dials and dense hardware details were removed.
 ## Verified source and release artifact identity — 2026-08-08
 
 The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
-`agent/alpha-3.7.4-source`; build 281 contains the current ProjectM hitch and lyric-timeout repair. The project’s
-default Xcode settings are version `2.1`, build `281`. See `Docs/PROJECT-STATE.md`
+`agent/alpha-3.7.4-source`; build 288 contains the focused live ProjectM catalog repair together with the active-
+progress isolation repair, background callback coalescing, PCM repair, and single-render transition work. The project’s
+default Xcode settings are version `2.1`, build `288`. See `Docs/PROJECT-STATE.md`
 and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
 
-Last verified source build: `2.1` (build `281`); designated standard build: `2.1` (build `313`)
+Current source build: `2.1` (build `288`)
 
-Latest recorded SaiyanDenawa installation: `2.1` (build `281`). Build 313 installation evidence is not yet synchronized. The signed arm64 Release app passed deep strict signature
+Latest SaiyanDenawa installation: `2.1` (build `288`). The signed arm64 Release app passed deep strict signature
 verification, installed in place, and was verified by `devicectl`; Codex did not launch the physical app.
 
 ## Resonance Beta v2.0 build 268 — 2026-07-31 UTC
@@ -513,12 +1007,12 @@ marked the recommended candidate with a red outline, and applying a different
 candidate produced the expected Resonance metadata override. The physical
 device was not launched or updated.
 
-The app icon is now the generated ToneVault mark in
-`Assets.xcassets/AppIcon.appiconset/ToneVault-AppIcon-1024.png`: a midnight
-vault door with a cyan-and-amber audio waveform. The asset catalog references
-the 1024×1024 source as the universal iOS AppIcon. The strict simulator build,
-asset compilation, simulator install/launch, and visual inspection of the
-compiled 60×60@2x icon all passed. The physical device was not updated.
+The app icon is concept 10 from the icon exploration sheet in
+`Assets.xcassets/AppIcon.appiconset/ToneVault-AppIcon-1024.png`: a simple yellow
+canary profile with yellow, cyan, and orange sound-wave ribbons on a charcoal
+background. The asset catalog references the 1024×1024 source as the universal
+iOS AppIcon. Asset-catalog compilation and visual inspection passed. The
+physical device was not updated.
 
 Artwork search refinement now sends artist, album artist, album name, and—when
 needed—individual song title metadata to the providers. Candidates are filtered
@@ -2606,3 +3100,44 @@ Validation: focused source contracts, Swift 6 simulator and generic-device prefl
 deep strict code-signature verification, and in-place installation on SaiyanDenawa passed. The installed app remains
 version `2.1`, build `281`; Codex did not launch the physical device. The full regression script still stops at the
 unrelated pre-existing `preservingArtworkOverride` assertion.
+
+### Build 282 — persisted visualizer state and synchronous diagnostic-stall removal — 2026-08-08
+
+Fullscreen ProjectM now persists the Lyrics toggle and the last selected non-banished preset. Reopening the module
+restores those choices; a removed or banished preset safely falls back to the first available entry. Existing favorite,
+banished, shuffle, and auto-cycle persistence is unchanged.
+
+Fresh build-281 device evidence showed that native preset loads, lyric texture uploads, framebuffer-size events, and
+first-transition checks all called the diagnostics writer synchronously from the main/render path. The standalone
+ProjectMD logger already performs this work asynchronously. Build 282 routes these low-volume ProjectM events through
+Resonance's serial background diagnostics queue, keeps controls/frame-stall/render-window events available without
+verbose debugging, and preserves their privacy-safe ordering. Transition validation was also reading stale GLES
+errors left by the incoming preset before the compositor ran; actual checked composites were clean. The stale-error
+poll and its forced GPU synchronization are removed, while an asynchronous first-composite boundary remains.
+
+Validation passed: focused persistence/render-path contracts, `git diff --check`, Swift 6 simulator and generic-device
+preflight, signed arm64 Release compilation, deep strict code-signature verification, and in-place installation on
+SaiyanDenawa. Device verification reports Resonance `2.1`, build `282`. Codex did not launch the physical app. The
+full regression script still stops at the unrelated pre-existing `preservingArtworkOverride` assertion; the repository
+does not contain the optional Python `scripts/` test directory expected by the generic performance workflow.
+
+### Build 283 — measured ProjectM dual-render transition repair — 2026-08-08
+
+Fresh build-282 device diagnostics separated the remaining costs. Showing and hiding controls on the light Escargot
+preset stayed near 17–23 ms maximum frame gaps, but soft preset changes synchronously loaded/compiled their destination
+for 88.2, 97.0, and 105.0 ms. During the transition, projectM then rendered both complete presets before blending them;
+render windows rose from roughly 8.8 ms on Escargot to 20–24 ms, exceeded the 16.67 ms 60 Hz budget, and reached a
+50.01 ms frame gap. Native lyric uploads measured only 0.1–0.3 ms and were not the blocking operation.
+
+Build 283 removes one confirmed redundant workload: the outgoing preset now keeps its last complete output texture
+while only the incoming preset evolves. The original projectM transition shader, ratio, duration, preset identities,
+viewport, 0.75 drawable scale, lyrics, shuffle, and controls are unchanged. This does not hide the separate 88–105 ms
+synchronous destination-preset load; physical re-profiling will determine whether that becomes the next dominant hitch.
+
+Equivalent workload manifests and the behavior proof are stored in
+`/Users/brian/Resonance/evidence/projectm-282-round-04`. `git diff --check`, the focused native transition contract,
+Swift 6 strict simulator and generic-device preflight, signed arm64 Release compilation, deep strict signature
+verification, and in-place installation passed. SaiyanDenawa reports Resonance `2.1`, build `283`; Codex did not launch
+the app. The full regression script still stops at its unrelated stale `preservingArtworkOverride` assertion. The
+signed build also emitted the known non-blocking AppIntents SSU artifact archive message and existing vendored
+hlslparser warnings.

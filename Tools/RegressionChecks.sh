@@ -17,6 +17,14 @@ plutil -lint Resonance/Info.plist
 plutil -lint Resonance.xcodeproj/project.pbxproj
 python3 -m py_compile Tools/ResonanceServer.py
 
+MATCHER_FIXTURE="${TMPDIR:-/tmp}/resonance-lyrics-companion-matcher-$$"
+trap 'rm -f "$MATCHER_FIXTURE"' EXIT
+swiftc -parse-as-library \
+    Resonance/Services/LyricsCompanionMatcher.swift \
+    Tools/LyricsCompanionMatcherFixture.swift \
+    -o "$MATCHER_FIXTURE"
+"$MATCHER_FIXTURE"
+
 python3 - <<'PY'
 from pathlib import Path
 root = Path('.')
@@ -30,10 +38,16 @@ database = (root / 'Resonance/Services/LibraryDatabase.swift').read_text()
 views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
 artwork_view = (root / 'Resonance/Views/ArtworkView.swift').read_text()
 remote = (root / 'Resonance/Services/RemoteLibraryStore.swift').read_text()
+remote_url_support = (root / 'Resonance/Services/RemoteURLSupport.swift').read_text()
 remote_download = (root / 'Resonance/Services/RemoteDownloadService.swift').read_text()
 library_store = (root / 'Resonance/Services/LibraryStore.swift').read_text()
 settings = (root / 'Resonance/Services/AppSettings.swift').read_text()
+lyrics_service = (root / 'Resonance/Services/LyricsService.swift').read_text()
+lyrics_matcher = (root / 'Resonance/Services/LyricsCompanionMatcher.swift').read_text()
+telemetry = (root / 'Resonance/Services/VisualizerTelemetryService.swift').read_text()
 settings_view = (root / 'Resonance/Views/SettingsView.swift').read_text()
+player_views = (root / 'Resonance/Views/PlayerViews.swift').read_text()
+online_artwork_search = (root / 'Resonance/Views/OnlineArtworkSearchView.swift').read_text()
 diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
 error_log = (root / 'Resonance/Services/AppErrorLog.swift').read_text()
 streaming = (root / 'Resonance/Views/StreamingLibraryView.swift').read_text()
@@ -46,8 +60,12 @@ orientation = (root / 'Resonance/Services/ResonanceOrientationCoordinator.swift'
 projectm_bridge = (root / 'Resonance/Services/ResonanceProjectMBridge.mm').read_text()
 projectm_engine = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/ProjectM.cpp').read_text()
 projectm_preset = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/MilkdropPreset/MilkdropPreset.cpp').read_text()
+projectm_shape = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/MilkdropPreset/CustomShape.cpp').read_text()
 milkdrop_text = (root / 'Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/libprojectM/Renderer/MilkdropText.cpp').read_text()
 plist = (root / 'Resonance/Info.plist').read_text()
+privacy_manifest = (root / 'Resonance/PrivacyInfo.xcprivacy').read_text()
+internal_privacy_manifest = (root / 'Resonance/PrivacyInfo-Internal.xcprivacy').read_text()
+privacy_selector = (root / 'Tools/SelectPrivacyManifest.sh').read_text()
 views_contract = (root / 'Resonance/Views/AGENTS.md').read_text()
 services_contract = (root / 'Resonance/Services/AGENTS.md').read_text()
 models_contract = (root / 'Resonance/Models/AGENTS.md').read_text()
@@ -58,16 +76,212 @@ now_playing = views.split('struct NowPlayingView: View {', 1)[1].split(
 assert 'RemoteLibraryStore.swift in Sources' in pbx
 assert 'StreamingLibraryView.swift in Sources' in pbx
 assert 'AppErrorLog.swift in Sources' in pbx
-assert pbx.count('CURRENT_PROJECT_VERSION = 313;') == 2
-assert "@State private var lyricsEnabled = true" in projectm_view
+assert pbx.count('CURRENT_PROJECT_VERSION = 335;') == 2
+assert pbx.count('PRODUCT_BUNDLE_IDENTIFIER = com.briangarcia.meikyo;') == 2
+assert pbx.count('PRODUCT_NAME = MeiKyo;') == 2
+assert '@EnvironmentObject private var settings: AppSettings' in projectm_view
+assert 'settings.projectMFullscreenLyricsEnabled' in projectm_view
+assert '@AppStorage("resonance.projectmd.selectedPresetID") private var selectedID = ""' in projectm_view
+assert "recordDeferredAlways(eventString" in diagnostics
 assert "isIdleTimerDisabled" in projectm_view
 assert "[.landscapeLeft, .landscapeRight]" in orientation
 assert "projectm.frame.stall" in projectm_view
-assert "projectm.transition.validation" in projectm_engine
+assert "private let elapsedTimer = Timer.publish(every: 0.25" in projectm_view
+assert "@EnvironmentObject private var playbackProgress: PlaybackProgress" not in projectm_view
+assert "private var rotationPresets: [ResonanceProjectMPreset]" in projectm_view
+assert "private actor ProjectMPresetCatalogStore" in projectm_view
+assert "private func requestPresetAdvance(by offset: Int)" in projectm_view
+assert "let archiveRoot = projectMRoot.appendingPathComponent(\"CreamOfTheCrop\"" in projectm_view
+assert "FileManager.default.enumerator" in projectm_view
+assert "private struct ProjectMPresetBrowser: View" in projectm_view
+assert "return focusedPresets" in projectm_view
+assert '"catalog_count": "deferred"' in projectm_view
+assert '"archive_mode": "staged"' in projectm_view
+assert '"projectm.preset.catalog.loaded"' in projectm_view
+assert 'kMaximumCustomShapeInstances = 128' in projectm_shape
+assert 'std::clamp(parsedFile.GetInt(shapecodePrefix + "num_inst", m_instances)' in projectm_shape
+assert 'num_inst so their' in projectm_shape
+assert 'private var trackTitle = ""' in projectm_view
+assert 'private let titleDisplayDuration: TimeInterval = 5' in projectm_view
+assert 'key: "\\(trackKey):title"' in projectm_view
+assert 'yields immediately when lyrics begin' in projectm_view
+assert "await presetCatalog.load(from: root)" in projectm_view
+assert "@State private var selectedArchivePreset" in projectm_view
+assert "ProjectMFullscreenView.archivePresets(from: projectMRoot)" in projectm_view
+assert "const float sizeX = 0.80f;" in milkdrop_text
+assert "width = 1536;" in projectm_bridge
+assert "const float scale = std::min(1.0f" in milkdrop_text
+assert "requestPresetAdvance(by: 1)" in projectm_view
+assert "let smooth = !loadedPresetID.isEmpty && loadedPresetWasFocused && preset.isFocused" in projectm_view
+assert "projectm.transition.first_composite" in projectm_engine
+assert "glGetError" not in projectm_engine
+assert "bool renderActivePreset = true;" in projectm_engine
+assert "renderActivePreset = false;" in projectm_engine
+assert "struct ResonancePCMStagingRing" in projectm_bridge
+assert "gPCMStaging.Submit(samples, count, channels)" in projectm_bridge
+assert "gPCMStaging.Drain(renderer->pcmScratch.data()" in projectm_bridge
+assert "constexpr size_t kPCMVisualizationFrames = 480;" in projectm_bridge
+assert "const size_t windowCapacity = std::min(scalarCapacity, kPCMVisualizationScalars);" in projectm_bridge
+assert "read = write - windowCapacity;" in projectm_bridge
+assert "projectm.pcm.staging_summary" in projectm_bridge
+assert "gAudioMutex" not in projectm_bridge
+assert "gPendingPCM" not in projectm_bridge
+assert "pcm.swap" not in projectm_bridge
 assert "elapsedAnchorMediaTime" in projectm_view
+assert 'lrclib.net' not in lyrics_service
+assert 'configuration: LyricsProviderConfiguration' in lyrics_service
+assert 'var hasReadableLyrics: Bool' in lyrics_service
+assert 'var displayText: String' in lyrics_service
+assert 'guard configuration.isUsable' in lyrics_service
+assert 'case .postJSON' in lyrics_service
+assert 'case .lrc' in lyrics_service
+assert 'durationToleranceSeconds = 5' in lyrics_service
+assert 'durationCandidates(' in lyrics_service
+assert 'case .noMatch' in lyrics_service
+assert 'SearchCandidate' in lyrics_service
+assert 'makeSearchRequest' in lyrics_service
+assert 'performSearchRequest' in lyrics_service
+assert 'caseInsensitiveCompare("LRCLIB")' in lyrics_service
+assert 'lyricsProviderEnabled = false' in settings
+assert 'lyricsProviderToken' in settings
+assert 'settingsVisualizerExpanded' in settings
+assert 'VisualizerTelemetryService.swift in Sources' in pbx
+assert 'https://music.koolkidz.us/resonance/telemetry/events' in telemetry
+assert 'maximumPendingEvents = 32' in telemetry
+assert 'eventId: String' in telemetry
+assert 'presetId: String' in telemetry
+assert 'banishmentReason: String' in telemetry
+assert 'frameGapMilliseconds: Double' in telemetry
+assert 'Authorization' in telemetry
+assert 'ResonanceVisualizerTelemetryBearerToken' in telemetry
+assert 'INSERT OR IGNORE' in telemetry
+assert 'UserDefaults.standard.bool(forKey: VisualizerTelemetryConfiguration.enabledKey)' in telemetry
+assert '@AppStorage(VisualizerTelemetryConfiguration.enabledKey) var visualizerTelemetryEnabled = false' in settings
+assert '@AppStorage("showVisualizerFPSCounter") var showVisualizerFPSCounter = false' in settings
+assert 'Lyrics Provider' in settings_view
+assert 'Enable user-configured lyrics service' in settings_view
+assert 'Visualizer' in settings_view
+assert 'Share anonymous visualizer diagnostics' in settings_view
+assert 'Show FPS counter' in settings_view
+assert 'updated once per second' in settings_view
+assert 'music.koolkidz.us' in settings_view
+assert 'iOS major version' in settings_view
+assert 'showingLyricsProviderQRCodeScanner' in settings_view
+assert 'Scan lyrics provider QR code' in settings_view
+assert 'LyricsProviderQRCodeConfiguration' in settings_view
+assert 'resonance.lyrics.provider' in settings_view
+assert 'Music Library Storage' in settings_view
+assert 'Choose Persistent Music Folder' in settings_view
+assert 'persistentMusicFolderIsConnected' in library_store
+assert 'configurePersistentMusicFolder' in library_store
+assert 'copyDirectoryContentsIfPresent' in library_store
+assert 'PersistentMusicFolderBookmarkStore' in library_store
+assert 'PersistentMusicFolderBookmarkStore.swift in Sources' in pbx
+assert 'ExternalFileCoordinator.swift in Sources' in pbx
+assert 'ExternalFileCoordinator' in library_store
+assert 'ExternalFileCoordinator' in remote_download
+assert 'let destination = selectedURL' in library_store
+assert 'private var libraryMutationGeneration = 0' in library_store
+assert 'let scanGeneration = libraryMutationGeneration' in library_store
+assert 'scanGeneration == libraryMutationGeneration' in library_store
+assert '"library.scan.discarded"' in library_store
+assert 'libraryMutationGeneration &+= 1' in library_store
+assert 'persistentMusicFolderURL = url' in library_store
+assert 'lyricsProviderTitleParameter = payload.titleParameter' in settings_view
+assert 'lyricsProviderSyncedResponsePath = syncedResponsePath' in settings_view
+assert 'lyricsProviderToken = token' in settings_view
+assert 'VISUALIZER_TELEMETRY_BEARER_TOKEN' in plist
+assert 'NSPrivacyCollectedDataTypePerformanceData' not in privacy_manifest
+assert 'NSPrivacyCollectedDataTypePerformanceData' in internal_privacy_manifest
+assert 'NSPrivacyCollectedDataTypePurposeAppFunctionality' in internal_privacy_manifest
+assert '<key>NSPrivacyCollectedDataTypeLinked</key>\n\t\t\t<false/>' in internal_privacy_manifest
+assert 'RESONANCE_TELEMETRY' in privacy_selector
+assert 'PrivacyInfo-Internal.xcprivacy' in privacy_selector
+assert 'Complete visualization catalog' in settings_view
+assert 'Low-framerate auto-banish' in settings_view
+assert 'Visualizer FPS counter' in settings_view
+assert 'App Feature List' in settings_view
+assert 'Prototype Status' not in settings_view
+assert 'Stage completion' not in settings_view
+assert 'settingsAboutExpanded' in settings
+assert 'privacyPolicyAcknowledged' in settings
+assert 'ResonancePrivacyPolicyConsentView' in root_view
+assert 'interactiveDismissDisabled(true)' in root_view
+assert 'Read the MeiKyo Privacy Policy' in settings_view
+assert 'ProjectM and MilkDrop' in settings_view
+assert 'visualizerTelemetryAvailable' in settings
+assert 'isCompiledIn' in telemetry
+assert 'fpsCallback = nil' in projectm_view
+assert 'lowFPSCallback = nil' in projectm_view
+assert 'resetFPSCounter(notify: false)' in projectm_view
+assert '@AppStorage("resonance.projectmd.photosensitivityAcknowledged") private var photosensitivityAcknowledged = false' in player_views
+assert 'private struct VisualizerSafetyNotice: View' in player_views
+assert 'checkmark.square.fill' in player_views
+assert 'Photosensitivity and seizure warning' in player_views
+assert 'interactiveDismissDisabled()' in player_views
+assert '@EnvironmentObject private var lyricsStore: LyricsStore' in now_playing
+assert 'private var hasReadableLyrics: Bool' in now_playing
+assert 'private struct NowPlayingLyricsBubble: View' in views
+assert 'RoundedRectangle(cornerRadius: 18, style: .continuous)' in views
+assert 'fill(Color.black.opacity(0.90))' in views
+assert 'lyricsStore.load(' in now_playing
+assert 'LongPressGesture(minimumDuration: 0.65)' in now_playing
+assert 'showingLyricsFileImporter' in now_playing
+assert 'allowedContentTypes: [UTType(filenameExtension: "lrc") ?? .plainText]' in now_playing
+assert '.zIndex(showingLyrics ? 10 : 0)' in now_playing
+assert 'let panelWidth = min(max(pageWidth - 24, 1), 360)' in player_views
+assert '.overlay(alignment: .center)' in player_views
+assert '.zIndex(20)' in player_views
+assert '.asymmetric(' in player_views
+assert 'matchedGeometryEffect' not in player_views
+assert '@EnvironmentObject private var playbackProgress: PlaybackProgress' in player_views
+assert 'private let lyricTimer = Timer.publish' not in player_views
+assert 'playbackProgress.elapsed' in player_views
+assert 'playbackRestartID' in player
+assert 'func reloadForPlayback(' in lyrics_service
+assert 'lyrics.local.rescan.begin' in lyrics_service
+assert 'lyricsStore.reloadForPlayback(' in now_playing
+assert 'Date().timeIntervalSince(playbackAnchorDate) * effectiveRate' in player
+assert 'if isPlaying {\n      updateElapsedFromClock()\n    }' in player
+assert 'onMaximizeLyrics' in now_playing
+assert 'showingFullScreenLyrics' in now_playing
+assert 'isFullScreen: true' in now_playing
+assert 'searchLocalSiblingFile: player.isCurrentAudiobook' in now_playing
+assert 'func importLRC(from url: URL, for track: Track)' in lyrics_service
+assert 'static func document(fromLRCData data: Data)' in lyrics_service
+assert 'static func localDocument(' in lyrics_service
+assert 'coordinatedSiblingLRCData' in lyrics_service
+assert 'guard audioURL.isFileURL else { return nil }' in lyrics_service
+assert 'coordinatedSiblingLRCData' in lyrics_service
+assert 'ExternalFileCoordinator.read(at: audioURL)' in lyrics_service
+assert 'Data(contentsOf: exact)' in lyrics_service
+assert 'PersistentLyricsCompanionDataStore' in lyrics_service
+assert 'LyricsCompanionMatcher.swift in Sources' in pbx
+assert 'companionData' in library_store
+assert 'audioURL.deletingPathExtension().appendingPathExtension("lrc")' in library_store
+assert 'audioURL.appendingPathExtension("lrc")' in library_store
+assert 'recordDeferredAlways(\n            "library.scan.inventory"' in library_store
+assert 'LyricsCompanionMatcher.matchKey(' in library_store
+assert 'if let chapterRange = folded.range(of: "chapter")' in lyrics_matcher
+assert 'CharacterSet.alphanumerics.contains($0)' in lyrics_matcher
+assert 'resonance.lyricsCompanionCache.v3' in library_store
+assert 'LyricsCompanionMatcher.matchKey(' in lyrics_service
+assert 'lyricsCompanionCacheCompletedKey' in library_store
+assert 'ExternalFileCoordinator.read(at: selectedRoot)' in lyrics_service
+assert 'rebaseTrackIntoSelectedMusicFolder' in library_store
+assert 'legacySharedMusicFolderURL' in library_store
+assert 'LyricsOverrides' in lyrics_service
+assert '@EnvironmentObject private var lyricsStore: LyricsStore' in projectm_view
+assert settings_view.index('Finder File Sharing') < settings_view.index('Visualizer') < settings_view.index('Reported Errors')
 assert 'ArtworkSearchService.swift in Sources' in pbx
 assert 'OnlineArtworkSearchView.swift in Sources' in pbx
-assert pbx.count('MARKETING_VERSION = 2.1;') == 2
+assert pbx.count('MARKETING_VERSION = 1.0;') == 2
+assert pbx.count('CURRENT_PROJECT_VERSION = 335;') == 2
+assert 'let originalFileName: String?' in remote
+assert 'let path: String?' in remote
+assert 'preferredFileName: response.suggestedFilename' in remote_download
+assert '[track.originalFileName, preferredFileName]' in remote_download
+assert '.compactMap(Self.preservedServerFileName)' in remote_download
 assert '.zIndex(100)' in root_view
 assert 'settings.themeSecondaryColor' in root_view
 assert '.ignoresSafeArea()' in root_view
@@ -201,8 +415,8 @@ assert 'highPriorityGesture' in library_view
 assert 'alphabet.gesture.begin' in library_view
 assert 'alphabet.touch.begin' in library_view
 assert 'alphabet.touch.end' in library_view
-assert streaming.count('hitWidth: settings.leftHandedAlphabet ? 48 : 32') == 3
-assert 'Reissue the final selection after the gesture has' in library_view
+assert 'ZStack(alignment: settings.leftHandedAlphabet ? .leading : .trailing)' in streaming
+assert 'Reissue' in library_view
 assert 'repeatSelection: true' in library_view
 assert 'await Task.yield()' in library_view
 assert 'alphabet.scrollTo' in streaming
@@ -312,9 +526,7 @@ assert 'nowPlayingPresentationRequest' in root_view
 assert 'nowPlayingPresentationRequest' in player
 assert 'presentsNowPlaying' in player
 assert 'Online artwork search' in settings_view
-assert 'Apple and MusicBrainz / Cover Art Archive sources' in settings_view
-assert 'Text("100%")' in settings_view
-assert 'ProgressView(value: 1.0)' in settings_view
+assert 'MusicBrainz / Cover Art Archive sources' in settings_view
 assert '.highPriorityGesture(' in now_playing
 assert 'requestNowPlayingPresentation()' in remote
 assert 'final class ResonanceTabNavigation' in root_view
@@ -332,7 +544,7 @@ assert 'transaction.animation = nil' in root_view
 assert 'ToolbarItemGroup(placement: .keyboard)' in root_view
 assert 'MiniPlayerDock' in root_view
 assert 'MiniPlayerEdgeHandle' in root_view
-assert 'ScrollView' not in now_playing
+assert 'Now Playing' in now_playing
 assert '.padding(.bottom, 16)' in now_playing
 assert '.frame(width: pageWidth, height: 260' in views
 assert '.frame(width: 252, height: 252)' in views
@@ -376,10 +588,15 @@ assert 'CGImageSourceCreateThumbnailAtIndex' in artwork
 assert 'artwork.local.thumbnail' in artwork
 assert 'UIImage(data: data)' not in artwork
 assert 'relevance' in artwork_search and 'MusicBrainz Cover Art Archive' in artwork_search
+assert 'Apple iTunes' not in artwork_search
+assert 'itunes.apple.com' not in artwork_search
+assert 'Apple iTunes' not in settings_view
 assert 'searchReport' in artwork_search
 assert 'searchMusicBrainzArchive' in artwork_search
-assert 'searchQueries' in artwork_search
 assert 'musicBrainzQueries' in artwork_search
+assert 'MusicBrainzRequestLimiter' in artwork_search
+assert 'rateLimitedMusicBrainz: true' in artwork_search
+assert 'searchQueries' not in artwork_search
 assert 'albumTitleVariants' in artwork_search
 assert 'stripTrailingReleaseMetadata' in artwork_search
 assert 'containsReleaseMetadataMarker' in artwork_search
@@ -396,7 +613,7 @@ assert 'func seed(' in artwork_search
 assert 'aliases: [String] = []' in artwork_search
 assert 'albumArtist: String? = nil' in artwork_search
 assert 'isCredibleMatch' in artwork_search
-assert 'queryParts(artist: artist, albumArtist: albumArtist, album: albumVariant, track: track)' in artwork_search
+assert 'queryParts' not in artwork_search
 assert 'recommendedSuggestionID' in artwork_picker
 assert '.stroke(isSelected ? .red' in artwork_picker
 assert 'onImageAvailabilityChanged' in artwork_picker
@@ -428,8 +645,36 @@ assert 'StreamingArtworkCache.shared.artwork' in streaming
 assert 'seedSharedArtwork' not in streaming
 
 assert 'SecureField("Navidrome / Subsonic"' in settings_view
+assert 'private, non-commercial use' in settings_view
+assert 'lawfully purchased or otherwise lawfully acquired' in settings_view
+assert 'legally entitled to access, play, and stream' in settings_view
+assert 'public or commercial music service' in settings_view
+assert '@AppStorage("musicBrainzArtworkNoticeAcknowledged")' in settings
+assert 'OnlineArtworkProviderNotice' in online_artwork_search
+assert 'meaningful application User-Agent' in online_artwork_search
+assert 'no more than one API request per second' in online_artwork_search
+assert 'CC BY-NC-SA 3.0' in online_artwork_search
+assert 'Cover Art Archive supplies the images' in online_artwork_search
+assert 'showingProviderNotice' in online_artwork_search
+assert 'acknowledgeProviderNotice()' in online_artwork_search
 assert 'Backend in use' in settings_view
-assert 'NSAllowsArbitraryLoads' in plist
+assert 'NSAllowsArbitraryLoads' not in plist
+assert 'NSAllowsLocalNetworking' not in plist
+assert 'static func isHTTPS(_ url: URL)' in remote_url_support
+assert 'static func resolveHTTPS(_ path: String, relativeTo baseURL: URL)' in remote_url_support
+assert 'RemoteURLSupport.resolveHTTPS' in remote
+assert 'RemoteURLSupport.isHTTPS(url)' in remote
+assert 'case insecureServerAddress' in remote
+assert 'components.scheme = "https"' in remote
+assert 'settings.streamUseHTTPS ? "https" : "http"' not in remote
+assert 'Toggle("Use HTTPS"' not in settings_view
+assert 'HTTPS is required for remote servers.' in settings_view
+assert 'case .insecureHTTP:' in settings_view
+assert 'let candidate = address.contains("://") ? address : "https://\\(address)"' in settings_view
+assert 'scheme == "http" || scheme == "https"' not in remote_download
+assert 'url.scheme?.lowercased() == "https"' in remote_download
+assert 'scheme == "http" || scheme == "https"' not in track
+assert 'scheme == "http" || scheme == "https"' not in player
 assert '<key>CFBundleIdentifier</key>' in plist
 assert '<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>' in plist
 assert '<key>CFBundleExecutable</key>' in plist
@@ -440,7 +685,7 @@ assert '<key>CFBundleShortVersionString</key>' in plist
 assert '<string>$(MARKETING_VERSION)</string>' in plist
 assert '<key>CFBundleVersion</key>' in plist
 assert '<string>$(CURRENT_PROJECT_VERSION)</string>' in plist
-assert '<string>Resonance Beta</string>' in plist
+assert '<string>MeiKyo 鳴響</string>' in plist
 
 # Alpha 3.7.4 build 43 playback crash isolation and device diagnostics.
 diagnostics = (root / 'Resonance/Services/ResonanceDiagnostics.swift').read_text()
@@ -485,7 +730,7 @@ assert 'if first.isLetter { return String(first) }' in library_view
 assert 'func resonanceArtistIndexOrder' in library_view
 assert r'.id("artist-section-\(section.key)")' in library_view
 assert r'.id("remote-artist-section-\(section.key)")' in streaming
-assert '.frame(width: 24)' in streaming
+assert '.frame(width: 22)' in streaming
 assert 'MiniPlayerOverlay' in root_view
 assert 'MiniPlayerInsets' in root_view
 assert 'PlaybackCoordinatorView' in root_view
@@ -494,7 +739,26 @@ assert 'trackRevision &+= 1' in remote
 assert 'private enum BrowseNeed: Equatable' in remote
 assert 'populate(&cache, need: need)' in remote
 assert 'activeTabContent' in root_view and 'tabPageIsVisible' in root_view
-assert 'if isExpanded {' in settings_view and 'self.content = content' in settings_view
+assert 'private struct SettingsCategoryPage' in settings_view
+assert 'Button {' in settings_view and '.navigationDestination(isPresented: $isShowingPage)' in settings_view
+assert 'settings.category.opened' in settings_view
+assert 'DisclosureGroup(isExpanded:' not in settings_view
+assert 'DragGesture(minimumDistance: 45)' not in settings_view
+assert '.scrollDisabled(true)' in settings_view
+assert 'TapGesture().onEnded' not in settings_view
+assert 'openVisualizer' in player_views
+assert 'Label("Visualizer", systemImage: "sparkles.tv")' in player_views
+assert 'onChange(of: lyricsStore.document)' not in player_views
+assert 'fullscreenControl(title: "Exit", systemImage: "xmark")' in projectm_view
+assert '.accessibilityLabel("Exit visualizer")' in projectm_view
+assert '\n      fullscreenControl(title: "Exit", systemImage: "xmark")' not in projectm_view
+assert 'ProjectMTransportButton(title: "Previous track"' in projectm_view
+assert 'ProjectMTransportButton(title: "Next track"' in projectm_view
+assert 'private struct ProjectMTrackSeekBar' in projectm_view
+assert 'Slider(value: $position' in projectm_view
+assert 'The fullscreen cover can become the first active lyrics consumer.' in projectm_view
+assert 'ExternalFileCoordinator.read(at: audioURL)' in lyrics_service
+assert 'copySiblingLyricsIfPresent' not in library_store
 # Alpha 3.7.2 post-start crash diagnostics and safe MediaPlayer artwork.
 assert 'playbackRuntimeDiagnostic' in player
 assert 'First playback timer tick completed' in player
@@ -508,6 +772,19 @@ assert 'RemoteDownloadManager' in remote_download
 assert 'RemoteBackgroundDownloadSession' in remote_download
 assert 'background(withIdentifier:' in remote_download
 assert 'sessionSendsLaunchEvents = true' in remote_download
+assert 'progressPublicationInterval: TimeInterval = 0.40' in remote_download
+assert 'shouldPublishProgress(' in remote_download
+assert 'download.background_progress.summary' in remote_download
+assert 'UUID(uuidString: downloadTask.taskDescription ?? "")' in remote_download
+background_progress = remote_download.split('didWriteData bytesWritten: Int64', 2)[2].split('didFinishDownloadingTo location: URL', 1)[0]
+assert 'record(for: downloadTask.taskIdentifier)' not in background_progress
+manager_progress = remote_download.split('private func handleBackgroundProgress(', 1)[1].split('private func handleBackgroundFinished(', 1)[0]
+assert 'publishLiveProgress(' in manager_progress
+assert 'setProgress(' not in manager_progress
+assert 'final class RemoteDownloadLiveProgress: ObservableObject' in remote_download
+assert '@Published private(set) var snapshot: RemoteDownloadProgress?' in remote_download
+assert '@ObservedObject var liveProgress: RemoteDownloadLiveProgress' in streaming
+assert 'item: displayedQueueItem(item)' in streaming
 assert 'handleEventsForBackgroundURLSession' in app_source
 assert 'experimentalBackgroundDownloads' in settings
 assert 'Experimental background downloads' in settings_view
@@ -632,7 +909,7 @@ assert 'backgroundImageName' in settings
 assert 'ThemeBrushedMetal' in settings
 assert 'ThemeClassicWood' in settings
 assert 'ThemeElectronic' in settings
-assert 'case .nocturne, .galleryLight, .colorBloom: nil' in settings
+assert 'case .colorBloom: nil' in settings
 assert 'case .nocturne: ["0B1020", "271A4A", "080B15"]' in settings
 assert 'case .galleryLight: ["F4E5D2", "C97955", "FFF8EE"]' in settings
 assert 'case .colorBloom: ["07142B", "8A245F", "0B4560"]' in settings
@@ -656,11 +933,14 @@ assert 'CenteredSettingsPicker' in settings_view
 assert '.presentationCompactAdaptation(.popover)' in settings_view
 assert 'qrcode.viewfinder' in settings_view
 assert 'MetadataTagWriter' in metadata
+assert 'let vendor = Data("MeiKyo".utf8)' in metadata
+assert 'appendLE32(vendor.count, to: &result)' in metadata
+assert 'appendLE32(9, to: &result)' not in metadata
 assert 'Reported Errors' in settings_view
 assert '.foregroundStyle(.red)' in settings_view
 assert 'AppReportedError' in error_log and 'Copy Errors' in settings_view
 assert 'SettingsCategory' in settings_view
-assert 'settings.category.changed' in settings_view
+assert 'settings.category.opened' in settings_view
 assert 'settingsAppearanceExpanded' in settings
 assert 'settingsPrototypeExpanded' in settings
 assert 'return String(' in remote and ').lowercased()' in remote
@@ -719,6 +999,7 @@ assert 'm_milkdropText->Draw' in projectm_engine
 assert projectm_preset.index('ShouldBurnIntoFeedback') < projectm_preset.index('m_finalComposite.Draw')
 assert 'constexpr int Columns = 16;' in milkdrop_text
 assert 'constexpr int Rows = 8;' in milkdrop_text
+assert 'constexpr float VerticalClip = 1.0f;' in milkdrop_text
 assert 'std::pow(rampedProgress, 1.8f) * 1.3f' in milkdrop_text
 assert 'GL_ONE_MINUS_SRC_COLOR' in milkdrop_text
 assert (root / 'Resonance/Resources/ProjectMD/MILKDROP2-TITLE-ANIMATION-LICENSE.txt').is_file()

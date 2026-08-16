@@ -5,6 +5,15 @@ private struct LibraryDocumentInventory: Sendable {
     let urls: [URL]
     let modificationDates: [String: Date]
     let sharedFolderTrackCount: Int
+    let companionData: [String: Data]
+    let lrcFileCount: Int
+    let derivedCandidateCount: Int
+    let enumeratedMatchCount: Int
+}
+
+private enum FileDeletionResult {
+    case deleted
+    case missing
 }
 
 private struct CachedLibraryDisplayTrack: Codable, Sendable {
@@ -102,6 +111,8 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var lastSharedFolderScan: Date?
     @Published private(set) var sharedFolderTrackCount = 0
     @Published private(set) var sharedFolderIsReady = false
+    @Published private(set) var persistentMusicFolderName: String?
+    @Published private(set) var persistentMusicFolderIsConnected = false
     @Published private(set) var isBootstrapping = true
     @Published private(set) var scanStatus = "Waiting for first scan"
     @Published private(set) var favoriteTrackIDs: Set<UUID> = []
@@ -130,6 +141,9 @@ final class LibraryStore: ObservableObject {
     private var displaySnapshotDeferralDepth = 0
     private var displaySnapshotDirty = false
     private var displaySnapshotWriteTask: Task<Void, Never>?
+    private var libraryMutationGeneration = 0
+    private var persistentMusicFolderURL: URL?
+    private var persistentMusicFolderAccessIsActive = false
     private var cachedFilteredTracks: [String: [Track]] = [:]
     private var cachedArtists: [String: [Artist]] = [:]
     private var cachedAlbums: [String: [Album]] = [:]
@@ -149,6 +163,7 @@ final class LibraryStore: ObservableObject {
 
     private nonisolated static let maximumLegacyDisplaySnapshotBytes: Int64 = 25 * 1_048_576
     private static let artworkRecoveryCompletedKey = "resonance.localArtworkRecovery.v1"
+    private static let lyricsCompanionCacheCompletedKey = "resonance.lyricsCompanionCache.v3"
 
     private enum PersistenceKey {
         static let favorites = "resonance.favoriteTrackIDs"
@@ -158,6 +173,30 @@ final class LibraryStore: ObservableObject {
     }
 
     init() {
+        if let bookmark = PersistentMusicFolderBookmarkStore.load() {
+            var isStale = false
+            if let url = try? URL(
+                resolvingBookmarkData: bookmark,
+                options: [],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ) {
+                // Preserve the URL returned by bookmark resolution. Calling
+                // standardizedFileURL before starting access can discard the
+                // security-scoped capability supplied by Files.
+                persistentMusicFolderURL = url
+                persistentMusicFolderName = url.lastPathComponent
+                persistentMusicFolderAccessIsActive = url.startAccessingSecurityScopedResource()
+                persistentMusicFolderIsConnected = persistentMusicFolderAccessIsActive
+                if isStale, let refreshed = try? url.bookmarkData(
+                    options: [],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                ) {
+                    PersistentMusicFolderBookmarkStore.save(refreshed)
+                }
+            }
+        }
         favoriteTrackIDs = Self.loadFavoriteIDs()
         recentPlayDates = Self.loadRecentPlayDates()
         playlists = Self.loadPlaylists()
@@ -238,11 +277,71 @@ final class LibraryStore: ObservableObject {
     }
 
     var sharedMusicFolderURL: URL {
-        documentsURL.appendingPathComponent(Self.sharedMusicFolderName, isDirectory: true)
+        persistentMusicFolderURL ?? legacySharedMusicFolderURL
     }
 
     var sharedMusicFolderDisplayPath: String {
-        "On My iPhone › Resonance Alpha › \(Self.sharedMusicFolderName)"
+        if let persistentMusicFolderName {
+            return "Files › \(persistentMusicFolderName)"
+        }
+        return "On My iPhone › MeiKyo › \(Self.sharedMusicFolderName)"
+    }
+
+    var usesPersistentMusicFolder: Bool {
+        persistentMusicFolderURL != nil
+    }
+
+    var activeMusicFolderName: String {
+        persistentMusicFolderName ?? Self.sharedMusicFolderName
+    }
+
+    /// Selects a user-owned Files folder as the library root. Existing music
+    /// is copied into it without deleting the app-container copy, preserving
+    /// the existing folder tree and making the migration recoverable.
+    func configurePersistentMusicFolder(at selectedURL: URL) async -> String? {
+        // Keep the exact picker URL for the access request and all coordinated
+        // operations. Normalizing it first can strip the security scope.
+        let destination = selectedURL
+        guard destination.isFileURL else { return "Choose a folder from the Files app." }
+
+        let destinationAccess = destination.startAccessingSecurityScopedResource()
+        guard destinationAccess else {
+            return "MeiKyo could not access that Files folder. Choose it again and allow access."
+        }
+
+        let previousRoot = sharedMusicFolderURL
+        let previousPersistentURL = persistentMusicFolderURL
+        let legacyRoot = legacySharedMusicFolderURL
+
+        do {
+            if previousRoot.standardizedFileURL.path != destination.standardizedFileURL.path {
+                try await Task.detached(priority: .utility) {
+                    try Self.copyDirectoryContentsIfPresent(from: previousRoot, to: destination)
+                }.value
+            }
+            let bookmark = try destination.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            if persistentMusicFolderAccessIsActive, let previousPersistentURL {
+                previousPersistentURL.stopAccessingSecurityScopedResource()
+            }
+            persistentMusicFolderURL = destination
+            persistentMusicFolderName = destination.lastPathComponent
+            persistentMusicFolderAccessIsActive = destinationAccess
+            persistentMusicFolderIsConnected = true
+            PersistentMusicFolderBookmarkStore.save(bookmark)
+            ensureSharedMusicFolder()
+            await scanDocuments(forceMetadataRefresh: true)
+            let copiedFromLegacy = previousRoot.standardizedFileURL.path == legacyRoot.standardizedFileURL.path
+            return copiedFromLegacy
+                ? "Your music was copied to the persistent Files folder. The original Finder copy was left untouched."
+                : "The persistent Files folder is now active."
+        } catch {
+            destination.stopAccessingSecurityScopedResource()
+            return "MeiKyo could not prepare that folder: \(error.localizedDescription)"
+        }
     }
 
     func bootstrap() async {
@@ -255,10 +354,12 @@ final class LibraryStore: ObservableObject {
         // cache path and avoids showing the empty-library indexing state while
         // SQLite and artwork blobs are being reconciled in the background.
         let cachedTracks = await Task.detached(priority: .utility) {
-            Self.loadDisplaySnapshot()
+          Self.loadDisplaySnapshot()
         }.value
         if !cachedTracks.isEmpty {
-            tracks = cachedTracks.map(applyMetadataOverride)
+            tracks = cachedTracks
+                .map(rebaseTrackIntoSelectedMusicFolder)
+                .map(applyMetadataOverride)
             let currentTracks = tracks
             knownModificationDates = await Task.detached(priority: .utility) {
                 Self.modificationDates(for: currentTracks)
@@ -272,15 +373,17 @@ final class LibraryStore: ObservableObject {
                     return !self.ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
                 }
                 guard !stored.isEmpty else { return }
-                self.reconcilePersistedIndex(stored, preservingArtworkFrom: cachedTracks)
+                let rebasedStored = stored.map(self.rebaseTrackIntoSelectedMusicFolder)
+                self.reconcilePersistedIndex(rebasedStored, preservingArtworkFrom: cachedTracks)
                 self.knownModificationDates = await Task.detached(priority: .utility) {
-                    Self.modificationDates(for: stored)
+                    Self.modificationDates(for: rebasedStored)
                 }.value
                 let hydrated = await self.database.loadAll(includeArtwork: true)
                 self.mergeCachedArtwork(from: hydrated)
                 self.persistDisplaySnapshot()
             }
             scheduleArtworkRecoveryIfNeeded()
+            scheduleLyricsCompanionScanIfNeeded()
             return
         }
 
@@ -291,13 +394,14 @@ final class LibraryStore: ObservableObject {
             return !ignoredLocalPaths.contains(Self.normalizedPathForInventory(url))
         }
         if !stored.isEmpty {
-            tracks = stored.map(applyMetadataOverride)
+            tracks = stored.map(rebaseTrackIntoSelectedMusicFolder).map(applyMetadataOverride)
             persistDisplaySnapshot()
             knownModificationDates = await Task.detached(priority: .utility) {
                 Self.modificationDates(for: stored)
             }.value
             scanStatus = "Cached library ready — \(tracks.count) tracks"
             scheduleArtworkRecoveryIfNeeded()
+            scheduleLyricsCompanionScanIfNeeded()
             return
         }
 
@@ -322,6 +426,29 @@ final class LibraryStore: ObservableObject {
             return merged
         }
         scanStatus = "Cached library ready — \(tracks.count) tracks"
+    }
+
+    /// The display snapshot and SQLite index can outlive a change from the
+    /// app-managed music folder to a user-selected Files folder. Rebase old
+    /// managed-folder URLs before they enter the playback queue, otherwise
+    /// adjacent files such as audiobook `.lrc` companions remain invisible
+    /// even though the selected folder is the active library root.
+    private func rebaseTrackIntoSelectedMusicFolder(_ track: Track) -> Track {
+        guard usesPersistentMusicFolder,
+              let fileURL = track.fileURL,
+              fileURL.isFileURL else { return track }
+
+        let legacyRoot = legacySharedMusicFolderURL.standardizedFileURL
+        let path = fileURL.standardizedFileURL.path
+        let rootPath = legacyRoot.path
+        let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        guard path.hasPrefix(prefix) else { return track }
+
+        let relativePath = String(path.dropFirst(prefix.count))
+        guard !relativePath.isEmpty else { return track }
+        var rebased = track
+        rebased.fileURL = sharedMusicFolderURL.appendingPathComponent(relativePath)
+        return rebased
     }
 
     private func mergeCachedArtwork(from cachedTracks: [Track]) {
@@ -363,6 +490,17 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    private func scheduleLyricsCompanionScanIfNeeded() {
+        guard usesPersistentMusicFolder,
+              !UserDefaults.standard.bool(forKey: Self.lyricsCompanionCacheCompletedKey)
+        else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.scanDocuments(forceMetadataRefresh: false)
+            UserDefaults.standard.set(true, forKey: Self.lyricsCompanionCacheCompletedKey)
+        }
+    }
+
     func refreshForActiveState() async {
         if didBootstrap {
             // Startup and foreground transitions use the cached database.
@@ -390,6 +528,10 @@ final class LibraryStore: ObservableObject {
         _ refreshes: [(url: URL, parsedTrack: Track?)]
     ) async {
         guard !refreshes.isEmpty else { return }
+        // Invalidate an in-flight scan before any asynchronous rereads or
+        // database writes. Otherwise that scan could publish its older
+        // snapshot after this targeted refresh completes.
+        libraryMutationGeneration &+= 1
         var refreshedCount = 0
         var addedCount = 0
         var updatedTracks = tracks
@@ -447,18 +589,44 @@ final class LibraryStore: ObservableObject {
     }
 
     func importURLs(_ urls: [URL]) async {
-        ensureSharedMusicFolder()
         isScanning = true
-        scanStatus = "Copying selected music…"
+        scanStatus = "Reading selected music…"
         defer { isScanning = false }
         var importedURLs: [URL] = []
 
         for selectedURL in urls {
+            var isDirectory: ObjCBool = false
+            FileManager.default.fileExists(atPath: selectedURL.path, isDirectory: &isDirectory)
+
+            // A selected folder is the user's library, not an import source.
+            // Keep its security-scoped bookmark and scan it in place so files
+            // beside the audio—especially audiobook LRC companions—remain
+            // discoverable at their original URLs.
+            if isDirectory.boolValue {
+                guard let bookmark = try? selectedURL.bookmarkData(
+                    options: [],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                ), selectedURL.startAccessingSecurityScopedResource() else {
+                    continue
+                }
+                if persistentMusicFolderAccessIsActive,
+                   let previousPersistentURL = persistentMusicFolderURL {
+                    previousPersistentURL.stopAccessingSecurityScopedResource()
+                }
+                persistentMusicFolderURL = selectedURL
+                persistentMusicFolderName = selectedURL.lastPathComponent
+                persistentMusicFolderAccessIsActive = true
+                persistentMusicFolderIsConnected = true
+                PersistentMusicFolderBookmarkStore.save(bookmark)
+                await scanDocuments(forceMetadataRefresh: true)
+                continue
+            }
+
+            ensureSharedMusicFolder()
             let accessed = selectedURL.startAccessingSecurityScopedResource()
             defer { if accessed { selectedURL.stopAccessingSecurityScopedResource() } }
 
-            var isDirectory: ObjCBool = false
-            FileManager.default.fileExists(atPath: selectedURL.path, isDirectory: &isDirectory)
             let sources = isDirectory.boolValue ? expandDirectory(selectedURL) : [selectedURL]
             let destinationRoot = isDirectory.boolValue
                 ? sharedMusicFolderURL.appendingPathComponent(selectedURL.lastPathComponent, isDirectory: true)
@@ -469,18 +637,23 @@ final class LibraryStore: ObservableObject {
                 let relativePath = isDirectory.boolValue
                     ? source.path.replacingOccurrences(of: selectedURL.path + "/", with: "")
                     : source.lastPathComponent
-                let target = destinationRoot.appendingPathComponent(relativePath)
 
                 do {
-                    try FileManager.default.createDirectory(
-                        at: target.deletingLastPathComponent(),
-                        withIntermediateDirectories: true
-                    )
-                    ignoredLocalPaths.remove(normalizedPath(target))
-                    if !FileManager.default.fileExists(atPath: target.path) {
-                        try FileManager.default.copyItem(at: source, to: target)
+                    let importedURL = try ExternalFileCoordinator.read(at: source) { coordinatedSource in
+                        try ExternalFileCoordinator.write(at: destinationRoot) { coordinatedRoot in
+                            let target = coordinatedRoot.appendingPathComponent(relativePath)
+                            try FileManager.default.createDirectory(
+                                at: target.deletingLastPathComponent(),
+                                withIntermediateDirectories: true
+                            )
+                            if !FileManager.default.fileExists(atPath: target.path) {
+                                try FileManager.default.copyItem(at: coordinatedSource, to: target)
+                            }
+                            return target
+                        }
                     }
-                    importedURLs.append(target)
+                    ignoredLocalPaths.remove(normalizedPath(importedURL))
+                    importedURLs.append(importedURL)
                 } catch {
                     continue
                 }
@@ -638,12 +811,14 @@ final class LibraryStore: ObservableObject {
         )
         do {
             try await Task.detached(priority: .utility) {
-                try MetadataTagWriter.write(
-                    to: url,
-                    values: values,
-                    artworkData: data,
-                    replaceArtwork: true
-                )
+                try ExternalFileCoordinator.write(at: url) { coordinatedURL in
+                    try MetadataTagWriter.write(
+                        to: coordinatedURL,
+                        values: values,
+                        artworkData: data,
+                        replaceArtwork: true
+                    )
+                }
             }.value
             return true
         } catch {
@@ -1024,6 +1199,8 @@ final class LibraryStore: ObservableObject {
     func removeTracks(_ tracksToRemove: [Track], deletingFiles: Bool) async {
         let ids = Set(tracksToRemove.map(\.id))
         let removed = tracks.filter { ids.contains($0.id) }
+        guard !removed.isEmpty else { return }
+        libraryMutationGeneration &+= 1
         tracks.removeAll { ids.contains($0.id) }
         favoriteTrackIDs.subtract(ids)
         recentPlayDates = recentPlayDates.filter { !ids.contains($0.key) }
@@ -1043,15 +1220,18 @@ final class LibraryStore: ObservableObject {
             let path = normalizedPath(url)
             if deletingFiles {
                 ignoredLocalPaths.remove(path)
-                if !FileManager.default.fileExists(atPath: url.path) {
-                    missingCount += 1
-                } else {
-                    do {
-                        try FileManager.default.removeItem(at: url)
-                        deletedCount += 1
-                    } catch {
-                        failedDeleteCount += 1
+                do {
+                    let result = try ExternalFileCoordinator.write(at: url) { coordinatedURL -> FileDeletionResult in
+                        guard FileManager.default.fileExists(atPath: coordinatedURL.path) else { return .missing }
+                        try FileManager.default.removeItem(at: coordinatedURL)
+                        return .deleted
                     }
+                    switch result {
+                    case .deleted: deletedCount += 1
+                    case .missing: missingCount += 1
+                    }
+                } catch {
+                    failedDeleteCount += 1
                 }
             } else {
                 ignoredLocalPaths.insert(path)
@@ -1082,6 +1262,10 @@ final class LibraryStore: ObservableObject {
 
     private var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    private var legacySharedMusicFolderURL: URL {
+        documentsURL.appendingPathComponent(Self.sharedMusicFolderName, isDirectory: true)
     }
 
     private func persistDisplaySnapshot() {
@@ -1164,11 +1348,25 @@ final class LibraryStore: ObservableObject {
     }
 
     private func ensureSharedMusicFolder() {
+        guard !usesPersistentMusicFolder || persistentMusicFolderIsConnected else {
+            sharedFolderIsReady = false
+            scanStatus = "Reconnect the persistent Files music folder"
+            return
+        }
         do {
-            try FileManager.default.createDirectory(
-                at: sharedMusicFolderURL,
-                withIntermediateDirectories: true
-            )
+            if usesPersistentMusicFolder {
+                try ExternalFileCoordinator.write(at: sharedMusicFolderURL) { coordinatedURL in
+                    try FileManager.default.createDirectory(
+                        at: coordinatedURL,
+                        withIntermediateDirectories: true
+                    )
+                }
+            } else {
+                try FileManager.default.createDirectory(
+                    at: sharedMusicFolderURL,
+                    withIntermediateDirectories: true
+                )
+            }
             sharedFolderIsReady = true
         } catch {
             sharedFolderIsReady = false
@@ -1178,6 +1376,7 @@ final class LibraryStore: ObservableObject {
 
     private func scanDocuments(forceMetadataRefresh: Bool) async {
         guard !isScanning else { return }
+        let scanGeneration = libraryMutationGeneration
         let hadExistingContent = !tracks.isEmpty
         // Keep the scan gate active even when cached content is already
         // visible. Previously this was false for an existing library, so a
@@ -1195,18 +1394,31 @@ final class LibraryStore: ObservableObject {
         )
         defer { isScanning = false }
 
-        let documentsURL = self.documentsURL
-        let sharedRootPath = sharedMusicFolderURL.standardizedFileURL.path + "/"
+        let scanRootURL = sharedMusicFolderURL
+        let sharedRootPath = scanRootURL.standardizedFileURL.path + "/"
         let ignoredPaths = ignoredLocalPaths
-        let inventory = await Task.detached(priority: .utility) {
-            Self.collectDocumentInventory(
-                documentsURL: documentsURL,
-                sharedFolderPath: sharedRootPath,
-                ignoredPaths: ignoredPaths
+        let inventory: LibraryDocumentInventory
+        do {
+            inventory = try await Task.detached(priority: .utility) {
+                let collected = try ExternalFileCoordinator.read(at: scanRootURL) { coordinatedRoot in
+                    Self.collectDocumentInventory(
+                        scanRootURL: coordinatedRoot,
+                        sharedFolderPath: sharedRootPath,
+                        ignoredPaths: ignoredPaths
+                    )
+                }
+                PersistentLyricsCompanionDataStore.save(collected.companionData)
+                return collected
+            }.value
+        } catch {
+            scanStatus = "Could not read the selected music folder"
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.scan.failed",
+                details: ["reason": "external-folder-access"]
             )
-        }.value
+            return
+        }
         let urls = inventory.urls
-        sharedFolderTrackCount = inventory.sharedFolderTrackCount
 
         let currentPaths = Set(urls.map(normalizedPath))
         let existingByPath = Dictionary(
@@ -1222,16 +1434,21 @@ final class LibraryStore: ObservableObject {
         }
         let needsRefresh = forceMetadataRefresh || currentPaths != knownPaths || modificationsChanged
 
-        ResonanceDiagnostics.shared.recordDeferred(
+        ResonanceDiagnostics.shared.recordDeferredAlways(
             "library.scan.inventory",
             details: [
                 "fileCount": String(urls.count),
+                "companionCount": String(inventory.companionData.count),
+                "lrcFileCount": String(inventory.lrcFileCount),
+                "derivedCandidateCount": String(inventory.derivedCandidateCount),
+                "enumeratedMatchCount": String(inventory.enumeratedMatchCount),
                 "needsRefresh": String(needsRefresh),
                 "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
             ]
         )
 
         guard needsRefresh else {
+            sharedFolderTrackCount = inventory.sharedFolderTrackCount
             lastSharedFolderScan = Date()
             scanStatus = "Up to date — \(sharedFolderTrackCount) file\(sharedFolderTrackCount == 1 ? "" : "s") in \(Self.sharedMusicFolderName)"
             ResonanceDiagnostics.shared.recordDeferred(
@@ -1266,10 +1483,39 @@ final class LibraryStore: ObservableObject {
             }
         }
 
+        guard scanGeneration == libraryMutationGeneration else {
+            scanStatus = "Library changed during scan; current library kept"
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.scan.discarded",
+                details: [
+                    "reason": "library-mutated-during-scan",
+                    "trackCount": String(refreshed.count),
+                    "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
+                ]
+            )
+            return
+        }
+
+        let refreshedTracks = deduplicate(refreshed)
+        await database.replaceAll(with: refreshedTracks)
+
+        guard scanGeneration == libraryMutationGeneration else {
+            scanStatus = "Library changed during scan; current library kept"
+            ResonanceDiagnostics.shared.recordDeferred(
+                "library.scan.discarded",
+                details: [
+                    "reason": "library-mutated-during-database-write",
+                    "trackCount": String(refreshedTracks.count),
+                    "durationMs": String(format: "%.1f", Date().timeIntervalSince(scanStarted) * 1000)
+                ]
+            )
+            return
+        }
+
+        sharedFolderTrackCount = inventory.sharedFolderTrackCount
         knownModificationDates = newModificationDates
-        tracks = deduplicate(refreshed)
+        tracks = refreshedTracks
         cleanPersistedCollections()
-        await database.replaceAll(with: tracks)
         persistDisplaySnapshot()
         lastSharedFolderScan = Date()
         scanStatus = "Indexed \(tracks.count) track\(tracks.count == 1 ? "" : "s")"
@@ -1296,17 +1542,28 @@ final class LibraryStore: ObservableObject {
     }
 
     private nonisolated static func collectDocumentInventory(
-        documentsURL: URL,
+        scanRootURL: URL,
         sharedFolderPath: String,
         ignoredPaths: Set<String>
     ) -> LibraryDocumentInventory {
         let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey]
         let enumerator = FileManager.default.enumerator(
-            at: documentsURL,
+            at: scanRootURL,
             includingPropertiesForKeys: keys,
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         )
-        let urls = (enumerator?.allObjects as? [URL] ?? [])
+        let allFiles = (enumerator?.allObjects as? [URL] ?? [])
+            .filter { url in
+                (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false
+            }
+        let lrcURLs = allFiles.filter { $0.pathExtension.caseInsensitiveCompare("lrc") == .orderedSame }
+        let lrcByMatchKey = Dictionary(grouping: lrcURLs) { lrcURL in
+            LyricsCompanionMatcher.matchKey(
+                parentPath: normalizedPathForInventory(lrcURL.deletingLastPathComponent()),
+                stem: lrcURL.deletingPathExtension().lastPathComponent
+            )
+        }
+        let urls = allFiles
             .filter { url in
                 guard MetadataReader.supportedExtensions.contains(url.pathExtension.lowercased()) else {
                     return false
@@ -1329,15 +1586,90 @@ final class LibraryStore: ObservableObject {
                 count += 1
             }
         }
+        var companionData: [String: Data] = [:]
+        var derivedCandidateCount = 0
+        var enumeratedMatchCount = 0
+        for audioURL in urls {
+            let parentURL = audioURL.deletingLastPathComponent()
+            let normalizedParentPath = normalizedPathForInventory(parentURL)
+            let stemKey = LyricsCompanionMatcher.matchKey(
+                parentPath: normalizedParentPath,
+                stem: audioURL.deletingPathExtension().lastPathComponent
+            )
+            let fullNameKey = LyricsCompanionMatcher.matchKey(
+                parentPath: normalizedParentPath,
+                stem: audioURL.lastPathComponent
+            )
+            let enumeratedMatches = (lrcByMatchKey[stemKey] ?? []) + (lrcByMatchKey[fullNameKey] ?? [])
+            enumeratedMatchCount += enumeratedMatches.count
+
+            let derivedCandidates = [
+                audioURL.deletingPathExtension().appendingPathExtension("lrc"),
+                audioURL.appendingPathExtension("lrc")
+            ]
+            derivedCandidateCount += derivedCandidates.reduce(into: 0) { count, candidate in
+                if FileManager.default.fileExists(atPath: candidate.path) { count += 1 }
+            }
+            let candidates = derivedCandidates + enumeratedMatches
+            guard let data = candidates.lazy.compactMap({ try? Data(contentsOf: $0) }).first else { continue }
+            companionData[normalizedPathForInventory(audioURL)] = data
+        }
         return LibraryDocumentInventory(
             urls: urls,
             modificationDates: modificationDates,
-            sharedFolderTrackCount: sharedFolderTrackCount
+            sharedFolderTrackCount: sharedFolderTrackCount,
+            companionData: companionData,
+            lrcFileCount: lrcURLs.count,
+            derivedCandidateCount: derivedCandidateCount,
+            enumeratedMatchCount: enumeratedMatchCount
         )
     }
 
     private nonisolated static func normalizedPathForInventory(_ url: URL) -> String {
         url.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    private nonisolated static func copyDirectoryContentsIfPresent(from source: URL, to destination: URL) throws {
+        try ExternalFileCoordinator.read(at: source) { coordinatedSource in
+            try ExternalFileCoordinator.write(at: destination) { coordinatedDestination in
+                var sourceIsDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(
+                    atPath: coordinatedSource.path,
+                    isDirectory: &sourceIsDirectory
+                ), sourceIsDirectory.boolValue else {
+                    return
+                }
+
+                try FileManager.default.createDirectory(
+                    at: coordinatedDestination,
+                    withIntermediateDirectories: true
+                )
+                let sourcePath = coordinatedSource.standardizedFileURL.path
+                let enumerator = FileManager.default.enumerator(
+                    at: coordinatedSource,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: []
+                )
+                if let enumerator {
+                    for case let item as URL in enumerator {
+                        let relativePath = String(item.standardizedFileURL.path.dropFirst(sourcePath.count))
+                            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        guard !relativePath.isEmpty else { continue }
+                        let target = coordinatedDestination.appendingPathComponent(relativePath)
+                        let isDirectory = (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+                        if isDirectory {
+                            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+                        } else if !FileManager.default.fileExists(atPath: target.path) {
+                            try FileManager.default.createDirectory(
+                                at: target.deletingLastPathComponent(),
+                                withIntermediateDirectories: true
+                            )
+                            try FileManager.default.copyItem(at: item, to: target)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func preservingIdentity(of parsed: Track, existing: Track?) -> Track {

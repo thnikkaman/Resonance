@@ -22,8 +22,21 @@ struct RemoteDownloadProgress: Identifiable, Sendable {
     }
 }
 
+/// A narrow progress publisher for the one active transfer. Byte callbacks update
+/// this object without invalidating the manager's full queue and every view that
+/// observes download lifecycle state.
+@MainActor
+final class RemoteDownloadLiveProgress: ObservableObject {
+    @Published private(set) var snapshot: RemoteDownloadProgress?
+
+    func update(_ snapshot: RemoteDownloadProgress?) {
+        self.snapshot = snapshot
+    }
+}
+
 enum RemoteDownloadError: LocalizedError {
     case invalidURL
+    case insecureURL
     case invalidResponse
     case httpStatus(Int)
     case emptyResponse
@@ -32,6 +45,7 @@ enum RemoteDownloadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL: "The remote track has no downloadable stream URL."
+        case .insecureURL: "Remote downloads require an HTTPS stream URL."
         case .invalidResponse: "The remote server returned an invalid download response."
         case let .httpStatus(code): "The remote server returned HTTP \(code)."
         case .emptyResponse: "The remote server returned an empty audio file."
@@ -51,6 +65,7 @@ struct RemoteBackgroundDownloadRecord: Codable, Sendable {
     let trackID: UUID
     let replacingExisting: Bool
     var inboxFileName: String?
+    var suggestedFileName: String?
 }
 
 struct RemoteBackgroundTaskSnapshot: Sendable {
@@ -121,12 +136,11 @@ private final class ForegroundDownloadSession: NSObject, URLSessionDownloadDeleg
             guard let response = downloadTask.response else {
                 throw RemoteDownloadError.invalidResponse
             }
-            let directory = destination.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try FileManager.default.removeItem(at: destination)
-            }
-            try FileManager.default.moveItem(at: location, to: destination)
+            _ = try ExternalFileCoordinator.moveItem(
+                from: location,
+                to: destination,
+                replacingExisting: true
+            )
             finish(.success((destination, response)))
         } catch {
             try? FileManager.default.removeItem(at: location)
@@ -161,6 +175,7 @@ private struct RemoteBackgroundNotification: Sendable {
     let completed: Int64
     let total: Int64
     let inboxFileName: String?
+    let suggestedFileName: String?
 
     init?(notification: Notification) {
         guard let userInfo = notification.userInfo,
@@ -171,6 +186,7 @@ private struct RemoteBackgroundNotification: Sendable {
         self.completed = (userInfo["completed"] as? NSNumber)?.int64Value ?? 0
         self.total = (userInfo["total"] as? NSNumber)?.int64Value ?? 0
         self.inboxFileName = userInfo["inboxFileName"] as? String
+        self.suggestedFileName = userInfo["suggestedFileName"] as? String
     }
 }
 
@@ -180,6 +196,7 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
 
     private static let recordsKey = "resonance.remoteBackgroundDownloadRecords"
     private static let inboxDirectoryName = "RemoteDownloadInbox"
+    private static let progressPublicationInterval: TimeInterval = 0.40
 
     private let lock = NSLock()
     private let delegateQueue: OperationQueue = {
@@ -198,6 +215,9 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
         return URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
     }()
     private var backgroundEventsCompletionHandler: (() -> Void)?
+    private var lastProgressPublicationUptimeByTask: [Int: TimeInterval] = [:]
+    private var progressCallbackCountByTask: [Int: Int] = [:]
+    private var progressPublicationCountByTask: [Int: Int] = [:]
 
     override init() {
         super.init()
@@ -217,7 +237,7 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
         url: URL,
         replacingExisting: Bool
     ) -> Int? {
-        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+        guard url.scheme?.lowercased() == "https" else {
             return nil
         }
         var request = URLRequest(url: url)
@@ -228,7 +248,8 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
             taskIdentifier: task.taskIdentifier,
             trackID: trackID,
             replacingExisting: replacingExisting,
-            inboxFileName: nil
+            inboxFileName: nil,
+            suggestedFileName: nil
         )
         updateRecord(record)
         task.resume()
@@ -270,6 +291,9 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
             var records = loadRecords()
             records.removeAll { $0.taskIdentifier == taskIdentifier }
             saveRecords(records)
+            lastProgressPublicationUptimeByTask.removeValue(forKey: taskIdentifier)
+            progressCallbackCountByTask.removeValue(forKey: taskIdentifier)
+            progressPublicationCountByTask.removeValue(forKey: taskIdentifier)
         }
     }
 
@@ -289,13 +313,25 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        guard let record = record(for: downloadTask.taskIdentifier) else { return }
+        // Fullscreen ProjectM owns the main display path. The download itself
+        // must continue, but progress notifications are presentation-only and
+        // can enqueue main-actor work often enough to starve CADisplayLink.
+        // Completion/failure callbacks remain enabled so queue state and file
+        // finalization are not paused.
+        guard !ProjectMActivityCoordinator.shared.isActive else { return }
+        guard let trackID = UUID(uuidString: downloadTask.taskDescription ?? "") else { return }
+        let isFinal = totalBytesExpectedToWrite > 0
+            && totalBytesWritten >= totalBytesExpectedToWrite
+        guard shouldPublishProgress(
+            taskIdentifier: downloadTask.taskIdentifier,
+            isFinal: isFinal
+        ) else { return }
         NotificationCenter.default.post(
             name: .resonanceBackgroundDownloadProgress,
             object: nil,
             userInfo: [
                 "taskIdentifier": downloadTask.taskIdentifier,
-                "trackID": record.trackID.uuidString,
+                "trackID": trackID.uuidString,
                 "completed": totalBytesWritten,
                 "total": totalBytesExpectedToWrite
             ]
@@ -314,11 +350,13 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
             postFailure(for: record, code: (downloadTask.response as? HTTPURLResponse)?.statusCode ?? -1)
             return
         }
+        recordProgressSummary(taskIdentifier: downloadTask.taskIdentifier)
 
         let extensionName = Self.fileExtension(
             mimeType: downloadTask.response?.mimeType,
             fallback: downloadTask.originalRequest?.url?.pathExtension ?? ""
         )
+        let suggestedFileName = downloadTask.response?.suggestedFilename
         let fileName = "\(record.taskIdentifier).\(extensionName)"
         let destination = inboxDirectoryURL().appendingPathComponent(fileName)
         do {
@@ -332,7 +370,8 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
                     taskIdentifier: record.taskIdentifier,
                     trackID: record.trackID,
                     replacingExisting: record.replacingExisting,
-                    inboxFileName: fileName
+                    inboxFileName: fileName,
+                    suggestedFileName: suggestedFileName
                 )
             )
             NotificationCenter.default.post(
@@ -341,7 +380,8 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
                 userInfo: [
                     "taskIdentifier": record.taskIdentifier,
                     "trackID": record.trackID.uuidString,
-                    "inboxFileName": fileName
+                    "inboxFileName": fileName,
+                    "suggestedFileName": suggestedFileName ?? ""
                 ]
             )
         } catch {
@@ -369,6 +409,7 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
     }
 
     private func postFailure(for record: RemoteBackgroundDownloadRecord, code: Int) {
+        recordProgressSummary(taskIdentifier: record.taskIdentifier)
         NotificationCenter.default.post(
             name: .resonanceBackgroundDownloadFailed,
             object: nil,
@@ -384,6 +425,36 @@ final class RemoteBackgroundDownloadSession: NSObject, URLSessionDownloadDelegat
         lock.withLock {
             loadRecords().first { $0.taskIdentifier == taskIdentifier }
         }
+    }
+
+    private func shouldPublishProgress(taskIdentifier: Int, isFinal: Bool) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        return lock.withLock {
+            progressCallbackCountByTask[taskIdentifier, default: 0] += 1
+            let previous = lastProgressPublicationUptimeByTask[taskIdentifier] ?? -.infinity
+            guard isFinal || now - previous >= Self.progressPublicationInterval else { return false }
+            lastProgressPublicationUptimeByTask[taskIdentifier] = now
+            progressPublicationCountByTask[taskIdentifier, default: 0] += 1
+            return true
+        }
+    }
+
+    private func recordProgressSummary(taskIdentifier: Int) {
+        let counts = lock.withLock {
+            let counts = (
+                callbacks: progressCallbackCountByTask.removeValue(forKey: taskIdentifier) ?? 0,
+                publications: progressPublicationCountByTask.removeValue(forKey: taskIdentifier) ?? 0
+            )
+            lastProgressPublicationUptimeByTask.removeValue(forKey: taskIdentifier)
+            return counts
+        }
+        ResonanceDiagnostics.shared.recordDeferredAlways(
+            "download.background_progress.summary",
+            details: [
+                "callbacks": String(counts.callbacks),
+                "publications": String(counts.publications)
+            ]
+        )
     }
 
     private func updateRecord(_ record: RemoteBackgroundDownloadRecord) {
@@ -445,16 +516,17 @@ final class RemoteDownloadManager: ObservableObject {
     private static let experimentalBackgroundDownloadsKey = "experimentalBackgroundDownloads"
 
     @Published private(set) var isDownloading = false
-    @Published private(set) var currentTitle = ""
+    private(set) var currentTitle = ""
     @Published private(set) var completedCount = 0
     @Published private(set) var totalCount = 0
-    @Published private(set) var currentCompletedBytes: Int64 = 0
-    @Published private(set) var currentTotalBytes: Int64 = 0
+    private(set) var currentCompletedBytes: Int64 = 0
+    private(set) var currentTotalBytes: Int64 = 0
     @Published private(set) var lastMessage = ""
     @Published private(set) var itemProgress: [UUID: RemoteDownloadProgress] = [:]
     @Published private(set) var downloadQueue: [RemoteDownloadProgress] = []
     @Published private(set) var pendingReplacementCount = 0
     @Published private(set) var pendingReplacementDescription = ""
+    let liveProgress = RemoteDownloadLiveProgress()
 
     var hasPersistedQueue: Bool {
         !persistedQueueIDs().isEmpty
@@ -713,6 +785,7 @@ final class RemoteDownloadManager: ObservableObject {
                     state: .cancelled
                 )
             )
+            clearLiveProgress(matching: id)
             completedCount += 1
             finishBackgroundBatchIfNeeded()
             return
@@ -821,8 +894,7 @@ final class RemoteDownloadManager: ObservableObject {
         library.beginDisplaySnapshotDeferral()
         completedCount = 0
         totalCount = tracks.count
-        currentCompletedBytes = 0
-        currentTotalBytes = 0
+        clearLiveProgress()
         individuallyCancelledTrackIDs = []
         requeueRequests = [:]
         activeTracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
@@ -838,9 +910,7 @@ final class RemoteDownloadManager: ObservableObject {
         downloadQueue = initialQueue
         defer {
             isDownloading = false
-            currentTitle = ""
-            currentCompletedBytes = 0
-            currentTotalBytes = 0
+            clearLiveProgress()
             activeWorker = nil
             activeTrackID = nil
             requeueRequests = [:]
@@ -875,10 +945,23 @@ final class RemoteDownloadManager: ObservableObject {
             if Task.isCancelled {
                 break
             }
-            currentTitle = track.title
-            currentCompletedBytes = 0
-            currentTotalBytes = max(0, track.fileSizeBytes)
             activeTrackID = track.id
+            let expectedBytes = max(0, track.fileSizeBytes)
+            setProgress(
+                RemoteDownloadProgress(
+                    id: track.id,
+                    title: track.title,
+                    completed: 0,
+                    total: Int(min(Int64(Int.max), expectedBytes)),
+                    state: .downloading
+                )
+            )
+            publishLiveProgress(
+                id: track.id,
+                title: track.title,
+                completed: 0,
+                total: expectedBytes
+            )
             let trackStart = CACurrentMediaTime()
             ResonanceDiagnostics.shared.recordDeferred(
                 "download.track.begin",
@@ -913,16 +996,12 @@ final class RemoteDownloadManager: ObservableObject {
                         // entire streaming catalog on every network callback.
                         guard isFinal || now.timeIntervalSince(lastProgressPublication) >= 0.40 else { continue }
                         lastProgressPublication = now
-                        currentCompletedBytes = progress.completed
-                        currentTotalBytes = progress.total
-                        setProgress(
-                            RemoteDownloadProgress(
-                                id: track.id,
-                                title: track.title,
-                                completed: Int(min(Int64(Int.max), progress.completed)),
-                                total: Int(min(Int64(Int.max), progress.total)),
-                                state: .downloading
-                            )
+                        guard !ProjectMActivityCoordinator.shared.isActive else { continue }
+                        publishLiveProgress(
+                            id: track.id,
+                            title: track.title,
+                            completed: progress.completed,
+                            total: progress.total
                         )
                     }
                 }, onCancel: {
@@ -931,6 +1010,7 @@ final class RemoteDownloadManager: ObservableObject {
                 let result = try await worker.value
                 activeWorker = nil
                 activeTrackID = nil
+                clearLiveProgress(matching: track.id)
                 completedCount += 1
                 removeProgress(track.id)
                 let artworkData = artworkByTrackID[track.id] ?? artworkByAlbumKey[track.albumKey]
@@ -976,6 +1056,7 @@ final class RemoteDownloadManager: ObservableObject {
                         state: .cancelled
                     )
                 )
+                clearLiveProgress(matching: track.id)
                 completedCount += 1
                 removePersistedTrack(track.id)
                 if Task.isCancelled { break }
@@ -993,6 +1074,7 @@ final class RemoteDownloadManager: ObservableObject {
                         state: .failed
                     )
                 )
+                clearLiveProgress(matching: track.id)
                 lastMessage = "Download failed: \(error.localizedDescription)"
                 ResonanceDiagnostics.shared.recordDeferred(
                     "download.track.failed",
@@ -1060,9 +1142,7 @@ final class RemoteDownloadManager: ObservableObject {
         library.beginDisplaySnapshotDeferral()
         completedCount = 0
         totalCount = tracks.count
-        currentCompletedBytes = 0
-        currentTotalBytes = 0
-        currentTitle = ""
+        clearLiveProgress()
         individuallyCancelledTrackIDs = []
         requeueRequests = [:]
         activeTracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
@@ -1110,6 +1190,22 @@ final class RemoteDownloadManager: ObservableObject {
         backgroundTaskIdentifiers[track.id] = taskIdentifier
         backgroundTrackIDsByTask[taskIdentifier] = track.id
         backgroundReplacingExisting[track.id] = replacingExisting
+        let expectedBytes = max(0, track.fileSizeBytes)
+        setProgress(
+            RemoteDownloadProgress(
+                id: track.id,
+                title: track.title,
+                completed: 0,
+                total: Int(min(Int64(Int.max), expectedBytes)),
+                state: .downloading
+            )
+        )
+        publishLiveProgress(
+            id: track.id,
+            title: track.title,
+            completed: 0,
+            total: expectedBytes
+        )
     }
 
     /// Background URLSession can otherwise start every submitted download at once. Keep
@@ -1212,17 +1308,25 @@ final class RemoteDownloadManager: ObservableObject {
                 beginFinalizingBackgroundTrack(
                     track,
                     taskIdentifier: record.taskIdentifier,
-                    inboxURL: backgroundSession.urlForInboxFile(named: inboxFileName)
+                    inboxURL: backgroundSession.urlForInboxFile(named: inboxFileName),
+                    preferredFileName: record.suggestedFileName
                 )
             } else if activeTaskIdentifiers.contains(record.taskIdentifier) {
+                let expectedBytes = max(0, track.fileSizeBytes)
                 setProgress(
                     RemoteDownloadProgress(
                         id: track.id,
                         title: track.title,
                         completed: 0,
-                        total: Int(min(Int64(Int.max), max(0, track.fileSizeBytes))),
+                        total: Int(min(Int64(Int.max), expectedBytes)),
                         state: .downloading
                     )
+                )
+                publishLiveProgress(
+                    id: track.id,
+                    title: track.title,
+                    completed: 0,
+                    total: expectedBytes
                 )
             } else {
                 backgroundSession.acknowledge(taskIdentifier: record.taskIdentifier)
@@ -1238,19 +1342,14 @@ final class RemoteDownloadManager: ObservableObject {
     }
 
     private func handleBackgroundProgress(_ event: RemoteBackgroundNotification) {
-        guard activeTracksByID[event.trackID] != nil else { return }
+        guard !ProjectMActivityCoordinator.shared.isActive else { return }
+        guard let track = activeTracksByID[event.trackID] else { return }
         guard backgroundTaskIdentifiers[event.trackID] == event.taskIdentifier else { return }
-        currentTitle = activeTracksByID[event.trackID]?.title ?? ""
-        currentCompletedBytes = event.completed
-        currentTotalBytes = event.total
-        setProgress(
-            RemoteDownloadProgress(
-                id: event.trackID,
-                title: activeTracksByID[event.trackID]?.title ?? "Downloading",
-                completed: Int(min(Int64(Int.max), max(0, event.completed))),
-                total: Int(min(Int64(Int.max), max(0, event.total))),
-                state: .downloading
-            )
+        publishLiveProgress(
+            id: event.trackID,
+            title: track.title,
+            completed: event.completed,
+            total: event.total
         )
     }
 
@@ -1266,14 +1365,16 @@ final class RemoteDownloadManager: ObservableObject {
         beginFinalizingBackgroundTrack(
             track,
             taskIdentifier: event.taskIdentifier,
-            inboxURL: backgroundSession.urlForInboxFile(named: fileName)
+            inboxURL: backgroundSession.urlForInboxFile(named: fileName),
+            preferredFileName: event.suggestedFileName
         )
     }
 
     private func beginFinalizingBackgroundTrack(
         _ track: RemoteTrackItem,
         taskIdentifier: Int,
-        inboxURL: URL
+        inboxURL: URL,
+        preferredFileName: String?
     ) {
         guard !backgroundFinalizing.contains(track.id) else { return }
         backgroundFinalizing.insert(track.id)
@@ -1281,7 +1382,8 @@ final class RemoteDownloadManager: ObservableObject {
             await self?.finalizeBackgroundTrack(
                 track,
                 taskIdentifier: taskIdentifier,
-                inboxURL: inboxURL
+                inboxURL: inboxURL,
+                preferredFileName: preferredFileName
             )
         }
     }
@@ -1289,35 +1391,28 @@ final class RemoteDownloadManager: ObservableObject {
     private func finalizeBackgroundTrack(
         _ track: RemoteTrackItem,
         taskIdentifier: Int,
-        inboxURL: URL
+        inboxURL: URL,
+        preferredFileName: String?
     ) async {
         guard let library = pendingLibrary else { return }
         let replacingExisting = backgroundReplacingExisting[track.id] ?? false
         let destination = Self.destinationURL(
             for: track,
             in: library.sharedMusicFolderURL,
+            preferredFileName: preferredFileName,
             extensionName: inboxURL.pathExtension
         )
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: inboxURL.path)
             let byteCount = (attributes[.size] as? NSNumber)?.int64Value ?? 0
             guard byteCount > 0 else { throw RemoteDownloadError.emptyResponse }
-            try FileManager.default.createDirectory(
-                at: destination.deletingLastPathComponent(),
-                withIntermediateDirectories: true
+            let skipped = try ExternalFileCoordinator.moveItem(
+                from: inboxURL,
+                to: destination,
+                replacingExisting: replacingExisting
             )
-            var skipped = false
-            if FileManager.default.fileExists(atPath: destination.path) {
-                if replacingExisting {
-                    try FileManager.default.removeItem(at: destination)
-                } else {
-                    skipped = true
-                }
-            }
             if skipped {
                 try? FileManager.default.removeItem(at: inboxURL)
-            } else {
-                try FileManager.default.moveItem(at: inboxURL, to: destination)
             }
             backgroundSession.acknowledge(taskIdentifier: taskIdentifier)
             backgroundSession.removeInboxFile(named: inboxURL.lastPathComponent)
@@ -1356,6 +1451,7 @@ final class RemoteDownloadManager: ObservableObject {
             backgroundSession.removeInboxFile(named: inboxURL.lastPathComponent)
             markBackgroundFailure(track.id)
         }
+        clearLiveProgress(matching: track.id)
         backgroundFinalizing.remove(track.id)
         backgroundTaskIdentifiers.removeValue(forKey: track.id)
         backgroundTrackIDsByTask.removeValue(forKey: taskIdentifier)
@@ -1372,6 +1468,7 @@ final class RemoteDownloadManager: ObservableObject {
         backgroundTrackIDsByTask.removeValue(forKey: event.taskIdentifier)
         backgroundTaskIdentifiers.removeValue(forKey: event.trackID)
         if individuallyCancelledTrackIDs.contains(event.trackID) {
+            clearLiveProgress(matching: event.trackID)
             finishBackgroundBatchIfNeeded()
             return
         }
@@ -1392,6 +1489,7 @@ final class RemoteDownloadManager: ObservableObject {
                 state: .failed
             )
         )
+        clearLiveProgress(matching: id)
         lastMessage = "A background download failed; it can be resumed later"
     }
 
@@ -1418,9 +1516,7 @@ final class RemoteDownloadManager: ObservableObject {
     private func finishBackgroundBatch(message: String) {
         guard isDownloading else { return }
         isDownloading = false
-        currentTitle = ""
-        currentCompletedBytes = 0
-        currentTotalBytes = 0
+        clearLiveProgress()
         activeTrackID = nil
         activeWorker = nil
         downloadTask = nil
@@ -1475,6 +1571,37 @@ final class RemoteDownloadManager: ObservableObject {
         let total: Int64
     }
 
+    private func publishLiveProgress(
+        id: UUID,
+        title: String,
+        completed: Int64,
+        total: Int64,
+        state: RemoteDownloadProgress.State = .downloading
+    ) {
+        let boundedCompleted = max(0, completed)
+        let boundedTotal = max(0, total)
+        currentTitle = title
+        currentCompletedBytes = boundedCompleted
+        currentTotalBytes = boundedTotal
+        liveProgress.update(
+            RemoteDownloadProgress(
+                id: id,
+                title: title,
+                completed: Int(min(Int64(Int.max), boundedCompleted)),
+                total: Int(min(Int64(Int.max), boundedTotal)),
+                state: state
+            )
+        )
+    }
+
+    private func clearLiveProgress(matching id: UUID? = nil) {
+        if let id, liveProgress.snapshot?.id != id { return }
+        currentTitle = ""
+        currentCompletedBytes = 0
+        currentTotalBytes = 0
+        liveProgress.update(nil)
+    }
+
     private func setProgress(_ progress: RemoteDownloadProgress) {
         itemProgress[progress.id] = progress
         if let index = downloadQueue.firstIndex(where: { $0.id == progress.id }) {
@@ -1510,7 +1637,10 @@ final class RemoteDownloadManager: ObservableObject {
         replacingExisting: Bool,
         progress: @escaping @Sendable (Int64, Int64) -> Void
     ) async throws -> DownloadResult {
-        guard let scheme = track.streamURL.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+        guard let scheme = track.streamURL.scheme?.lowercased(), scheme == "https" else {
+            if track.streamURL.scheme?.lowercased() == "http" {
+                throw RemoteDownloadError.insecureURL
+            }
             throw RemoteDownloadError.invalidURL
         }
 
@@ -1531,21 +1661,26 @@ final class RemoteDownloadManager: ObservableObject {
             }
 
             let extensionName = Self.fileExtension(for: response, fallback: track.streamURL.pathExtension)
-            let destination = Self.destinationURL(for: track, in: root, extensionName: extensionName)
+            let destination = Self.destinationURL(
+                for: track,
+                in: root,
+                preferredFileName: response.suggestedFilename,
+                extensionName: extensionName
+            )
             let expectedBytes = max(0, max(response.expectedContentLength, track.fileSizeBytes))
             let completedBytes = (try FileManager.default.attributesOfItem(atPath: downloadedURL.path)[.size] as? NSNumber)?.int64Value ?? 0
             guard completedBytes > 0 else { throw RemoteDownloadError.emptyResponse }
             progress(completedBytes, expectedBytes)
 
-            if FileManager.default.fileExists(atPath: destination.path) {
-                guard replacingExisting else {
-                    try? FileManager.default.removeItem(at: downloadedURL)
-                    return DownloadResult(bytes: completedBytes, skipped: true, destination: destination)
-                }
-                try FileManager.default.removeItem(at: destination)
+            let skipped = try ExternalFileCoordinator.moveItem(
+                from: downloadedURL,
+                to: destination,
+                replacingExisting: replacingExisting
+            )
+            if skipped {
+                try? FileManager.default.removeItem(at: downloadedURL)
             }
-            try FileManager.default.moveItem(at: downloadedURL, to: destination)
-            return DownloadResult(bytes: completedBytes, skipped: false, destination: destination)
+            return DownloadResult(bytes: completedBytes, skipped: skipped, destination: destination)
         } catch {
             try? FileManager.default.removeItem(at: downloadedURL)
             throw error
@@ -1555,6 +1690,7 @@ final class RemoteDownloadManager: ObservableObject {
     private nonisolated static func destinationURL(
         for track: RemoteTrackItem,
         in root: URL,
+        preferredFileName: String? = nil,
         extensionName: String? = nil
     ) -> URL {
         let artistFolder = Self.safeComponent(track.albumArtist.isEmpty ? track.artist : track.albumArtist)
@@ -1562,7 +1698,15 @@ final class RemoteDownloadManager: ObservableObject {
         let trackNumber = track.trackNumber > 0 ? String(format: "%02d", track.trackNumber) : "00"
         let discPrefix = track.discNumber > 1 ? "D\(track.discNumber)-" : ""
         let ext = extensionName ?? Self.fileExtension(for: nil, fallback: track.streamURL.pathExtension)
-        let fileName = Self.safeComponent("\(discPrefix)\(trackNumber) - \(track.title)") + ".\(ext)"
+        // The catalog/path filename is the server's durable identity. A
+        // response-suggested name can be a rewritten presentation name (as
+        // with the numbered audiobook filenames), so it is only a fallback.
+        let fileName = [track.originalFileName, preferredFileName]
+            .compactMap { $0 }
+            .lazy
+            .compactMap(Self.preservedServerFileName)
+            .first
+            ?? (Self.safeComponent("\(discPrefix)\(trackNumber) - \(track.title)") + ".\(ext)")
         return root
             .appendingPathComponent(artistFolder, isDirectory: true)
             .appendingPathComponent(albumFolder, isDirectory: true)
@@ -1573,16 +1717,18 @@ final class RemoteDownloadManager: ObservableObject {
         for track: RemoteTrackItem,
         in root: URL
     ) -> URL? {
-        var extensions = MetadataReader.supportedExtensions
-        let streamExtension = track.streamURL.pathExtension.lowercased()
-        if !streamExtension.isEmpty { extensions.insert(streamExtension) }
-        for extensionName in extensions {
-            let candidate = destinationURL(for: track, in: root, extensionName: extensionName)
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                return candidate
+        try? ExternalFileCoordinator.read(at: root) { coordinatedRoot in
+            var extensions = MetadataReader.supportedExtensions
+            let streamExtension = track.streamURL.pathExtension.lowercased()
+            if !streamExtension.isEmpty { extensions.insert(streamExtension) }
+            for extensionName in extensions {
+                let candidate = destinationURL(for: track, in: coordinatedRoot, extensionName: extensionName)
+                if FileManager.default.fileExists(atPath: candidate.path) {
+                    return candidate
+                }
             }
-        }
-        return nil
+            return nil
+        } ?? nil
     }
 
     private nonisolated static func fileExtension(for response: URLResponse?, fallback: String) -> String {
@@ -1607,5 +1753,19 @@ final class RemoteDownloadManager: ObservableObject {
         let cleaned = value.unicodeScalars.map { forbidden.contains($0) ? "_" : String($0) }.joined()
         let trimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Unknown" : String(trimmed.prefix(180))
+    }
+
+    private nonisolated static func preservedServerFileName(_ value: String) -> String? {
+        let decoded = value.removingPercentEncoding ?? value
+        let fileName = URL(fileURLWithPath: decoded).lastPathComponent
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !fileName.isEmpty, fileName != ".", fileName != ".." else { return nil }
+        guard MetadataReader.supportedExtensions.contains(
+            URL(fileURLWithPath: fileName).pathExtension.lowercased()
+        ) else { return nil }
+        let withoutControls = String(fileName.unicodeScalars.filter {
+            !CharacterSet.controlCharacters.contains($0)
+        })
+        return withoutControls.isEmpty ? nil : String(withoutControls.prefix(240))
     }
 }
