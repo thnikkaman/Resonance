@@ -1,0 +1,5 @@
+schemaVersion: 1
+sessionDefaults:
+  projectPath: ./Resonance.xcodeproj
+  scheme: Resonance
+  simulatorName: iPhone 17 Pro

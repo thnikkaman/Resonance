@@ -1,0 +1,1494 @@
+import SwiftUI
+import UniformTypeIdentifiers
+
+struct NowPlayingView: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var remote: RemoteLibraryStore
+  @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var lyricsStore: LyricsStore
+  @EnvironmentObject private var layeredNavigationState: ResonanceLayerNavigation
+  @State private var showingQueue = false
+  @State private var showingBookmarks = false
+  @State private var showingPlaylistPicker = false
+  @State private var showingProjectMFullscreen = false
+  @State private var showingLyrics = false
+  @State private var showingFullScreenLyrics = false
+  @State private var showingLyricsFileImporter = false
+  @State private var lyricsImportTrackID: UUID?
+  @State private var showingVisualizerSafetyNotice = false
+  @State private var visualizerSafetyConfirmed = false
+  @AppStorage("resonance.projectmd.photosensitivityAcknowledged") private var photosensitivityAcknowledged = false
+  let openLibrary: () -> Void
+  let onHorizontalTabSwipeChanged: (CGFloat, CGFloat) -> Void
+  let onHorizontalTabSwipeEnded: (CGFloat, CGFloat) -> Void
+
+  init(
+    openLibrary: @escaping () -> Void,
+    onHorizontalTabSwipeChanged: @escaping (CGFloat, CGFloat) -> Void = { _, _ in },
+    onHorizontalTabSwipeEnded: @escaping (CGFloat, CGFloat) -> Void = { _, _ in }
+  ) {
+    self.openLibrary = openLibrary
+    self.onHorizontalTabSwipeChanged = onHorizontalTabSwipeChanged
+    self.onHorizontalTabSwipeEnded = onHorizontalTabSwipeEnded
+  }
+
+  var body: some View {
+    VStack(spacing: 18) {
+      VStack(spacing: 14) {
+        ZStack {
+          NowPlayingArtworkPager(
+            lyricsDocument: lyricsStore.document,
+            showingLyrics: $showingLyrics,
+            onDismissLyrics: {
+              withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                showingLyrics = false
+              }
+            },
+            onMaximizeLyrics: {
+              showingFullScreenLyrics = true
+            },
+            onTapArtwork: openVisualizer
+          )
+          .zIndex(showingLyrics ? 10 : 0)
+
+        }
+
+        NowPlayingTrackMetadata(
+          onHorizontalTabSwipeChanged: onHorizontalTabSwipeChanged,
+          onHorizontalTabSwipeEnded: onHorizontalTabSwipeEnded
+        )
+      }
+
+      TrackScrubber()
+        .frame(maxWidth: 320)
+
+      NowPlayingTransportControls()
+
+      NowPlayingSecondaryControls(
+        showingQueue: $showingQueue,
+        showingBookmarks: $showingBookmarks,
+        showingLyrics: $showingLyrics,
+        showingLyricsFileImporter: $showingLyricsFileImporter,
+        lyricsImportTrackID: $lyricsImportTrackID
+      )
+
+      NowPlayingLowerControls(
+        openLibrary: openLibrary,
+        openVisualizer: openVisualizer
+      )
+    }
+    .padding(.horizontal, 16)
+    .padding(.top, 16)
+    .padding(.bottom, 16)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background {
+      ResonanceThemeBackdrop()
+    }
+    .navigationTitle("Now Playing")
+      .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .topBarLeading) {
+        ResonanceToolbarTextButton(
+          title: "Back",
+          systemImage: "chevron.left",
+          width: 76,
+          action: openLibrary
+        )
+      }
+      .resonanceHideSharedBackground()
+      ToolbarItem(placement: .principal) {
+        Button {
+          openCurrentAlbum()
+        } label: {
+          ResonanceHierarchyNavigationLabel(title: "Album")
+        }
+        .accessibilityLabel("Album, move up")
+      }
+      ToolbarItem(placement: .topBarTrailing) {
+        HStack(spacing: 4) {
+          if player.currentTrack != nil {
+            ResonanceToolbarIconButton(
+              accessibilityLabel: library.playlists.isEmpty ? "Add a playlist" : "Add current track to playlist",
+              systemImage: "text.badge.plus"
+            ) {
+              showingPlaylistPicker = true
+            }
+          }
+
+          ResonanceToolbarTextButton(
+            title: "Queue",
+            systemImage: "list.bullet",
+            width: 76
+          ) {
+            showingQueue = true
+          }
+        }
+      }
+      .resonanceHideSharedBackground()
+    }
+    .sheet(isPresented: $showingQueue) {
+      PlaybackQueueView()
+        .presentationDetents([.medium, .large])
+    }
+    .sheet(isPresented: $showingBookmarks) {
+      PlaybackBookmarksView()
+        .presentationDetents([.medium, .large])
+    }
+    .sheet(isPresented: $showingPlaylistPicker) {
+      if let track = player.currentTrack {
+        PlaylistPickerSheet(tracks: [track])
+          .presentationDetents([.medium, .large])
+      }
+    }
+    .sheet(isPresented: $showingVisualizerSafetyNotice) {
+      VisualizerSafetyNotice(
+        isConfirmed: $visualizerSafetyConfirmed,
+        onContinue: {
+          photosensitivityAcknowledged = true
+          showingVisualizerSafetyNotice = false
+          showingProjectMFullscreen = true
+        }
+      )
+      .presentationDetents([.medium, .large])
+      .interactiveDismissDisabled()
+    }
+    .modifier(
+      NowPlayingLyricsImportModifier(
+        isPresented: $showingLyricsFileImporter,
+        importTrackID: $lyricsImportTrackID
+      )
+    )
+    .fullScreenCover(isPresented: $showingFullScreenLyrics) {
+      if let document = lyricsStore.document, document.hasReadableLyrics {
+        NowPlayingLyricsBubble(
+          document: document,
+          onDismiss: {
+            showingFullScreenLyrics = false
+            showingLyrics = false
+          },
+          onMaximize: nil,
+          onMinimize: {
+            showingFullScreenLyrics = false
+          },
+          isFullScreen: true
+        )
+        .environmentObject(player)
+      } else {
+        Color.black.ignoresSafeArea()
+      }
+    }
+    .fullScreenCover(isPresented: $showingProjectMFullscreen) {
+      ProjectMFullscreenView()
+    }
+    .task(id: lyricsRequestKey) {
+      lyricsStore.load(
+        for: player.currentTrack,
+        provider: settings.lyricsProviderConfiguration,
+        searchLocalSiblingFile: player.isCurrentAudiobook
+      )
+    }
+    .onChange(of: player.currentTrack?.id) { _, _ in
+      showingLyrics = false
+      showingFullScreenLyrics = false
+      lyricsImportTrackID = nil
+    }
+    .onChange(of: player.playbackRestartID) { _, restartID in
+      lyricsStore.reloadForPlayback(
+        restartID: restartID,
+        track: player.currentTrack,
+        provider: settings.lyricsProviderConfiguration,
+        searchLocalSiblingFile: player.isCurrentAudiobook
+      )
+    }
+  }
+
+  private var lyricsRequestKey: String {
+    let trackID = player.currentTrack?.id.uuidString ?? "none"
+    let providerKey = settings.lyricsProviderConfiguration?.cacheKey ?? "none"
+    return "\(trackID):\(providerKey):\(player.isCurrentAudiobook)"
+  }
+
+  private func openVisualizer() {
+    guard player.currentTrack != nil else { return }
+    if photosensitivityAcknowledged {
+      showingProjectMFullscreen = true
+    } else {
+      visualizerSafetyConfirmed = false
+      showingVisualizerSafetyNotice = true
+    }
+  }
+
+  private func openCurrentAlbum() {
+    guard let track = player.currentTrack else { return }
+
+    if track.isRemote {
+      let remoteTrack = remote.tracks.first(where: { $0.id == track.id })
+        ?? remote.albums.flatMap(\.tracks).first(where: { $0.id == track.id })
+      let album = remote.albums.first { candidate in
+        if let remoteTrack {
+          return candidate.tracks.contains(where: { $0.id == remoteTrack.id })
+        }
+        return candidate.title.localizedCaseInsensitiveCompare(track.album) == .orderedSame
+          && candidate.artist.localizedCaseInsensitiveCompare(track.albumArtist) == .orderedSame
+      }
+
+      guard let album else {
+        ResonanceDiagnostics.shared.recordDeferred(
+          "navigation.nowPlayingAlbum.missing",
+          details: ["source": "streaming"]
+        )
+        return
+      }
+
+      layeredNavigationState.root = .streaming
+      layeredNavigationState.localAlbum = nil
+      layeredNavigationState.localArtist = nil
+      layeredNavigationState.remoteAlbum = album
+      layeredNavigationState.remoteArtist = remote.artists.first { artist in
+        artist.albums.contains(where: { $0.id == album.id })
+      }
+    } else {
+      guard let album = library.albums.first(where: { album in
+        album.tracks.contains(where: { $0.id == track.id })
+      }) else {
+        ResonanceDiagnostics.shared.recordDeferred(
+          "navigation.nowPlayingAlbum.missing",
+          details: ["source": "library"]
+        )
+        return
+      }
+
+      layeredNavigationState.root = .library
+      layeredNavigationState.remoteAlbum = nil
+      layeredNavigationState.remoteArtist = nil
+      layeredNavigationState.localAlbum = album
+      layeredNavigationState.localArtist = library.artists.first { artist in
+        artist.albums.contains(where: { $0.id == album.id })
+      }
+    }
+
+    layeredNavigationState.showAlbum()
+  }
+}
+
+private struct VisualizerSafetyNotice: View {
+  @Environment(\.dismiss) private var dismiss
+  @Binding var isConfirmed: Bool
+  let onContinue: () -> Void
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 18) {
+          Label("Photosensitivity and seizure warning", systemImage: "exclamationmark.triangle.fill")
+            .font(.title3.weight(.bold))
+            .foregroundStyle(.orange)
+
+          Text("Some visualizations contain rapidly flashing lights, high-contrast patterns, pulsing images, or intense motion that may trigger seizures or other adverse reactions in people with photosensitive epilepsy or light sensitivity.")
+
+          Text("If you have a history of photosensitive seizures, do not use the visualizer unless a qualified medical professional has advised that it is safe for you. Stop immediately if you experience discomfort, dizziness, altered vision, nausea, eye or face twitching, confusion, or loss of awareness. MeiKyo is not medical advice.")
+
+          Button {
+            isConfirmed.toggle()
+          } label: {
+            HStack(alignment: .top, spacing: 10) {
+              Image(systemName: isConfirmed ? "checkmark.square.fill" : "square")
+                .font(.title3)
+                .foregroundStyle(isConfirmed ? Color.accentColor : .secondary)
+              Text("I have read and understand this warning, and I will stop using the visualizer if I experience symptoms.")
+                .multilineTextAlignment(.leading)
+            }
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("I have read and understand the photosensitivity warning")
+          .accessibilityValue(isConfirmed ? "Checked" : "Unchecked")
+
+          Button("Continue", action: onContinue)
+            .buttonStyle(.borderedProminent)
+            .disabled(!isConfirmed)
+            .frame(maxWidth: .infinity)
+        }
+        .padding(22)
+      }
+      .navigationTitle("Visualizer Safety")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+      }
+    }
+  }
+}
+
+private struct VolumeSlider: View {
+  @Binding var value: Double
+  let tint: Color
+
+  private let thumbDiameter: CGFloat = 20
+  private let trackHeight: CGFloat = 4
+
+  var body: some View {
+    GeometryReader { proxy in
+      let width = max(proxy.size.width, thumbDiameter)
+      let thumbRadius = thumbDiameter / 2
+      let usableWidth = max(1, width - thumbDiameter)
+      let clampedValue = min(1, max(0, value))
+      let thumbCenterX = thumbRadius + usableWidth * clampedValue
+
+      ZStack(alignment: .leading) {
+        Capsule()
+          .fill(.secondary.opacity(0.28))
+          .frame(width: usableWidth, height: trackHeight)
+          .offset(x: thumbRadius)
+
+        Capsule()
+          .fill(tint)
+          .frame(width: max(0, usableWidth * clampedValue), height: trackHeight)
+          .offset(x: thumbRadius)
+
+        Circle()
+          .fill(tint)
+          .frame(width: thumbDiameter, height: thumbDiameter)
+          .shadow(radius: 1)
+          .offset(x: thumbCenterX - thumbRadius)
+      }
+      .frame(width: width, height: 32)
+      .contentShape(Rectangle())
+      .highPriorityGesture(
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+          .onChanged { gesture in
+            let x = min(max(0, gesture.location.x - thumbRadius), usableWidth)
+            value = min(1, max(0, x / usableWidth))
+          }
+      )
+      .accessibilityElement()
+      .accessibilityLabel("Volume")
+      .accessibilityValue("\(Int((clampedValue * 100).rounded())) percent")
+      .accessibilityAdjustableAction { direction in
+        switch direction {
+        case .increment: value = min(1, value + 0.05)
+        case .decrement: value = max(0, value - 0.05)
+        @unknown default: break
+        }
+      }
+    }
+    .frame(height: 32)
+  }
+}
+
+private struct NowPlayingTrackMetadata: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var settings: AppSettings
+  let onHorizontalTabSwipeChanged: (CGFloat, CGFloat) -> Void
+  let onHorizontalTabSwipeEnded: (CGFloat, CGFloat) -> Void
+
+  private var secondaryColor: Color {
+    settings.textAccentColor.opacity(0.72)
+  }
+
+  var body: some View {
+    // This is the only tab-navigation hit-test region on Playing. Its clear
+    // insets cover the metadata gap while leaving the artwork pager and seek
+    // bar outside its bounds.
+    VStack(spacing: 0) {
+      Color.clear.frame(height: 10)
+
+      VStack(spacing: 4) {
+        Text(player.currentTrack?.title ?? "Nothing Playing")
+          .font(.title2.bold())
+          .lineLimit(1)
+          .foregroundStyle(settings.textAccentColor)
+        Text(
+          player.currentTrack.map { "\($0.artist) — \($0.album)" }
+            ?? "Choose music from your library"
+        )
+        .foregroundStyle(secondaryColor)
+        .lineLimit(1)
+        Text(trackLengthText)
+          .font(.caption.monospacedDigit())
+          .foregroundStyle(secondaryColor)
+
+        if player.currentTrack != nil {
+          Label(
+            player.preloadedTrackTitle.map { "Gapless ready: \($0)" }
+              ?? player.playbackEngineStatus,
+            systemImage: player.preloadedTrackTitle == nil ? "waveform" : "waveform.badge.plus"
+          )
+          .font(.caption2)
+          .foregroundStyle(secondaryColor)
+          .lineLimit(1)
+        }
+      }
+
+      Color.clear.frame(height: 10)
+    }
+    .contentShape(Rectangle())
+    .highPriorityGesture(
+      DragGesture(minimumDistance: 5, coordinateSpace: .global)
+        .onChanged { value in
+          onHorizontalTabSwipeChanged(value.translation.width, value.translation.height)
+        }
+        .onEnded { value in
+          onHorizontalTabSwipeEnded(value.translation.width, value.translation.height)
+        }
+    )
+  }
+
+  private var trackLengthText: String {
+    guard let track = player.currentTrack else { return "Length —" }
+    let duration = player.duration > 0 ? player.duration : track.duration
+    return "Length \(format(duration))"
+  }
+}
+
+private struct NowPlayingLyricsImportModifier: ViewModifier {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var lyricsStore: LyricsStore
+  @Binding var isPresented: Bool
+  @Binding var importTrackID: UUID?
+
+  func body(content: Content) -> some View {
+    content
+      .fileImporter(
+        isPresented: $isPresented,
+        allowedContentTypes: [UTType(filenameExtension: "lrc") ?? .plainText],
+        allowsMultipleSelection: false
+      ) { result in
+        defer { importTrackID = nil }
+        guard case .success(let urls) = result,
+              let url = urls.first,
+              let track = player.currentTrack,
+              track.id == importTrackID else { return }
+        lyricsStore.importLRC(from: url, for: track)
+      }
+      .alert(
+        "Couldn’t Import Lyrics",
+        isPresented: Binding(
+          get: { lyricsStore.importErrorMessage != nil },
+          set: { isPresented in
+            if !isPresented { lyricsStore.dismissImportError() }
+          }
+        )
+      ) {
+        Button("OK", role: .cancel) {
+          lyricsStore.dismissImportError()
+        }
+      } message: {
+        Text(lyricsStore.importErrorMessage ?? "The lyrics file could not be imported.")
+      }
+  }
+}
+
+private struct NowPlayingLowerControls: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var settings: AppSettings
+  let openLibrary: () -> Void
+  let openVisualizer: () -> Void
+
+  private var secondaryColor: Color {
+    settings.textAccentColor.opacity(0.72)
+  }
+
+  var body: some View {
+    Group {
+      HStack(spacing: 8) {
+        Image(systemName: "speaker.fill")
+          .font(.caption)
+          .foregroundStyle(secondaryColor)
+        VolumeSlider(value: $player.volume, tint: settings.accentColor)
+        Image(systemName: "speaker.wave.3.fill")
+          .font(.caption)
+          .foregroundStyle(secondaryColor)
+      }
+      .frame(maxWidth: 300)
+      .tint(settings.accentColor)
+
+      if player.sleepTimerOption != .off {
+        Label("Sleep timer: \(player.sleepTimerLabel)", systemImage: "moon.zzz.fill")
+          .font(.caption)
+          .foregroundStyle(secondaryColor)
+      }
+
+      HStack {
+        Button(action: openLibrary) {
+          HStack(spacing: 6) {
+            Text("Browse Library")
+            Image(systemName: "chevron.right")
+          }
+        }
+        .buttonStyle(.bordered)
+
+        Button(action: openVisualizer) {
+          Label("Visualizer", systemImage: "sparkles.tv")
+        }
+        .buttonStyle(.bordered)
+        .disabled(player.currentTrack == nil)
+
+        Button(action: player.stop) {
+          Label("Stop", systemImage: "stop.fill")
+        }
+        .buttonStyle(.bordered)
+      }
+      .tint(settings.accentColor)
+    }
+  }
+}
+
+private struct NowPlayingSecondaryControls: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var library: LibraryStore
+  @EnvironmentObject private var settings: AppSettings
+  @Binding var showingQueue: Bool
+  @Binding var showingBookmarks: Bool
+  @Binding var showingLyrics: Bool
+  @Binding var showingLyricsFileImporter: Bool
+  @Binding var lyricsImportTrackID: UUID?
+
+  private var currentTrackIsFavorite: Bool {
+    guard let track = player.currentTrack else { return false }
+    return library.isFavorite(track)
+  }
+
+  private var secondaryColor: Color {
+    settings.textAccentColor.opacity(0.72)
+  }
+
+  private func playbackRateLabel(_ rate: Double) -> String {
+    String(format: "%g×", rate)
+  }
+
+  var body: some View {
+    HStack(spacing: 0) {
+      Button {
+        if let track = player.currentTrack { library.toggleFavorite(track) }
+      } label: {
+        Image(systemName: currentTrackIsFavorite ? "heart.fill" : "heart")
+          .foregroundStyle(currentTrackIsFavorite ? settings.accentColor : secondaryColor)
+      }
+      .disabled(player.currentTrack == nil)
+      .accessibilityLabel(currentTrackIsFavorite ? "Remove from favorites" : "Add to favorites")
+      .frame(maxWidth: .infinity)
+
+      Button {
+        showingBookmarks = true
+      } label: {
+        Image(systemName: player.currentTrackBookmarks.isEmpty ? "bookmark" : "bookmark.fill")
+          .foregroundStyle(
+            player.currentTrackBookmarks.isEmpty ? secondaryColor : settings.accentColor
+          )
+          .overlay(alignment: .topTrailing) {
+            if !player.currentTrackBookmarks.isEmpty {
+              Text("\(player.currentTrackBookmarks.count)")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(settings.contrastingAccentTextColor)
+                .padding(3)
+                .background(settings.accentColor, in: Circle())
+                .offset(x: 8, y: -8)
+            }
+          }
+      }
+      .disabled(player.currentTrack == nil)
+      .accessibilityLabel("Playback bookmarks")
+      .frame(maxWidth: .infinity)
+
+      NowPlayingLyricsControl(
+        showingLyrics: $showingLyrics,
+        showingFileImporter: $showingLyricsFileImporter,
+        importTrackID: $lyricsImportTrackID
+      )
+      .frame(maxWidth: .infinity)
+
+      if player.isCurrentAudiobook {
+        Menu {
+          ForEach([0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { rate in
+            Button {
+              player.setPlaybackRate(rate)
+            } label: {
+              if abs(player.playbackRate - rate) < 0.01 {
+                Label("\(rate, specifier: "%g")×", systemImage: "checkmark")
+              } else {
+                Text(playbackRateLabel(rate))
+              }
+            }
+          }
+        } label: {
+          Text(playbackRateLabel(player.playbackRate))
+            .font(.caption.weight(.bold).monospacedDigit())
+            .foregroundStyle(secondaryColor)
+        }
+        .accessibilityLabel("Audiobook playback speed")
+        .frame(maxWidth: .infinity)
+      }
+
+      Button(action: player.toggleShuffle) {
+        Image(systemName: "shuffle")
+          .foregroundStyle(player.shuffleEnabled ? settings.accentColor : secondaryColor)
+      }
+      .accessibilityLabel(player.shuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
+      .frame(maxWidth: .infinity)
+
+      Button(action: player.cycleRepeatMode) {
+        Image(systemName: player.repeatMode.systemImage)
+          .foregroundStyle(player.repeatMode == .off ? secondaryColor : settings.accentColor)
+          .overlay(alignment: .topTrailing) {
+            if player.repeatMode == .all {
+              Circle()
+                .fill(settings.accentColor)
+                .frame(width: 5, height: 5)
+                .offset(x: 3, y: -3)
+            }
+          }
+      }
+      .accessibilityLabel(player.repeatMode.rawValue)
+      .frame(maxWidth: .infinity)
+
+      Button {
+        showingQueue = true
+      } label: {
+        Image(systemName: "list.bullet")
+      }
+      .accessibilityLabel("Show playback queue")
+      .frame(maxWidth: .infinity)
+
+      Menu {
+        ForEach(SleepTimerOption.allCases) { option in
+          Button {
+            player.setSleepTimer(option)
+          } label: {
+            if option == player.sleepTimerOption {
+              Label(option.rawValue, systemImage: "checkmark")
+            } else {
+              Text(option.rawValue)
+            }
+          }
+        }
+      } label: {
+        Image(systemName: player.sleepTimerOption == .off ? "moon.zzz" : "moon.zzz.fill")
+          .foregroundStyle(
+            player.sleepTimerOption == .off ? secondaryColor : settings.accentColor
+          )
+      }
+      .accessibilityLabel("Sleep timer: \(player.sleepTimerLabel)")
+      .frame(maxWidth: .infinity)
+    }
+    .font(.title3)
+    .frame(maxWidth: 420)
+    .padding(.horizontal, 4)
+  }
+}
+
+private struct NowPlayingTransportControls: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var settings: AppSettings
+
+  var body: some View {
+    HStack(spacing: 0) {
+      Button(action: player.previous) {
+        Image(systemName: "backward.fill")
+      }
+      .accessibilityLabel("Previous track")
+      .frame(maxWidth: .infinity)
+
+      Button {
+        player.skip(by: -15)
+      } label: {
+        Image(systemName: "gobackward.15")
+      }
+      .accessibilityLabel("Rewind 15 seconds")
+      .frame(maxWidth: .infinity)
+
+      Button(action: player.toggle) {
+        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+          .font(.system(size: 42))
+      }
+      .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+      .frame(maxWidth: .infinity)
+
+      Button {
+        player.skip(by: 15)
+      } label: {
+        Image(systemName: "goforward.15")
+      }
+      .accessibilityLabel("Jump ahead 15 seconds")
+      .frame(maxWidth: .infinity)
+
+      Button(action: player.next) {
+        Image(systemName: "forward.fill")
+      }
+      .accessibilityLabel("Next track")
+      .frame(maxWidth: .infinity)
+    }
+    .foregroundStyle(settings.textAccentColor)
+    .font(.title2)
+    .frame(maxWidth: 420)
+    .padding(.horizontal, 4)
+  }
+}
+
+private struct NowPlayingLyricsControl: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var lyricsStore: LyricsStore
+  @Binding var showingLyrics: Bool
+  @Binding var showingFileImporter: Bool
+  @Binding var importTrackID: UUID?
+
+  private var hasReadableLyrics: Bool {
+    lyricsStore.document?.hasReadableLyrics == true
+  }
+
+  private var buttonColor: Color {
+    hasReadableLyrics
+      ? Color(red: 1.0, green: 0.72, blue: 0.16)
+      : Color.gray.opacity(0.55)
+  }
+
+  var body: some View {
+    Button {
+      guard hasReadableLyrics else { return }
+      withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        showingLyrics.toggle()
+      }
+    } label: {
+      Image(systemName: showingLyrics ? "text.quote.fill" : "text.quote")
+        .foregroundStyle(buttonColor)
+    }
+    .disabled(player.currentTrack == nil)
+    .accessibilityLabel(hasReadableLyrics ? "Show lyrics" : "Add or show lyrics")
+    .accessibilityHint(
+      hasReadableLyrics
+        ? "Tap to display lyrics. Touch and hold to choose an LRC file."
+        : "Touch and hold to choose an LRC file for this track."
+    )
+    .highPriorityGesture(
+      LongPressGesture(minimumDuration: 0.65)
+        .onEnded { _ in
+          guard let track = player.currentTrack else { return }
+          withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+            showingLyrics = false
+          }
+          importTrackID = track.id
+          showingFileImporter = true
+        }
+    )
+  }
+}
+
+private struct NowPlayingLyricsBubble: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var playbackProgress: PlaybackProgress
+  let document: LyricsDocument
+  let onDismiss: () -> Void
+  let onMaximize: (() -> Void)?
+  let onMinimize: (() -> Void)?
+  let isFullScreen: Bool
+
+  private var activeLineID: Int? {
+    guard document.hasSyncedLyrics else { return nil }
+    // Some audiobook exporters emit a syntactically valid LRC whose timeline
+    // covers only a tiny fraction of the audio. Treat that as untimed rather
+    // than highlighting the final line as soon as playback passes the bogus
+    // endpoint. A normal LRC covers the track and remains fully synchronized.
+    if let lastStartTime = document.syncedLines.last?.startTime,
+       player.duration > 30,
+       lastStartTime < player.duration * 0.25 {
+      return nil
+    }
+    var low = 0
+    var high = document.syncedLines.count
+    while low < high {
+      let middle = (low + high) / 2
+      if document.syncedLines[middle].startTime <= playbackProgress.elapsed {
+        low = middle + 1
+      } else {
+        high = middle
+      }
+    }
+    guard low > 0 else { return nil }
+    return document.syncedLines[low - 1].id
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(spacing: 8) {
+        Label("Lyrics", systemImage: "text.quote.fill")
+          .font(.headline.weight(.bold))
+          .foregroundStyle(.white)
+
+        Spacer(minLength: 0)
+
+        if isFullScreen, let onMinimize {
+          Button(action: onMinimize) {
+            Image(systemName: "arrow.down.right.and.arrow.up.left")
+              .font(.caption.weight(.bold))
+              .foregroundStyle(.white)
+              .frame(width: 28, height: 28)
+              .background(Color.white.opacity(0.16), in: Circle())
+          }
+          .accessibilityLabel("Restore lyrics over album artwork")
+        } else if let onMaximize {
+          Button(action: onMaximize) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+              .font(.caption.weight(.bold))
+              .foregroundStyle(.white)
+              .frame(width: 28, height: 28)
+              .background(Color.white.opacity(0.16), in: Circle())
+          }
+          .accessibilityLabel("Maximize lyrics")
+        }
+
+        Button(action: onDismiss) {
+          Image(systemName: "xmark")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(width: 28, height: 28)
+            .background(Color.white.opacity(0.16), in: Circle())
+        }
+        .accessibilityLabel("Close lyrics")
+      }
+
+      if document.hasSyncedLyrics {
+        ScrollViewReader { proxy in
+          ScrollView {
+            LazyVStack(alignment: .leading, spacing: 8) {
+              // Breathing room lets the first and last lines reach the center
+              // of the bubble just like lines in the middle of the document.
+              Color.clear.frame(height: 86)
+              ForEach(document.syncedLines) { line in
+                NowPlayingSyncedLyricLine(
+                  line: line,
+                  isActive: line.id == activeLineID
+                )
+                  .id(line.id)
+              }
+              Color.clear.frame(height: 86)
+            }
+          }
+          .scrollIndicators(.hidden)
+          .onAppear {
+            guard let activeLineID else { return }
+            DispatchQueue.main.async {
+              proxy.scrollTo(activeLineID, anchor: .center)
+            }
+          }
+          .onChange(of: activeLineID) { _, lineID in
+            guard let lineID else { return }
+            withAnimation(.easeInOut(duration: 0.28)) {
+              proxy.scrollTo(lineID, anchor: .center)
+            }
+          }
+        }
+      } else {
+        ScrollView {
+          Text(document.displayText)
+            .font(.subheadline)
+            .foregroundStyle(.white.opacity(0.9))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollIndicators(.hidden)
+      }
+    }
+    .padding(14)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background {
+      if isFullScreen {
+        Color.black.opacity(0.90)
+          .ignoresSafeArea()
+      } else {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .fill(Color.black.opacity(0.90))
+      }
+    }
+    .overlay {
+      if !isFullScreen {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .stroke(Color.white.opacity(0.24), lineWidth: 1)
+      }
+    }
+    .shadow(
+      color: isFullScreen ? .clear : .black.opacity(0.75),
+      radius: isFullScreen ? 0 : 12,
+      y: isFullScreen ? 0 : 5
+    )
+  }
+}
+
+private struct NowPlayingSyncedLyricLine: View {
+  let line: SyncedLyricLine
+  let isActive: Bool
+
+  var body: some View {
+    let lyricText = line.text.isEmpty ? " " : line.text
+    Text(lyricText)
+      .font(.subheadline.weight(isActive ? .bold : .regular))
+      .foregroundStyle(
+        isActive
+          ? Color(red: 1.0, green: 0.72, blue: 0.16)
+          : Color.white.opacity(0.86)
+      )
+      .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+private struct NowPlayingArtworkPager: View {
+  @EnvironmentObject private var player: PlayerController
+  @State private var dragOffset: CGFloat = 0
+  @State private var isCompletingTransition = false
+  @State private var transitionToken = UUID()
+  let lyricsDocument: LyricsDocument?
+  @Binding var showingLyrics: Bool
+  let onDismissLyrics: () -> Void
+  let onMaximizeLyrics: () -> Void
+  let onTapArtwork: () -> Void
+
+  init(
+    lyricsDocument: LyricsDocument?,
+    showingLyrics: Binding<Bool>,
+    onDismissLyrics: @escaping () -> Void,
+    onMaximizeLyrics: @escaping () -> Void,
+    onTapArtwork: @escaping () -> Void = {}
+  ) {
+    self.lyricsDocument = lyricsDocument
+    self._showingLyrics = showingLyrics
+    self.onDismissLyrics = onDismissLyrics
+    self.onMaximizeLyrics = onMaximizeLyrics
+    self.onTapArtwork = onTapArtwork
+  }
+
+  private var currentTrack: Track? {
+    guard player.queue.indices.contains(player.currentQueueIndex) else { return player.currentTrack }
+    return player.queue[player.currentQueueIndex]
+  }
+
+  private var previousTrack: Track? {
+    let index = player.currentQueueIndex - 1
+    if player.queue.indices.contains(index) { return player.queue[index] }
+    if player.repeatMode == .all { return player.queue.last }
+    return nil
+  }
+
+  private var nextTrack: Track? {
+    let index = player.currentQueueIndex + 1
+    if player.queue.indices.contains(index) { return player.queue[index] }
+    if player.repeatMode == .all { return player.queue.first }
+    return nil
+  }
+
+  var body: some View {
+    GeometryReader { proxy in
+      let pageWidth = max(1, proxy.size.width)
+      let panelWidth = min(max(pageWidth - 24, 1), 360)
+      ZStack(alignment: .leading) {
+        HStack(spacing: 0) {
+          artworkPage(previousTrack, pageWidth: pageWidth)
+          artworkPage(currentTrack, pageWidth: pageWidth, isCurrent: true)
+          artworkPage(nextTrack, pageWidth: pageWidth)
+        }
+        .frame(width: pageWidth * 3, alignment: .leading)
+        .offset(x: -pageWidth + dragOffset)
+      }
+      .frame(width: pageWidth, height: 260, alignment: .leading)
+      .overlay(alignment: .center) {
+        if showingLyrics, let lyricsDocument, lyricsDocument.hasReadableLyrics {
+          NowPlayingLyricsBubble(
+            document: lyricsDocument,
+            onDismiss: onDismissLyrics,
+            onMaximize: onMaximizeLyrics,
+            onMinimize: nil,
+            isFullScreen: false
+          )
+          .frame(width: panelWidth, height: 232)
+          .transition(
+            .asymmetric(
+              insertion: .scale(scale: 0.82, anchor: .center).combined(with: .opacity),
+              removal: .scale(scale: 0.96, anchor: .center).combined(with: .opacity)
+            )
+          )
+          .zIndex(20)
+        }
+      }
+      .contentShape(Rectangle())
+      .clipped()
+      .gesture(
+        DragGesture(minimumDistance: 8, coordinateSpace: .local)
+          .onChanged { value in
+            guard !isCompletingTransition else { return }
+            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+            let hasDestination = value.translation.width < 0 ? nextTrack != nil : previousTrack != nil
+            dragOffset = hasDestination ? value.translation.width : value.translation.width * 0.18
+          }
+          .onEnded { value in
+            guard !isCompletingTransition else { return }
+            let projected = value.predictedEndTranslation.width
+            let threshold = pageWidth * 0.20
+            let moveToNext = nextTrack != nil && min(value.translation.width, projected) < -threshold
+            let moveToPrevious = previousTrack != nil && max(value.translation.width, projected) > threshold
+
+            if moveToNext {
+              completeTransition(toOffset: -pageWidth) { player.next() }
+            } else if moveToPrevious {
+              completeTransition(toOffset: pageWidth) { player.previousTrack() }
+            } else {
+              withAnimation(.interactiveSpring(response: 0.24, dampingFraction: 0.9)) {
+                dragOffset = 0
+              }
+            }
+          }
+      )
+      .accessibilityElement(children: .contain)
+      .accessibilityHint("Swipe left for the next track or right for the previous track")
+
+    }
+    .frame(height: 260)
+  }
+
+  @ViewBuilder
+  private func artworkPage(_ track: Track?, pageWidth: CGFloat, isCurrent: Bool = false) -> some View {
+    HStack {
+      Spacer(minLength: 0)
+      CachedPagerArtwork(
+        data: track.flatMap { player.artworkData(for: $0) },
+        embedded: track.map { player.artworkIsEmbedded(for: $0) } ?? true
+      )
+      .shadow(radius: 18, y: 8)
+      .accessibilityLabel(track.map { "\($0.album) artwork" } ?? "No adjacent track")
+      Spacer(minLength: 0)
+    }
+    .frame(width: pageWidth, height: 260)
+    .simultaneousGesture(
+      TapGesture().onEnded {
+        if isCurrent { onTapArtwork() }
+      }
+    )
+  }
+
+  private func completeTransition(toOffset: CGFloat, action: @escaping () -> Void) {
+    isCompletingTransition = true
+    let token = UUID()
+    transitionToken = token
+    withAnimation(
+      .interactiveSpring(response: 0.25, dampingFraction: 0.92),
+      completionCriteria: .logicallyComplete
+    ) {
+      dragOffset = toOffset
+    } completion: {
+      guard transitionToken == token else { return }
+      action()
+      var transaction = Transaction()
+      transaction.disablesAnimations = true
+      withTransaction(transaction) {
+        dragOffset = 0
+        isCompletingTransition = false
+      }
+    }
+  }
+}
+
+private struct CachedPagerArtwork: View {
+  let data: Data?
+  let embedded: Bool
+
+  var body: some View {
+    ArtworkView(data: data, embedded: embedded, size: 252)
+      .frame(width: 252, height: 252)
+  }
+}
+
+private struct TrackScrubber: View {
+  @EnvironmentObject private var player: PlayerController
+  @EnvironmentObject private var playbackProgress: PlaybackProgress
+  @EnvironmentObject private var settings: AppSettings
+  @State private var previewTime: Double?
+  @State private var fingerX: CGFloat = 0
+
+  private var effectiveDuration: Double {
+    let controllerDuration = player.duration
+    guard !controllerDuration.isFinite || controllerDuration <= 0 else {
+      return controllerDuration
+    }
+    return max(0, player.currentTrack?.duration ?? 0)
+  }
+
+  private var displayedTime: Double {
+    let raw = previewTime ?? playbackProgress.elapsed
+    guard effectiveDuration.isFinite, effectiveDuration > 0 else { return max(0, raw) }
+    return min(max(0, raw), effectiveDuration)
+  }
+  private var isScrubbing: Bool { previewTime != nil }
+
+  var body: some View {
+    VStack(spacing: 8) {
+      GeometryReader { proxy in
+        let width = max(proxy.size.width, 1)
+        let duration = max(effectiveDuration, 1)
+        let ratio = min(max(displayedTime / duration, 0), 1)
+        let thumbX = width * ratio
+        let bubbleWidth: CGFloat = 66
+        let bubbleX = min(max(0, fingerX - bubbleWidth / 2), max(0, width - bubbleWidth))
+
+        ZStack(alignment: .topLeading) {
+          if isScrubbing {
+            Text(formatScrubTime(displayedTime))
+              .font(.caption2.monospacedDigit().weight(.semibold))
+              .foregroundStyle(settings.contrastingAccentTextColor)
+              .frame(width: bubbleWidth)
+              .padding(.vertical, 5)
+              .background(settings.accentColor, in: Capsule())
+              .offset(x: bubbleX, y: 0)
+          }
+
+          Capsule()
+            .fill(.secondary.opacity(0.28))
+            .frame(height: 4)
+            .offset(y: 34)
+
+          Capsule()
+            .fill(settings.accentColor)
+            .frame(width: max(4, thumbX), height: 4)
+            .offset(y: 34)
+
+          Circle()
+            .fill(settings.accentColor)
+            .frame(width: isScrubbing ? 22 : 16, height: isScrubbing ? 22 : 16)
+            .shadow(radius: isScrubbing ? 3 : 1)
+            .offset(
+              x: min(
+                max(0, thumbX - (isScrubbing ? 11 : 8)),
+                width - (isScrubbing ? 22 : 16)
+              ),
+              y: isScrubbing ? 25 : 28
+            )
+            .animation(.easeOut(duration: 0.12), value: isScrubbing)
+        }
+        .frame(width: width, height: 50)
+        .contentShape(Rectangle())
+        .highPriorityGesture(
+          DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+              guard player.currentTrack != nil else { return }
+              fingerX = min(max(0, value.location.x), width)
+              let normalized = min(max(fingerX / max(1, width), 0), 1)
+              previewTime = normalized * duration
+            }
+            .onEnded { _ in
+              guard let previewTime else { return }
+              player.seek(to: previewTime)
+              self.previewTime = nil
+            }
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Track position")
+        .accessibilityValue(formatScrubTime(displayedTime))
+        .accessibilityAdjustableAction { direction in
+          switch direction {
+          case .increment: player.skip(by: 15)
+          case .decrement: player.skip(by: -15)
+          @unknown default: break
+          }
+        }
+      }
+      .frame(height: 50)
+
+      HStack {
+        Text(format(displayedTime))
+        Spacer()
+        Text("−\(formatRemainingTime(effectiveDuration - displayedTime))")
+      }
+      .font(.caption.monospacedDigit())
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, 2)
+    }
+    .opacity(player.currentTrack == nil ? 0.45 : 1)
+  }
+
+  private func formatScrubTime(_ seconds: Double) -> String {
+    guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+    return String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
+  }
+
+  private func formatRemainingTime(_ seconds: Double) -> String {
+    guard seconds.isFinite else { return "—:—" }
+    return formatScrubTime(max(0, seconds))
+  }
+}
+
+private struct PlaybackBookmarksView: View {
+  @Environment(\.dismiss) private var dismiss
+  @EnvironmentObject private var player: PlayerController
+
+  private var currentAudiobookPositions: [AudiobookPlaybackBookmark] {
+    guard let currentTrack = player.currentTrack, player.isCurrentAudiobook else { return [] }
+    let albumKey = player.audiobookAlbumKey(for: currentTrack)
+    return player.audiobookBookmarks.filter { $0.albumKey == albumKey }
+  }
+
+  private func audiobookTitle(_ albumKey: String) -> String {
+    let parts = albumKey.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2 else { return albumKey }
+    return "\(parts[1]) — \(parts[0])"
+  }
+
+  var body: some View {
+    NavigationStack {
+      List {
+        Section(
+          content: {
+            Button {
+              player.addBookmarkAtCurrentPosition()
+            } label: {
+              Label("Bookmark Current Position", systemImage: "bookmark.badge.plus")
+            }
+            .disabled(player.currentTrack == nil)
+          },
+          header: { EmptyView() },
+          footer: {
+            Text(
+              "Bookmarks are saved for this track and remain available after restarting MeiKyo.")
+          }
+        )
+
+        if !currentAudiobookPositions.isEmpty {
+          Section("Recent Audiobook Positions") {
+            ForEach(currentAudiobookPositions) { bookmark in
+              Button {
+                player.playAudiobookBookmark(bookmark)
+                dismiss()
+              } label: {
+                HStack {
+                  Image(systemName: "book.closed.fill")
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(format(bookmark.time))
+                      .font(.headline.monospacedDigit())
+                    Text(audiobookTitle(bookmark.albumKey))
+                      .font(.caption)
+                      .lineLimit(1)
+                      .foregroundStyle(.secondary)
+                    if let track = player.queue.first(where: { $0.id == bookmark.trackID }) {
+                      Text(track.title)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                    }
+                  }
+                  Spacer()
+                  Image(systemName: "arrow.right.circle")
+                    .foregroundStyle(.secondary)
+                }
+              }
+              .buttonStyle(.plain)
+              .disabled(!player.queue.contains { $0.id == bookmark.trackID })
+            }
+          }
+        }
+
+        Section("Saved Positions") {
+          if player.currentTrackBookmarks.isEmpty {
+            ContentUnavailableView(
+              "No Bookmarks",
+              systemImage: "bookmark",
+              description: Text("Add a bookmark to return to an exact point in this track.")
+            )
+          } else {
+            ForEach(player.currentTrackBookmarks) { bookmark in
+              Button {
+                player.seek(to: bookmark)
+                dismiss()
+              } label: {
+                HStack {
+                  Image(systemName: "bookmark.fill")
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(format(bookmark.time))
+                      .font(.headline.monospacedDigit())
+                    Text(bookmark.createdAt.formatted(date: .abbreviated, time: .shortened))
+                      .font(.caption)
+                      .foregroundStyle(.secondary)
+                  }
+                  Spacer()
+                  Image(systemName: "arrow.right.circle")
+                    .foregroundStyle(.secondary)
+                }
+              }
+              .buttonStyle(.plain)
+            }
+            .onDelete(perform: player.removeBookmarks)
+          }
+        }
+
+      }
+      .navigationTitle("Playback Bookmarks")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+  }
+}
+
+struct PlaybackQueueView: View {
+  @Environment(\.dismiss) private var dismiss
+  @EnvironmentObject private var player: PlayerController
+
+  var body: some View {
+    NavigationStack {
+      List {
+        if let current = player.currentTrack {
+          Section("Now Playing") {
+            queueRow(current, isCurrent: true)
+          }
+        }
+
+        Section("Up Next") {
+          if player.upcomingTracks.isEmpty {
+            ContentUnavailableView(
+              "Queue Is Empty",
+              systemImage: "text.line.last.and.arrowtriangle.forward",
+              description: Text("Choose an album or song to create a new playback queue.")
+            )
+          } else {
+            ForEach(player.upcomingTracks) { track in
+              Button {
+                player.playQueueItem(track)
+              } label: {
+                queueRow(track, isCurrent: false)
+              }
+              .buttonStyle(.plain)
+            }
+            .onDelete(perform: player.removeUpcoming)
+            .onMove(perform: player.moveUpcoming)
+
+            Button(role: .destructive) {
+              player.clearUpcoming()
+            } label: {
+              Label("Clear Upcoming Tracks", systemImage: "trash")
+            }
+          }
+        }
+      }
+      .navigationTitle("Playback Queue")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          if !player.upcomingTracks.isEmpty {
+            EditButton()
+          }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+  }
+
+  private func queueRow(_ track: Track, isCurrent: Bool) -> some View {
+    HStack(spacing: 10) {
+      ArtworkView(
+        data: player.artworkData(for: track),
+        embedded: player.artworkIsEmbedded(for: track),
+        size: 44
+      )
+      if isCurrent {
+        PlayingTrackVisualizer(track: track)
+      }
+      VStack(alignment: .leading, spacing: 2) {
+        Text(track.title)
+          .font(.subheadline.weight(isCurrent ? .semibold : .regular))
+          .lineLimit(1)
+        Text("\(track.artist) — \(track.album)")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+      Spacer()
+      if isCurrent {
+        Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
+          .foregroundStyle(.tint)
+      }
+    }
+    .contentShape(Rectangle())
+  }
+}
+
+struct MiniPlayerView: View {
+  @EnvironmentObject private var settings: AppSettings
+  @EnvironmentObject private var player: PlayerController
+  let dock: MiniPlayerDock
+  let openNowPlaying: () -> Void
+  let onDock: (MiniPlayerDock) -> Void
+
+  var body: some View {
+    HStack(spacing: 10) {
+      Button(action: openNowPlaying) {
+        HStack(spacing: 10) {
+          if let track = player.currentTrack {
+            ArtworkView(
+              data: player.artworkData(for: track),
+              embedded: player.artworkIsEmbedded(for: track),
+              size: 42
+            )
+            PlayingTrackVisualizer(track: track)
+          }
+          VStack(alignment: .leading, spacing: 2) {
+            Text(player.currentTrack?.title ?? "")
+              .font(.subheadline.weight(.semibold))
+              .lineLimit(1)
+            Text(player.currentTrack?.artist ?? "")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
+        }
+      }
+      .buttonStyle(.plain)
+
+      Spacer(minLength: 10)
+
+      HStack(spacing: 20) {
+        Button {
+          onDock(dock == .top ? .bottom : .top)
+        } label: {
+          Image(systemName: dock == .top ? "arrow.down" : "arrow.up")
+            .frame(width: 30, height: 36)
+        }
+        .accessibilityLabel(dock == .top ? "Move mini player to bottom" : "Move mini player to top")
+
+        Button(action: player.previous) {
+          Image(systemName: "backward.fill")
+            .frame(width: 30, height: 36)
+        }
+        .accessibilityLabel("Previous track")
+
+        Button(action: player.toggle) {
+          Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+            .frame(width: 34, height: 36)
+        }
+        .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+
+        Button(action: player.next) {
+          Image(systemName: "forward.fill")
+            .frame(width: 30, height: 36)
+        }
+        .accessibilityLabel("Next track")
+      }
+      .font(.title3)
+      .buttonStyle(.plain)
+    }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 8)
+    .background {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .fill(.ultraThinMaterial)
+        .overlay {
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(settings.themeSurfaceGradient.opacity(0.28))
+        }
+    }
+    .overlay {
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .stroke(settings.accentColor.opacity(0.3), lineWidth: 1)
+    }
+    .shadow(radius: 5, y: 2)
+  }
+}
