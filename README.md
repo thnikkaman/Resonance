@@ -1,5 +1,64 @@
 # MeiKyo 鳴響 — Project Resonance v1.0 Full Release
 
+## MeiKyo version 1.1/build 351 — App Store Connect upload — 2026-08-19
+
+Build 351 was archived, signed, exported, and uploaded successfully to App Store Connect. Apple reported that the
+package is processing. It contains the verified remote-download repair for Files/File Provider storage: URLSession
+temporary files and final destinations now use the correct move/access mode, with privacy-safe failure diagnostics.
+The clean build-346 comparison found only `RemoteDownloadService.swift` changed. The physical phone was not launched
+or updated, so all-caps PIERROT download and resume behavior remain manual acceptance checks after processing.
+
+Standard warnings remain non-blocking: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored HLSL
+`format-extra-args`/deprecated `sprintf` warnings. The initial archive's long DerivedData path also failed with
+`File name too long`; the short-path rerun succeeded.
+
+## MeiKyo development build 342 — verified UTF-16 LRC metadata fix — 2026-08-16
+
+Build 342 fixes the verified metadata failure: BOM-less UTF-16LE LRC files were being misread as malformed UTF-8 or
+generic UTF-16, so their title/album/track headers were never available for matching. The parser now validates text
+encoding and decodes UTF-16LE/BE correctly. Playback lookup remains limited to the playing MP3's parent folder.
+
+The UTF-16LE metadata fixture, regression checks, signed arm64 Release archive, strict signature verification, and
+in-place device installation passed. `devicectl` verified version 1.0/build 342 on `SaiyanDenawa`; the app was not
+launched. Standard non-blocking empty/no-scheme, AppIntents SSU, and vendored HLSL warnings remained.
+
+## MeiKyo development build 340 — playback-triggered fresh LRC rescan — 2026-08-16
+
+Build 340 rescans the selected Files library folder whenever a new audiobook playback target is loaded before local
+lyrics lookup begins. The coordinated directory walk checks newly copied LRC files, reads their metadata, and matches
+them to the playing track without requiring a manual import or a one-time startup cache. The signed build was
+installed in place as version 1.0/build 340; the app was not launched.
+
+Regression checks, signed arm64 Release compilation, strict code-signature verification, and device installation
+passed. Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and
+vendored HLSL `format-extra-args`/deprecated `sprintf` warnings. Manual Chapter 2/3 playback acceptance remains
+user-run.
+
+## MeiKyo development build 339 — selected-folder-wide LRC discovery — 2026-08-16
+
+Build 339 responds to device evidence showing the selected-folder bookmark was active but File Provider exposed no LRC
+candidate beside the playing audio. The final local lookup now scans the authorized library folder and uses LRC metadata
+to find the matching title/album/artist/track, with exact filename matching as fallback. The signed build was installed
+in place as version 1.0/build 339; the app was not launched.
+
+## MeiKyo development build 338 — metadata-aware LRC matching — 2026-08-16
+
+Build 338 reads LRC metadata headers including `[resonance-id]`, `[ti]`, `[al]`, `[ar]`/`[au]`, `[tr]`, and `[di]`.
+Local lyric lookup now uses that metadata before title/album/track identity and filename fallback, so audio filenames
+are no longer the primary LRC key. The LRC file must still be present on the phone. The metadata fixture, signed build,
+strict signature verification, and in-place installation passed; the phone reports version 1.0/build 338. The app was
+not launched.
+
+## MeiKyo development build 337 — audiobook LRC chapter-number matching — 2026-08-16
+## MeiKyo development build 337 — audiobook LRC chapter-number matching — 2026-08-16
+
+Build 337 fixes the remaining audiobook companion mismatch: `Chapter 1: “Owl Post”` now matches a sidecar named
+`Chapter 01 - Owl Post` after canonicalizing chapter-number leading zeroes. The focused fixture and source-contract
+checks passed. The signed build was installed in place on `SaiyanDenawa` as version 1.0/build 337; the app was not
+launched. Existing files are not renamed automatically.
+
+The standard empty/no-scheme destination, AppIntents SSU archive, and vendored HLSL warnings remained non-blocking.
+
 ## MeiKyo development build 336 — corrected audiobook download filename precedence — 2026-08-16
 
 Build 335 still let an HTTP suggested filename override the original remote catalog/path filename, which caused
@@ -8,7 +67,7 @@ catalog/path filename first, keeps the HTTP suggestion as a fallback, and leaves
 last fallback. Existing files are not renamed automatically.
 
 The focused source-contract checks, signed arm64 Release archive, strict code-signature verification, and in-place
-installation passed. Source commit `17360a8` records the production handoff. `devicectl` verified MeiKyo version
+installation passed. Source commit `5133d6c` records the production handoff. `devicectl` verified MeiKyo version
 1.0/build 336 on `SaiyanDenawa`; the app was not launched.
 The standard non-blocking warnings remained: Xcode's empty supported-platforms/no-scheme destination warning, the
 AppIntents SSU archive warning because the target has no AppIntents dependency, and existing vendored HLSL
@@ -172,6 +231,14 @@ used per-pixel mesh code; the reported set therefore does not indicate an oversi
 vendored engine now clamps `num_inst` to 128 at preset load, without editing or deleting individual visualization files.
 The global per-pixel mesh remains at the restored 32×24 configuration, and the existing low-framerate auto-banish
 telemetry remains the runtime acceptance guard.
+
+## MeiKyo 1.0/build 346 App Store Connect test upload — 2026-08-16
+
+Build 346 prevents a malformed short LRC timeline from immediately selecting and scrolling to its final line. The
+metadata-matched file opens at the top when its timestamps cover only a small fraction of the audio; normally timed
+LRC files retain synchronized highlighting. Regression checks, full preflight, signed Release archive, and deep strict
+signature verification passed. Xcode uploaded the build to App Store Connect, which reported `Upload succeeded` and
+that the package is processing. It was not installed or launched on the phone.
 
 This is an engine-level experiment, not yet a claim of repaired device performance. The physical phone has not been
 launched for this build. Manual acceptance: rotate through the reported heavy presets with audio playing and downloads

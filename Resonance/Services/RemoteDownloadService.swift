@@ -136,11 +136,14 @@ private final class ForegroundDownloadSession: NSObject, URLSessionDownloadDeleg
             guard let response = downloadTask.response else {
                 throw RemoteDownloadError.invalidResponse
             }
-            _ = try ExternalFileCoordinator.moveItem(
-                from: location,
-                to: destination,
-                replacingExisting: true
+            try FileManager.default.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
             )
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: location, to: destination)
             finish(.success((destination, response)))
         } catch {
             try? FileManager.default.removeItem(at: location)
@@ -681,7 +684,11 @@ final class RemoteDownloadManager: ObservableObject {
         )
 
         let duplicates = tracks.filter {
-            Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) != nil
+            Self.existingDestinationURL(
+                for: $0,
+                in: library.sharedMusicFolderURL,
+                coordinatedAccess: library.usesPersistentMusicFolder
+            ) != nil
         }
         if !duplicates.isEmpty {
             pendingTracks = duplicates
@@ -852,7 +859,11 @@ final class RemoteDownloadManager: ObservableObject {
         let matchedTracks = savedIDs.compactMap { byID[$0] }
         guard !matchedTracks.isEmpty else { return }
         let candidates = matchedTracks.filter {
-            Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) == nil
+            Self.existingDestinationURL(
+                for: $0,
+                in: library.sharedMusicFolderURL,
+                coordinatedAccess: library.usesPersistentMusicFolder
+            ) == nil
         }
         guard !candidates.isEmpty else {
             clearPersistedQueue()
@@ -975,12 +986,14 @@ final class RemoteDownloadManager: ObservableObject {
                 let progressStream = AsyncStream<DownloadByteProgress>.makeStream(
                     bufferingPolicy: .bufferingNewest(1)
                 )
-                let destinationRoot = library.sharedMusicFolderURL
-                let worker = Task.detached(priority: .utility) {
+            let destinationRoot = library.sharedMusicFolderURL
+            let coordinatedAccess = library.usesPersistentMusicFolder
+            let worker = Task.detached(priority: .utility) {
                     defer { progressStream.continuation.finish() }
                     return try await Self.downloadOne(
                         track,
                         into: destinationRoot,
+                        coordinatedAccess: coordinatedAccess,
                         replacingExisting: replacingExisting
                     ) { completed, total in
                         progressStream.continuation.yield(DownloadByteProgress(completed: completed, total: total))
@@ -1076,12 +1089,18 @@ final class RemoteDownloadManager: ObservableObject {
                 )
                 clearLiveProgress(matching: track.id)
                 lastMessage = "Download failed: \(error.localizedDescription)"
-                ResonanceDiagnostics.shared.recordDeferred(
+                ResonanceDiagnostics.shared.recordDeferredAlways(
                     "download.track.failed",
                     details: [
                         "completedCount": String(completedCount),
                         "totalCount": String(totalCount),
-                        "seconds": String(format: "%.2f", CACurrentMediaTime() - trackStart)
+                        "seconds": String(format: "%.2f", CACurrentMediaTime() - trackStart),
+                        "transport": Self.transportClass(for: track.streamURL),
+                        "extension": track.fileExtension ?? track.streamURL.pathExtension.lowercased(),
+                        "sourceIDPresent": String(track.sourceID?.isEmpty == false),
+                        "fileSizeBytes": String(track.fileSizeBytes),
+                        "errorType": String(describing: type(of: error)),
+                        "error": error.localizedDescription
                     ]
                 )
             }
@@ -1244,7 +1263,11 @@ final class RemoteDownloadManager: ObservableObject {
         let recordIDs = Set(records.map(\.trackID))
         let candidates = matchedTracks.filter {
             recordIDs.contains($0.id)
-                || Self.existingDestinationURL(for: $0, in: library.sharedMusicFolderURL) == nil
+                || Self.existingDestinationURL(
+                    for: $0,
+                    in: library.sharedMusicFolderURL,
+                    coordinatedAccess: library.usesPersistentMusicFolder
+                ) == nil
         }
         guard !candidates.isEmpty else {
             clearPersistedQueue()
@@ -1406,10 +1429,11 @@ final class RemoteDownloadManager: ObservableObject {
             let attributes = try FileManager.default.attributesOfItem(atPath: inboxURL.path)
             let byteCount = (attributes[.size] as? NSNumber)?.int64Value ?? 0
             guard byteCount > 0 else { throw RemoteDownloadError.emptyResponse }
-            let skipped = try ExternalFileCoordinator.moveItem(
+            let skipped = try Self.moveDownloadedFile(
                 from: inboxURL,
                 to: destination,
-                replacingExisting: replacingExisting
+                replacingExisting: replacingExisting,
+                coordinatedAccess: library.usesPersistentMusicFolder
             )
             if skipped {
                 try? FileManager.default.removeItem(at: inboxURL)
@@ -1634,6 +1658,7 @@ final class RemoteDownloadManager: ObservableObject {
     private nonisolated static func downloadOne(
         _ track: RemoteTrackItem,
         into root: URL,
+        coordinatedAccess: Bool,
         replacingExisting: Bool,
         progress: @escaping @Sendable (Int64, Int64) -> Void
     ) async throws -> DownloadResult {
@@ -1672,10 +1697,11 @@ final class RemoteDownloadManager: ObservableObject {
             guard completedBytes > 0 else { throw RemoteDownloadError.emptyResponse }
             progress(completedBytes, expectedBytes)
 
-            let skipped = try ExternalFileCoordinator.moveItem(
+            let skipped = try Self.moveDownloadedFile(
                 from: downloadedURL,
                 to: destination,
-                replacingExisting: replacingExisting
+                replacingExisting: replacingExisting,
+                coordinatedAccess: coordinatedAccess
             )
             if skipped {
                 try? FileManager.default.removeItem(at: downloadedURL)
@@ -1715,20 +1741,54 @@ final class RemoteDownloadManager: ObservableObject {
 
     private nonisolated static func existingDestinationURL(
         for track: RemoteTrackItem,
-        in root: URL
+        in root: URL,
+        coordinatedAccess: Bool
     ) -> URL? {
-        try? ExternalFileCoordinator.read(at: root) { coordinatedRoot in
+        let findExisting: (URL) -> URL? = { searchRoot in
             var extensions = MetadataReader.supportedExtensions
             let streamExtension = track.streamURL.pathExtension.lowercased()
             if !streamExtension.isEmpty { extensions.insert(streamExtension) }
             for extensionName in extensions {
-                let candidate = destinationURL(for: track, in: coordinatedRoot, extensionName: extensionName)
+                let candidate = destinationURL(for: track, in: searchRoot, extensionName: extensionName)
                 if FileManager.default.fileExists(atPath: candidate.path) {
                     return candidate
                 }
             }
             return nil
-        } ?? nil
+        }
+        if coordinatedAccess {
+            return try? ExternalFileCoordinator.read(at: root) { coordinatedRoot in
+                findExisting(coordinatedRoot)
+            } ?? nil
+        }
+        return findExisting(root)
+    }
+
+    private nonisolated static func moveDownloadedFile(
+        from sourceURL: URL,
+        to destinationURL: URL,
+        replacingExisting: Bool,
+        coordinatedAccess: Bool
+    ) throws -> Bool {
+        do {
+            try FileManager.default.createDirectory(
+                at: destinationURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                guard replacingExisting else { return true }
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+            return false
+        } catch {
+            guard coordinatedAccess else { throw error }
+            return try ExternalFileCoordinator.moveItem(
+                from: sourceURL,
+                to: destinationURL,
+                replacingExisting: replacingExisting
+            )
+        }
     }
 
     private nonisolated static func fileExtension(for response: URLResponse?, fallback: String) -> String {
