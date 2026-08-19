@@ -1,8 +1,19 @@
 # Resonance work queue
 
+## R-MEIKYO-1.1-BUILD351-SUBMISSION — Process and submit the production upload
+
+- Status: uploaded to App Store Connect as MeiKyo version 1.1/build 351; Apple reported that the package is
+  processing. It is not yet verified as processed, attached to the 1.1 submission, or submitted for review.
+- Source: `RemoteDownloadService.swift` contains the build-351 move/access-mode and failure-diagnostic repair. The
+  handoff, README, and this queue are updated with the exact provenance and remaining acceptance work.
+- Automated evidence: archive, export, local signing checks, and authenticated upload passed. The physical phone was
+  not launched or updated, and the download behavior has not been claimed as runtime-verified.
+- Next: attach build 351 to version 1.1, finish export compliance and review metadata, submit for review, then test an
+  all-caps PIERROT download and the resume flow on the phone.
+
 ## R-AUDIOBOOK-LRC-REPRESENTATION-MATCH — Match the phone's audio filename to its adjacent LRC
 
-- Status: implemented, strictly validated, signed, and installed in place as MeiKyo 1.0/build 336; physical runtime
+- Status: implemented, strictly validated, signed, and installed in place as MeiKyo 1.0/build 342; physical runtime
   acceptance remains user-run.
 - Owner: `LibraryStore.swift` inventory matching through the pure `LyricsCompanionMatcher.swift` service helper.
 - Proven baseline: build 334 enumerated 36 LRC files but cached zero companions. The copied phone database stores the
@@ -14,14 +25,29 @@
 - Smallest causal lever: normalize importer-added leading numbers and punctuation in one production matcher used by the
   scan; do not change playback, import, folder authorization, or LRC parsing.
 - Automated oracle: compile and execute `Tools/LyricsCompanionMatcherFixture.swift` with the production matcher. It must
-  match the exact Chapter 01 device representation plus Chapters 02/04, reject another chapter, and reject another folder.
+  match the exact Chapter 01 device representation, Chapter 1/01 Prisoner representation, plus Chapters 02/04, reject
+  another chapter, and reject another folder.
 - Manual acceptance: after an in-place build install, run a library scan and play Chapters 2 and 4. Their Lyrics buttons
   must enable automatically in Now Playing and the visualizer. Chapter 3 remains excluded because it has a manual override.
 - Rollback: remove `LyricsCompanionMatcher.swift` and restore exact match-key construction in `LibraryStore.swift`.
 
+- Build 337 validation: the focused fixture, signed Release build, strict signature verification, and in-place install
+  passed; standard no-scheme, AppIntents SSU, and vendored HLSL warnings remained non-blocking.
+
+- Build 338 adds LRC header metadata matching for `[resonance-id]`, title, album, artist, track, and disc fields. The
+  local sidecar must still be present on the phone; the filename is now only a fallback identity.
+- Build 339 adds a selected-folder-wide coordinated metadata search for File Provider cases where immediate sibling
+  enumeration returns no LRC files.
+- Build 340 makes the rescan happen in the audiobook playback-load path, before lyric lookup, and replaces the
+  one-shot enumerator fallback with an explicit coordinated directory walk so newly copied LRC files are checked.
+- Build 340 manual acceptance: play Chapters 2 and 3 with their LRC files already beside the MP3s; each should load
+  automatically without manual import. Do not treat the signed install as runtime acceptance.
+- Build 342 fixes verified metadata decoding for BOM-less UTF-16LE LRC files and retains the exact MP3-parent-folder
+  lookup. The focused fixture proves title/album/track matching from UTF-16LE metadata before device installation.
+
 ## R-REMOTE-DOWNLOAD-ORIGINAL-FILENAME — Preserve server filenames for future downloads
 
-- Status: implemented, strictly validated, signed, and installed in place as MeiKyo 1.0/build 336; physical download
+- Status: implemented, strictly validated, signed, and installed in place as MeiKyo 1.0/build 337; physical download
   acceptance remains user-run.
 - Owner: `RemoteLibraryStore.swift` carries the original manifest/Subsonic path filename, and
   `RemoteDownloadService.swift` owns foreground/background destination naming.

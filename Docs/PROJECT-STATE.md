@@ -1,6 +1,107 @@
 # Resonance verified project state
 
-Last verified: 2026-08-16
+Last verified: 2026-08-19
+
+## MeiKyo App Store Connect distribution upload — version 1.1/build 351 — 2026-08-19
+
+- Build 351 was archived as MeiKyo version 1.1/build 351 with bundle identifier `com.briangarcia.meikyo` and
+  uploaded through Xcode's authenticated App Store Connect workflow. Apple reported `Upload succeeded` and
+  `Uploaded package is processing`; processing and attachment to the 1.1 submission remain to be confirmed.
+- Compared with the clean build-346 source snapshot, the only source-file difference is `RemoteDownloadService.swift`.
+  It fixes the URLSession temporary-file move and final destination move for Files/File Provider storage, keeps
+  duplicate/resume checks in the same access mode, and records privacy-safe failure diagnostics. This targets the
+  verified all-caps PIERROT failure where the previous move was rejected by the external Documents provider.
+- Archive/export/upload succeeded. The initial archive hit macOS's `File name too long` error from the default
+  DerivedData path; rerunning with a short `/tmp` DerivedData path succeeded. Standard non-blocking warnings remain
+  the empty/no-scheme destination metadata, AppIntents SSU archive, and vendored HLSL warnings.
+- Local archive verification confirmed Apple Distribution signing for Team `98CWMFS26R`, `get-task-allow=false`,
+  version 1.1, and build 351. The physical phone was not launched or updated, so the download repair still needs
+  user runtime acceptance.
+- Exact continuation: confirm build 351 finishes processing in App Store Connect, attach it to version 1.1, complete
+  export-compliance/review metadata, and submit for review. Then retest a formerly failing all-caps PIERROT album and
+  confirm the repeated resume prompt is gone.
+
+## MeiKyo App Store Connect test upload — version 1.0/build 346 — 2026-08-16
+
+- Build 346 prevents an invalid short LRC timeline from auto-highlighting and scrolling to its final line. The
+  Chapter 2 file has valid metadata but timestamps ending at 2.1 seconds for a 21-minute audio track; the app now
+  opens that timeline at the top without claiming false synchronization.
+- Regression checks, full preflight, signed Release archive, and deep strict code-signature verification passed.
+- Xcode exported and uploaded `com.briangarcia.meikyo` version 1.0/build 346 to App Store Connect. Apple reported
+  `Upload succeeded` and `Uploaded package is processing`. The build was not installed or launched on the phone.
+- Standard non-blocking warnings remain: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored
+  HLSL `format-extra-args`/deprecated `sprintf` warnings.
+- Next manual check: install build 346 through TestFlight after processing, then open Chapter 2 and confirm it starts
+  at the top rather than jumping to the final lyric line. Properly timed LRC files should continue highlighting.
+
+## UTF-16 LRC metadata decoding — version 1.0/build 342 — 2026-08-16
+
+- Device verification showed the selected-folder scan could read LRC files, but chapters without filename matches
+  still failed metadata lookup. The production metadata parser accepted malformed UTF-8-with-NUL or generic UTF-16
+  decoding before trying UTF-16LE, so BOM-less Windows-exported LRC metadata was not decoded correctly.
+- Build 342 rejects NUL-contaminated UTF-8, tries UTF-16LE/BE metadata text with marker validation, and keeps the
+  playback lookup scoped to the playing MP3's parent folder. The focused fixture now verifies a BOM-less UTF-16LE LRC
+  containing title, album, and track metadata.
+- Regression checks, signed arm64 Release archive, deep strict signature verification, and in-place installation passed.
+  `devicectl` verified MeiKyo version 1.0/build 342 on `SaiyanDenawa`; the app was not launched.
+- Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored
+  HLSL `format-extra-args`/deprecated `sprintf` warnings.
+- Manual acceptance: play the Chamber of Secrets chapters whose LRC files are beside the MP3s and confirm lyrics load
+  without playback delay or manual import.
+
+## Playback-triggered fresh audiobook LRC rescan — version 1.0/build 340 — 2026-08-16
+
+- Build 339 still left the one-time companion-cache behavior in place, so LRC files copied into the selected Files
+  folder after indexing were not guaranteed to be checked when a later audiobook track started.
+- Build 340 rescans the selected library folder from the Now Playing playback-load path for audiobook tracks before
+  local lyric lookup. The lookup now walks coordinated directories explicitly, reads newly visible LRC files, and then
+  applies their metadata match; it no longer relies on the old one-time cache or one enumerator snapshot.
+- Regression checks, signed arm64 Release archive, deep strict signature verification, and in-place installation passed.
+  `devicectl` verified MeiKyo version 1.0/build 340 on `SaiyanDenawa`; the app was not launched.
+- Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored
+  HLSL `format-extra-args`/deprecated `sprintf` warnings.
+- Manual acceptance: start Chapters 2 and 3 after their LRC files are already beside the MP3s; verify each loads
+  automatically without manual import. This is a physical-device runtime check and has not been performed by Codex.
+
+## Selected-folder-wide metadata LRC fallback — version 1.0/build 339 — 2026-08-16
+
+- Build-338 diagnostics after the Chamber of Secrets test showed `audioExists=true`, an active selected-folder bookmark,
+  and `siblingCandidate=false`; the File Provider did not expose the LRC beside the audio during immediate-parent lookup.
+- Build 339 adds a final coordinated scan of the entire authorized selected library folder. It reads LRC metadata and
+  selects a title/album/artist/track match even when the sidecar is hidden from the audio directory listing. Exact-name
+  lookup remains the fallback when metadata is absent.
+- Regression checks, signed arm64 Release archive, deep strict signature verification, and in-place installation passed.
+  `devicectl` verified MeiKyo version 1.0/build 339 on `SaiyanDenawa`; the app was not launched.
+- Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored
+  HLSL `format-extra-args`/deprecated `sprintf` warnings.
+
+## Metadata-aware LRC companion matching — version 1.0/build 338 — 2026-08-16
+
+- Build 338 parses optional LRC headers `[resonance-id]`/`[id]`, `[ti]`, `[al]`, `[ar]`/`[au]`, `[tr]`, and `[di]`.
+- Local sibling lookup now prefers LRC metadata: stable ID when available, then title plus album/track identity, then
+  album and track identity, with the normalized filename matcher as a fallback. This removes the audio filename from
+  the primary lyric identity and handles `Chapter 1` versus `Chapter 01`.
+- The LRC bytes still must exist on the phone beside the audio or in the selected library folder; metadata identifies a
+  local sidecar but does not download one from Navidrome.
+- The metadata fixture, regression checks, signed arm64 Release archive, deep strict signature verification, and
+  in-place installation passed. `devicectl` verified MeiKyo version 1.0/build 338 on `SaiyanDenawa`; the app was not
+  launched.
+- Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored
+  HLSL `format-extra-args`/deprecated `sprintf` warnings.
+
+## Audiobook LRC chapter-number normalization — version 1.0/build 337 — 2026-08-16
+
+- Build-336 diagnostics showed 8,071 audio files and 36 LRC files but zero companion matches. The downloaded Prisoner
+  representation uses `Chapter 1`, while common sidecars use `Chapter 01`; punctuation normalization alone rejected
+  the pair.
+- Build 337 canonicalizes leading zeroes in chapter numbers, so `Chapter 1: “Owl Post”` matches `Chapter 01 - Owl Post`
+  within the same folder. The focused fixture covers that exact representation and the existing Hobbit cases.
+- The server is being updated to expose the actual source filename. Once exposed, the existing downloader precedence
+  preserves it; generated `01 - …` naming remains only a final fallback. Existing local files are not renamed.
+- Regression checks, signed arm64 Release archive, deep strict signature verification, and in-place installation passed.
+  `devicectl` verified MeiKyo `com.briangarcia.meikyo`, version 1.0/build 337 on `SaiyanDenawa`. The app was not launched.
+- Standard non-blocking warnings remained: empty/no-scheme destination metadata, the AppIntents SSU archive warning,
+  and existing vendored HLSL `format-extra-args`/deprecated `sprintf` warnings.
 
 ## Audiobook download filename precedence correction — version 1.0/build 336 — 2026-08-16
 
@@ -13,7 +114,7 @@ Last verified: 2026-08-16
 - `git diff --check`, source-contract regression checks, signed arm64 Release archive, deep strict signature
   verification, and in-place installation passed. `devicectl` verified MeiKyo `com.briangarcia.meikyo`, version 1.0/build
   336 on `SaiyanDenawa`. The app was not launched; physical redownload acceptance remains user-run.
-- The production handoff/source commit is `17360a8` (`Preserve original audiobook download filenames`).
+- The production handoff/source commit is `5133d6c` (`Preserve original audiobook download filenames`).
 - Standard non-blocking warnings remained: Xcode's `IDERunDestination: Supported platforms for the buildables in the
   current scheme is empty`, the no-scheme generic-destination warning from preflight, the AppIntents SSU archive warning
   because this target has no AppIntents dependency, and existing vendored HLSL `format-extra-args`/deprecated `sprintf`
