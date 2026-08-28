@@ -1,0 +1,157 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E37200000000000000000001 /* AppErrorLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37200000000000000000002 /* AppErrorLog.swift */; };
+		E37200000000000000000003 /* ResonanceDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37200000000000000000004 /* ResonanceDiagnostics.swift */; };
+		D34100000000000000000001 /* RemoteLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34100000000000000000002 /* RemoteLibraryStore.swift */; };
+		D34100000000000000000003 /* StreamingLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D34100000000000000000004 /* StreamingLibraryView.swift */; };
+		C66A6E6203DFF9DE9CADAFDB /* ResonanceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9D768859FEE075157283B8 /* ResonanceApp.swift */; };
+		E13B25083B269E0B17A74C59 /* Track.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897E8C95CE1F18D93B3AA44D /* Track.swift */; };
+		F551210F0FDB90EEEEC8FCE8 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA152536240EC50721DC38B /* AppSettings.swift */; };
+		9475A5799211AAB1235F34B5 /* LibraryDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD66134AFCA0776DC31F163 /* LibraryDatabase.swift */; };
+		711BB2183D119B3DA4E6F4AB /* MetadataReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C8DC40495DFADD6AA3AA81 /* MetadataReader.swift */; };
+		BD6A061649002ADCA9A2EE6F /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF42E6F848996BDC8302EB4 /* LibraryStore.swift */; };
+		2027B8D1985869501307FAC5 /* PlayerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFDFCDDBF52F105CE6A1732 /* PlayerController.swift */; };
+		31A9E74C19D84CBEA5F61001 /* GaplessAudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31A9E74C19D84CBEA5F61002 /* GaplessAudioEngine.swift */; };
+		645CEEBC71BABF388D38E5B5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9A5A82E233F64B6DE4E50C /* RootView.swift */; };
+		31697A16FB038DE4D27890C9 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481AE7357BBD1A22CADB904C /* LibraryView.swift */; };
+		F10B4F3091F0E8A8A10D03BD /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619008F911FEB2A46F4F77D5 /* AlbumDetailView.swift */; };
+		9F60D885F52912A4C3CD3E53 /* PlayerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A069D71CF1C19D17E206BD0E /* PlayerViews.swift */; };
+		7EA8050AE9E5BA0B877FF301 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81C6525BD42FF8925A4C53D /* ArtworkView.swift */; };
+		CC6300B4347FF8322C47575F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978160B2EA4BD4E4E8A7B93B /* SettingsView.swift */; };
+		575B533E50870490BCF1CADB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 715886BEA1C4326035BF2AB5 /* Assets.xcassets */; };
+		20D6E6BFFEF2553F6D9877DB /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 786D348E95448121DC5B7387 /* libsqlite3.tbd */; };
+		A23B25083B269E0B17A74C59 /* SmartLibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23E8C95CE1F18D93B3AA44D /* SmartLibraryViews.swift */; };
+		B7A000000000000000000001 /* ArtworkSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A000000000000000000002 /* ArtworkSearchService.swift */; };
+		B7A000000000000000000003 /* OnlineArtworkSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A000000000000000000004 /* OnlineArtworkSearchView.swift */; };
+		E4A100000000000000000001 /* LibraryBrowseGrouping.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A100000000000000000002 /* LibraryBrowseGrouping.swift */; };
+		E4A100000000000000000003 /* MetadataWriteBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A100000000000000000004 /* MetadataWriteBatch.swift */; };
+		F0A100000000000000000001 /* RemoteURLSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A100000000000000000002 /* RemoteURLSupport.swift */; };
+		F0A100000000000000000003 /* RemoteDownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A100000000000000000004 /* RemoteDownloadService.swift */; };
+		F0A100000000000000000005 /* ResonanceAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A100000000000000000006 /* ResonanceAppIntents.swift */; };
+		A0B000000000000000000001 /* ResonanceProjectMBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000002 /* ResonanceProjectMBridge.mm */; };
+		A0B000000000000000000003 /* ProjectMFullscreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000004 /* ProjectMFullscreenView.swift */; };
+		A0B000000000000000000030 /* LyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000021 /* LyricsService.swift */; };
+		A0B000000000000000000031 /* ResonanceOrientationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000022 /* ResonanceOrientationCoordinator.swift */; };
+		A0B000000000000000000008 /* ProjectMD in Resources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000009 /* ProjectMD */; };
+		A0B00000000000000000000A /* Compiler.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B00000000000000000000B /* Compiler.c */; };
+		A0B00000000000000000000C /* Scanner.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B00000000000000000000D /* Scanner.c */; };
+		A0B00000000000000000000E /* CompileContext.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B00000000000000000000F /* CompileContext.c */; };
+		A0B000000000000000000010 /* CompilerFunctions.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000011 /* CompilerFunctions.c */; };
+		A0B000000000000000000012 /* ExpressionTree.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000013 /* ExpressionTree.c */; };
+		A0B000000000000000000014 /* MemoryBuffer.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000015 /* MemoryBuffer.c */; };
+		A0B000000000000000000016 /* TreeFunctions.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000017 /* TreeFunctions.c */; };
+		A0B000000000000000000018 /* TreeVariables.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B000000000000000000019 /* TreeVariables.c */; };
+		A0B00000000000000000001A /* projectm-eval.c in Sources */ = {isa = PBXBuildFile; fileRef = A0B00000000000000000001B /* projectm-eval.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		E37200000000000000000002 /* AppErrorLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppErrorLog.swift; sourceTree = "<group>"; };
+		E37200000000000000000004 /* ResonanceDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResonanceDiagnostics.swift; sourceTree = "<group>"; };
+		D34100000000000000000002 /* RemoteLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLibraryStore.swift; sourceTree = "<group>"; };
+		D34100000000000000000004 /* StreamingLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingLibraryView.swift; sourceTree = "<group>"; };
+		EA9D768859FEE075157283B8 /* ResonanceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResonanceApp.swift; sourceTree = "<group>"; };
+		897E8C95CE1F18D93B3AA44D /* Track.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Track.swift; sourceTree = "<group>"; };
+		1FA152536240EC50721DC38B /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		8BD66134AFCA0776DC31F163 /* LibraryDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDatabase.swift; sourceTree = "<group>"; };
+		D5C8DC40495DFADD6AA3AA81 /* MetadataReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataReader.swift; sourceTree = "<group>"; };
+		5CF42E6F848996BDC8302EB4 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		7CFDFCDDBF52F105CE6A1732 /* PlayerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerController.swift; sourceTree = "<group>"; };
+		31A9E74C19D84CBEA5F61002 /* GaplessAudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaplessAudioEngine.swift; sourceTree = "<group>"; };
+		BF9A5A82E233F64B6DE4E50C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		481AE7357BBD1A22CADB904C /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		619008F911FEB2A46F4F77D5 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailView.swift; sourceTree = "<group>"; };
+		A069D71CF1C19D17E206BD0E /* PlayerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViews.swift; sourceTree = "<group>"; };
+		B81C6525BD42FF8925A4C53D /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
+		978160B2EA4BD4E4E8A7B93B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		715886BEA1C4326035BF2AB5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7B4730292C2435CE042E7270 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F5BF48AA40CAD7891EB709FC /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		786D348E95448121DC5B7387 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		A23E8C95CE1F18D93B3AA44D /* SmartLibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartLibraryViews.swift; sourceTree = "<group>"; };
+		B7A000000000000000000002 /* ArtworkSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkSearchService.swift; sourceTree = "<group>"; };
+		B7A000000000000000000004 /* OnlineArtworkSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineArtworkSearchView.swift; sourceTree = "<group>"; };
+		E4A100000000000000000002 /* LibraryBrowseGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseGrouping.swift; sourceTree = "<group>"; };
+		E4A100000000000000000004 /* MetadataWriteBatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataWriteBatch.swift; sourceTree = "<group>"; };
+		F0A100000000000000000002 /* RemoteURLSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteURLSupport.swift; sourceTree = "<group>"; };
+		F0A100000000000000000004 /* RemoteDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteDownloadService.swift; sourceTree = "<group>"; };
+		F0A100000000000000000006 /* ResonanceAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResonanceAppIntents.swift; sourceTree = "<group>"; };
+		A0B000000000000000000002 /* ResonanceProjectMBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ResonanceProjectMBridge.mm; sourceTree = "<group>"; };
+		A0B000000000000000000004 /* ProjectMFullscreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectMFullscreenView.swift; sourceTree = "<group>"; };
+		A0B000000000000000000021 /* LyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsService.swift; sourceTree = "<group>"; };
+		A0B000000000000000000022 /* ResonanceOrientationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResonanceOrientationCoordinator.swift; sourceTree = "<group>"; };
+		A0B000000000000000000009 /* ProjectMD */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resonance/Resources/ProjectMD; sourceTree = "<group>"; };
+		A0B00000000000000000000B /* Compiler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Compiler.c; sourceTree = "<group>"; };
+		A0B00000000000000000000D /* Scanner.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Scanner.c; sourceTree = "<group>"; };
+		A0B00000000000000000000F /* CompileContext.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = CompileContext.c; sourceTree = "<group>"; };
+		A0B000000000000000000011 /* CompilerFunctions.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = CompilerFunctions.c; sourceTree = "<group>"; };
+		A0B000000000000000000013 /* ExpressionTree.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ExpressionTree.c; sourceTree = "<group>"; };
+		A0B000000000000000000015 /* MemoryBuffer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = MemoryBuffer.c; sourceTree = "<group>"; };
+		A0B000000000000000000017 /* TreeFunctions.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TreeFunctions.c; sourceTree = "<group>"; };
+		A0B000000000000000000019 /* TreeVariables.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TreeVariables.c; sourceTree = "<group>"; };
+		A0B00000000000000000001B /* projectm-eval.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = api/projectm-eval.c; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4F6F5CC3FCCF73F75AE9CCF4 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (20D6E6BFFEF2553F6D9877DB /* libsqlite3.tbd in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8D3FC6DB5D0827F168A73277 = {isa = PBXGroup; children = (CCDE4F9B3797631162024FE8 /* Resonance */, 86024CAD1E83101D97359D73 /* Products */, 786D348E95448121DC5B7387 /* libsqlite3.tbd */, A0B000000000000000000009 /* ProjectMD */, A0B00000000000000000001C /* ProjectM Eval */,); sourceTree = "<group>"; };
+		86024CAD1E83101D97359D73 /* Products */ = {isa = PBXGroup; children = (F5BF48AA40CAD7891EB709FC /* Resonance.app */,); name = Products; sourceTree = "<group>"; };
+		CCDE4F9B3797631162024FE8 /* Resonance */ = {isa = PBXGroup; children = (EA9D768859FEE075157283B8, F279894B2C0244AB14D9678A, 3091E55AA65C983704253602, D792C0B955B165029150ADCE, 715886BEA1C4326035BF2AB5, 7B4730292C2435CE042E7270,); path = Resonance; sourceTree = "<group>"; };
+		F279894B2C0244AB14D9678A /* Models */ = {isa = PBXGroup; children = (897E8C95CE1F18D93B3AA44D,); path = Models; sourceTree = "<group>"; };
+		3091E55AA65C983704253602 /* Services */ = {isa = PBXGroup; children = (E37200000000000000000002, E37200000000000000000004, 1FA152536240EC50721DC38B, 8BD66134AFCA0776DC31F163, D5C8DC40495DFADD6AA3AA81, 5CF42E6F848996BDC8302EB4, 7CFDFCDDBF52F105CE6A1732, 31A9E74C19D84CBEA5F61002, A0B000000000000000000002, D34100000000000000000002, B7A000000000000000000002, E4A100000000000000000002, E4A100000000000000000004, F0A100000000000000000002, F0A100000000000000000004, F0A100000000000000000006, A0B000000000000000000021, A0B000000000000000000022,); path = Services; sourceTree = "<group>"; };
+		A0B00000000000000000001C /* ProjectM Eval */ = {isa = PBXGroup; children = (A0B00000000000000000000B /* Compiler.c */, A0B00000000000000000000D /* Scanner.c */, A0B00000000000000000000F /* CompileContext.c */, A0B000000000000000000011 /* CompilerFunctions.c */, A0B000000000000000000013 /* ExpressionTree.c */, A0B000000000000000000015 /* MemoryBuffer.c */, A0B000000000000000000017 /* TreeFunctions.c */, A0B000000000000000000019 /* TreeVariables.c */, A0B00000000000000000001B /* projectm-eval.c */,); name = "ProjectM Eval"; path = Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/vendor/projectm-eval/projectm-eval; sourceTree = "<group>"; };
+		D792C0B955B165029150ADCE /* Views */ = {isa = PBXGroup; children = (BF9A5A82E233F64B6DE4E50C, 481AE7357BBD1A22CADB904C, 619008F911FEB2A46F4F77D5, A069D71CF1C19D17E206BD0E, B81C6525BD42FF8925A4C53D, 978160B2EA4BD4E4E8A7B93B, A23E8C95CE1F18D93B3AA44D, D34100000000000000000004, B7A000000000000000000004, A0B000000000000000000004,); path = Views; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		42AEFBAE01D2DFD981F7DA7D /* Resonance */ = {isa = PBXNativeTarget; buildConfigurationList = AF36A1B8E7B7509D14B80ABE; buildPhases = (A0B000000000000000000020 /* Build native projectM GLES archive */, F2AB5FB218DA8B84623F4557, 4F6F5CC3FCCF73F75AE9CCF4, 55B558C7EF820E6E00E5993B,); buildRules = (); dependencies = (); name = Resonance; productName = Resonance; productReference = F5BF48AA40CAD7891EB709FC; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A0B000000000000000000020 /* Build native projectM GLES archive */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ("$(SRCROOT)/Tools/BuildProjectMNativeIOS.sh",);
+			name = "Build native projectM GLES archive";
+			outputPaths = ("$(DERIVED_FILE_DIR)/libprojectM-ios.a",);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Tools/BuildProjectMNativeIOS.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {42AEFBAE01D2DFD981F7DA7D = {CreatedOnToolsVersion = 16.0; }; }; }; buildConfigurationList = 69F27365EBE6C312B9EDD090; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = 8D3FC6DB5D0827F168A73277; productRefGroup = 86024CAD1E83101D97359D73; projectDirPath = ""; projectRoot = ""; targets = (42AEFBAE01D2DFD981F7DA7D,); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		55B558C7EF820E6E00E5993B = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (575B533E50870490BCF1CADB /* Assets.xcassets in Resources */, A0B000000000000000000008 /* ProjectMD in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F2AB5FB218DA8B84623F4557 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E37200000000000000000001, E37200000000000000000003 /* ResonanceDiagnostics.swift in Sources */, C66A6E6203DFF9DE9CADAFDB /* ResonanceApp.swift in Sources */, E13B25083B269E0B17A74C59 /* Track.swift in Sources */, F551210F0FDB90EEEEC8FCE8 /* AppSettings.swift in Sources */, 9475A5799211AAB1235F34B5 /* LibraryDatabase.swift in Sources */, 711BB2183D119B3DA4E6F4AB /* MetadataReader.swift in Sources */, E4A100000000000000000001 /* LibraryBrowseGrouping.swift in Sources */, E4A100000000000000000003 /* MetadataWriteBatch.swift in Sources */, BD6A061649002ADCA9A2EE6F /* LibraryStore.swift in Sources */, 2027B8D1985869501307FAC5 /* PlayerController.swift in Sources */, 31A9E74C19D84CBEA5F61001 /* GaplessAudioEngine.swift in Sources */, 645CEEBC71BABF388D38E5B5 /* RootView.swift in Sources */, 31697A16FB038DE4D27890C9 /* LibraryView.swift in Sources */, F10B4F3091F0E8A8A10D03BD /* AlbumDetailView.swift in Sources */, 9F60D885F52912A4C3CD3E53 /* PlayerViews.swift in Sources */, 7EA8050AE9E5BA0B877FF301 /* ArtworkView.swift in Sources */, CC6300B4347FF8322C47575F /* SettingsView.swift in Sources */, A23B25083B269E0B17A74C59 /* SmartLibraryViews.swift in Sources */, D34100000000000000000001 /* RemoteLibraryStore.swift in Sources */, D34100000000000000000003 /* StreamingLibraryView.swift in Sources */, B7A000000000000000000001 /* ArtworkSearchService.swift in Sources */, B7A000000000000000000003 /* OnlineArtworkSearchView.swift in Sources */, F0A100000000000000000001 /* RemoteURLSupport.swift in Sources */, F0A100000000000000000003 /* RemoteDownloadService.swift in Sources */, F0A100000000000000000005 /* ResonanceAppIntents.swift in Sources */, A0B000000000000000000001 /* ResonanceProjectMBridge.mm in Sources */, A0B000000000000000000003 /* ProjectMFullscreenView.swift in Sources */, A0B000000000000000000030 /* LyricsService.swift in Sources */, A0B000000000000000000031 /* ResonanceOrientationCoordinator.swift in Sources */, A0B00000000000000000000A /* Compiler.c in Sources */, A0B00000000000000000000C /* Scanner.c in Sources */, A0B00000000000000000000E /* CompileContext.c in Sources */, A0B000000000000000000010 /* CompilerFunctions.c in Sources */, A0B000000000000000000012 /* ExpressionTree.c in Sources */, A0B000000000000000000014 /* MemoryBuffer.c in Sources */, A0B000000000000000000016 /* MemoryBuffer.c in Sources */, A0B000000000000000000018 /* TreeVariables.c in Sources */, A0B00000000000000000001A /* projectm-eval.c in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		53225B37513D0A8E1C77903E /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; DEBUG_INFORMATION_FORMAT = dwarf; GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)",); SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }; name = Debug; };
+		6D440798F5B99F1712709580 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SWIFT_COMPILATION_MODE = wholemodule; }; name = Release; };
+		A4D9F763E11E4B75046A220F /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CLANG_CXX_LANGUAGE_STANDARD = "c++17"; GENERATE_INFOPLIST_FILE = NO; HEADER_SEARCH_PATHS = ("$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/vendor/projectm-eval", "$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/vendor/projectm-eval/projectm-eval", "$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/api/include", "$(DERIVED_FILE_DIR)/projectm-native/generated/include"); INFOPLIST_FILE = Resonance/Info.plist; MARKETING_VERSION = 2.1; OTHER_CFLAGS = "-DGLES_SILENCE_DEPRECATION"; OTHER_LDFLAGS = ("-framework", OpenGLES, "$(DERIVED_FILE_DIR)/libprojectM-ios.a"); OTHER_SWIFT_FLAGS = ("-Xcc", "-DGLES_SILENCE_DEPRECATION"); PRODUCT_BUNDLE_IDENTIFIER = com.briangarcia.Resonance.saiyandenwa; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_OBJC_BRIDGING_HEADER = Resonance/Resonance-Bridging-Header.h; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 313;}; name = Debug; };
+		35203EB98FC791A5FD5AFDD6 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CLANG_CXX_LANGUAGE_STANDARD = "c++17"; GENERATE_INFOPLIST_FILE = NO; HEADER_SEARCH_PATHS = ("$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/vendor/projectm-eval", "$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/vendor/projectm-eval/projectm-eval", "$(SRCROOT)/Resonance/ThirdParty/ProjectM/vendor/projectm/libprojectM-4.1.7/src/api/include", "$(DERIVED_FILE_DIR)/projectm-native/generated/include"); INFOPLIST_FILE = Resonance/Info.plist; MARKETING_VERSION = 2.1; OTHER_CFLAGS = "-DGLES_SILENCE_DEPRECATION"; OTHER_LDFLAGS = ("-framework", OpenGLES, "$(DERIVED_FILE_DIR)/libprojectM-ios.a"); OTHER_SWIFT_FLAGS = ("-Xcc", "-DGLES_SILENCE_DEPRECATION"); PRODUCT_BUNDLE_IDENTIFIER = com.briangarcia.Resonance.saiyandenwa; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_OBJC_BRIDGING_HEADER = Resonance/Resonance-Bridging-Header.h; TARGETED_DEVICE_FAMILY = 1; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 313;}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		69F27365EBE6C312B9EDD090 = {isa = XCConfigurationList; buildConfigurations = (53225B37513D0A8E1C77903E, 6D440798F5B99F1712709580,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AF36A1B8E7B7509D14B80ABE = {isa = XCConfigurationList; buildConfigurations = (A4D9F763E11E4B75046A220F, 35203EB98FC791A5FD5AFDD6,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}

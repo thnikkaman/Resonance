@@ -1,9 +1,3210 @@
-# Resonance
+# MeiKyo 鳴響 — Project Resonance v1.0 Full Release
 
-The latest public Resonance release is **Beta 2.0 build 268**.
+## MeiKyo version 1.1/build 351 — App Store Connect upload — 2026-08-19
 
-Download the source release ZIP:
+Build 351 was archived, signed, exported, and uploaded successfully to App Store Connect. Apple reported that the
+package is processing. It contains the verified remote-download repair for Files/File Provider storage: URLSession
+temporary files and final destinations now use the correct move/access mode, with privacy-safe failure diagnostics.
+The clean build-346 comparison found only `RemoteDownloadService.swift` changed. The physical phone was not launched
+or updated, so all-caps PIERROT download and resume behavior remain manual acceptance checks after processing.
 
+Standard warnings remain non-blocking: empty/no-scheme destination metadata, AppIntents SSU archive, and vendored HLSL
+`format-extra-args`/deprecated `sprintf` warnings. The initial archive's long DerivedData path also failed with
+`File name too long`; the short-path rerun succeeded.
+
+## MeiKyo development build 342 — verified UTF-16 LRC metadata fix — 2026-08-16
+
+Build 342 fixes the verified metadata failure: BOM-less UTF-16LE LRC files were being misread as malformed UTF-8 or
+generic UTF-16, so their title/album/track headers were never available for matching. The parser now validates text
+encoding and decodes UTF-16LE/BE correctly. Playback lookup remains limited to the playing MP3's parent folder.
+
+The UTF-16LE metadata fixture, regression checks, signed arm64 Release archive, strict signature verification, and
+in-place device installation passed. `devicectl` verified version 1.0/build 342 on `SaiyanDenawa`; the app was not
+launched. Standard non-blocking empty/no-scheme, AppIntents SSU, and vendored HLSL warnings remained.
+
+## MeiKyo development build 340 — playback-triggered fresh LRC rescan — 2026-08-16
+
+Build 340 rescans the selected Files library folder whenever a new audiobook playback target is loaded before local
+lyrics lookup begins. The coordinated directory walk checks newly copied LRC files, reads their metadata, and matches
+them to the playing track without requiring a manual import or a one-time startup cache. The signed build was
+installed in place as version 1.0/build 340; the app was not launched.
+
+Regression checks, signed arm64 Release compilation, strict code-signature verification, and device installation
+passed. Standard non-blocking warnings remained: empty/no-scheme destination metadata, AppIntents SSU archive, and
+vendored HLSL `format-extra-args`/deprecated `sprintf` warnings. Manual Chapter 2/3 playback acceptance remains
+user-run.
+
+## MeiKyo development build 339 — selected-folder-wide LRC discovery — 2026-08-16
+
+Build 339 responds to device evidence showing the selected-folder bookmark was active but File Provider exposed no LRC
+candidate beside the playing audio. The final local lookup now scans the authorized library folder and uses LRC metadata
+to find the matching title/album/artist/track, with exact filename matching as fallback. The signed build was installed
+in place as version 1.0/build 339; the app was not launched.
+
+## MeiKyo development build 338 — metadata-aware LRC matching — 2026-08-16
+
+Build 338 reads LRC metadata headers including `[resonance-id]`, `[ti]`, `[al]`, `[ar]`/`[au]`, `[tr]`, and `[di]`.
+Local lyric lookup now uses that metadata before title/album/track identity and filename fallback, so audio filenames
+are no longer the primary LRC key. The LRC file must still be present on the phone. The metadata fixture, signed build,
+strict signature verification, and in-place installation passed; the phone reports version 1.0/build 338. The app was
+not launched.
+
+## MeiKyo development build 337 — audiobook LRC chapter-number matching — 2026-08-16
+## MeiKyo development build 337 — audiobook LRC chapter-number matching — 2026-08-16
+
+Build 337 fixes the remaining audiobook companion mismatch: `Chapter 1: “Owl Post”` now matches a sidecar named
+`Chapter 01 - Owl Post` after canonicalizing chapter-number leading zeroes. The focused fixture and source-contract
+checks passed. The signed build was installed in place on `SaiyanDenawa` as version 1.0/build 337; the app was not
+launched. Existing files are not renamed automatically.
+
+The standard empty/no-scheme destination, AppIntents SSU archive, and vendored HLSL warnings remained non-blocking.
+
+## MeiKyo development build 336 — corrected audiobook download filename precedence — 2026-08-16
+
+Build 335 still let an HTTP suggested filename override the original remote catalog/path filename, which caused
+metadata-generated names such as `01 - Chapter 01_ An Unexpected Party.mp3` to be saved. Build 336 puts the original
+catalog/path filename first, keeps the HTTP suggestion as a fallback, and leaves the generated metadata name as the
+last fallback. Existing files are not renamed automatically.
+
+The focused source-contract checks, signed arm64 Release archive, strict code-signature verification, and in-place
+installation passed. Source commit `5133d6c` records the production handoff. `devicectl` verified MeiKyo version
+1.0/build 336 on `SaiyanDenawa`; the app was not launched.
+The standard non-blocking warnings remained: Xcode's empty supported-platforms/no-scheme destination warning, the
+AppIntents SSU archive warning because the target has no AppIntents dependency, and existing vendored HLSL
+`format-extra-args`/deprecated `sprintf` warnings. None blocked the build or installation.
+
+## MeiKyo development build 335 — proven audiobook filename reconciliation — 2026-08-16
+
+Build 334 was user-tested and still loaded no adjacent audiobook lyrics. Physical-device evidence established the
+actual boundary: the scan enumerated 36 LRC files but cached zero, and the phone database stores the first downloaded
+audio file as `01 - Chapter 01_ An Unexpected Party.mp3` while its adjacent sidecar is
+`Chapter 01 - An Unexpected Party.lrc`. MeiKyo's downloader had generated the numbered MP3 name from metadata and
+replaced the title's colon with an underscore, so literal basename matching could never pair those two files.
+
+Build 335 moves representation matching into one production `LyricsCompanionMatcher`. It normalizes the downloader-added
+number/punctuation difference while retaining the normalized parent folder in the key, so files from different folders
+cannot cross-match. Both playback-time sibling lookup and library-scan caching use this matcher, and a v3 migration forces
+one fresh companion scan after upgrade. The executable fixture compiles with the production matcher and proves the exact
+Chapter 01 device representation plus Chapters 02 and 04, while rejecting another chapter and another folder.
+
+Future remote downloads retain an original filename supplied by the HTTP response or remote catalog path. The existing
+generated `<track number> - <title>` filename remains only as a fallback when the server supplies no usable audio filename.
+Existing files are not renamed automatically. No LRC is copied into MeiKyo's music folder, and manual lyric overrides
+retain priority. Compilation, signing, installation, and physical runtime acceptance are recorded separately below when
+completed.
+
+Build 335 passed source-contract regression checks, Swift 6 strict simulator and generic-device preflight, signed arm64
+Release compilation, deep strict code-signature verification, and in-place installation on SaiyanDenawa. `devicectl`
+verified `com.briangarcia.meikyo`, version 1.0/build 335. The app was not launched; audiobook runtime acceptance remains
+user-run.
+
+## MeiKyo development build 334 — direct dual-name LRC scan — 2026-08-16
+
+Build 334 corrects the empty build-333 companion cache. For every scanned audio URL, the scanner directly tries both
+`<audio stem>.lrc` and `<complete audio filename>.lrc` while selected-folder coordination is active, then uses
+case-insensitive enumerated matches as a fallback. It no longer requires the File Provider directory listing to expose
+an LRC before attempting the exact URL. Always-on aggregate diagnostics report LRC listings, derived candidates,
+enumerated matches, and readable companions without recording filenames or paths.
+Build 334 passed source checks, signed Release compilation, deep signature verification, and in-place installation;
+the phone reports MeiKyo version 1.0/build 334. The physical app was not launched automatically.
+
+## MeiKyo development build 333 — scan and cache adjacent LRC contents — 2026-08-16
+
+Build 333 removes the failed playback-time File Provider rediscovery. While the authorized selected-library scan is
+already enumerating files, it reads each exact same-folder, same-basename `.lrc` and replaces a private Application
+Support cache. Playback uses those bytes through the same parser as manual import. Existing cached libraries perform
+one automatic companion scan after this upgrade. No files are copied into the MeiKyo music folder.
+Build 333 passed source contracts, signed Release compilation, deep signature verification, and in-place installation;
+the phone reports MeiKyo version 1.0/build 333. The physical app was not launched automatically.
+
+Build 332 was installed and user-tested with no behavior change. Fresh diagnostics proved playback still received no
+bytes from any sibling URL and that the post-upgrade library scan needed to populate companion data had not run.
+
+## MeiKyo development build 332 — selected-folder exact-basename LRC read — 2026-08-16
+
+Build 332 fixes the remaining File Provider boundary directly. During the selected-library scan, the app retains a
+security-scoped bookmark for each exact same-basename `.lrc`; during playback it first derives that `.lrc` from the
+selected folder's URL and reads it under the folder's security scope. It does not copy or import the sidecar. The scan
+also records how many companion files it found so a device test can distinguish “not discovered” from “not readable.”
+Source checks, signed Release build, deep signature verification, and in-place installation passed; the phone reports
+MeiKyo version 1.0/build 332. The app was not launched automatically. Runtime lyrics acceptance remains user-run.
+
+Build 331 was installed and user-tested, but produced no behavior change; that result is retained as a failed runtime
+attempt, not treated as validation.
+
+## MeiKyo development build 331 — direct exact-basename LRC read — 2026-08-16
+
+Build 331 corrects the adjacent-audiobook-lyrics implementation using physical-device evidence. The installed library
+database shows that every Hobbit chapter already uses its external Files URL, so path rebasing and file copying were not
+the failure. LyricsService now keeps the selected library's security scope active, coordinates the audio file's parent
+audio item, inspects its parent directory while that item is coordinated, finds the exact same-basename `.lrc`, and reads its bytes inside that same coordination window. All file-provider
+I/O and the last-resort selected-folder search run off the main thread; imported overrides retain priority and no files are
+copied into MeiKyo.
+
+Build 329 passed source contracts, dual-architecture simulator compilation, Swift 6 strict simulator and generic-device
+preflight, signed arm64 Release compilation, and deep signature verification. It was installed in place on
+`SaiyanDenawa`; `devicectl` verified MeiKyo 1.0/build 329. The physical app was not launched automatically.
+
+## MeiKyo development build 328 — search selected library for exact LRC basename — 2026-08-16
+
+Build 328 removes the remaining dependency on cached audio paths. When a selected library folder bookmark is available,
+LyricsService recursively searches that folder for an `.lrc` with the exact same basename as the playing audio file.
+Files remain in place.
+
+## MeiKyo development build 327 — use selected audiobook folder in place — 2026-08-16
+
+Build 327 makes directory selection authoritative. Selecting a folder now stores its security-scoped bookmark and scans
+the folder in place instead of copying audio into MeiKyo’s managed folder, preserving direct access to adjacent `.lrc`
+files for Now Playing and the visualizer.
+
+## MeiKyo development build 326 — resolve companion LRCs from the selected folder — 2026-08-16
+
+Build 326 adds an immediate lyrics-layer fallback for stale managed-folder playback URLs. It resolves the persisted
+selected folder bookmark, maps the audio path relative to the legacy managed folder, and checks the matching adjacent
+LRC there without copying files.
+
+## MeiKyo development build 325 — rebase cached tracks into the selected library folder — 2026-08-16
+
+Build 325 fixes the confirmed failure where cached playback tracks still pointed at MeiKyo’s managed copy. When a
+user-selected external library folder is active, stale cached/database URLs under the managed folder are rebased to the
+matching path in that selected folder before playback, allowing adjacent LRC files to be found without copying them.
+The physical app was not launched automatically.
+
+## MeiKyo development build 324 — decode audiobook LRC companion files reliably — 2026-08-16
+
+Build 324 keeps the selected external library folder authoritative and reads the same-basename `.lrc` beside the
+actual audio file without copying it. Local lyrics now accept UTF-8, UTF-16, UTF-32, and ISO-Latin-1 source files,
+covering common audiobook LRC exports. Cached library entries are rebased into the selected folder before entering the
+playback queue, so an old managed-folder cache cannot hide external companions. Privacy-safe diagnostics record whether
+the audio URL, sibling candidate, and parser succeeded. The physical app was not launched automatically.
+
+## MeiKyo development build 323 — read audiobook LRCs beside the original audio — 2026-08-16
+
+Build 323 corrects the audiobook design: MeiKyo no longer copies `.lrc` files into its managed music folder. When a
+marked audiobook track begins loading, LyricsService reads the matching same-basename `.lrc` directly beside the actual
+audio file, including coordinated access for the selected external library folder. The file is parsed into the shared
+lyrics store for Now Playing and visualizer use. Build 323 is installed in place on `SaiyanDenawa` without uninstalling;
+the physical app was not launched automatically.
+
+## MeiKyo development build 322 — import audiobook LRC companions — 2026-08-16
+
+Build 322 fixes the remaining audiobook case: folder/file import previously copied MP3s but skipped adjacent `.lrc`
+files, leaving the matcher with no companion to read. Imports now copy each exact same-basename LRC beside its audio
+file, including case-insensitive LRC extension matching. Existing imported audiobook folders must be re-imported once
+to bring their sidecars into MeiKyo; manually imported lyric overrides remain intact. Build 322 is installed in place on
+`SaiyanDenawa` without uninstalling, and the physical app was not launched automatically.
+
+## MeiKyo development build 321 — fullscreen local lyrics refresh — 2026-08-16
+
+Build 321 makes the fullscreen visualizer explicitly refresh the shared lyrics store for the active track when it opens.
+This closes the lifecycle gap where the parent Now Playing lyrics task had not completed yet; local same-basename `.lrc`
+lookup remains first, with imported overrides retaining priority. Build 321 is installed in place on `SaiyanDenawa` without
+uninstalling, and the physical app was not launched automatically.
+
+## MeiKyo development build 320 — visualizer transport and local audiobook LRC lookup — 2026-08-16
+
+Build 320 keeps the visualizer actions in one dismissible HUD, places Exit in the former play/pause position, and puts
+previous, play/pause, and next transport controls in the former Exit position with a seek bar and time labels beneath.
+Local same-basename `.lrc` companions are now checked for every local audio track before provider lookup, so marked
+audiobook albums recognize their adjacent lyric files without manual import while imported app overrides retain priority.
+The physical device install and runtime interaction checklist are separate: after validation, build 320 is installed in
+place on `SaiyanDenawa` without uninstalling, but the app is not launched automatically.
+
+## MeiKyo development build 319 — visualizer opening title and ProjectM safety cap — 2026-08-16
+
+Build 319 keeps the global ProjectM custom-shape safety budget from build 317 and adds an immediate opening cue to
+the native visualizer lyrics path. When fullscreen visualizer lyrics are enabled, the current track title is rendered
+from playback start, yielding immediately if the first synced lyric begins, or holding for five seconds when lyrics do
+not start promptly; the existing synced-lyrics timing and five-second fallback behavior continues. This does not
+change lyric lookup, playback, or the render loop. The signed arm64 Release build passed deep signature verification
+and was installed in place on `SaiyanDenwa` without uninstalling; `devicectl` verified version 1.0/build 319. Manual
+acceptance: start several tracks in the visualizer, confirm each title appears immediately and hands off to synced lyrics when available,
+confirm title-only tracks clear after five seconds, and exercise the reported shape-heavy presets to compare
+low-framerate auto-banishment with build 317. Xcode retained the known no-scheme destination, vendored HLSL parser,
+and AppIntents SSU archive warnings; none blocked the build or install.
+
+## MeiKyo development build 317 — ProjectM global shape-instance safety budget — 2026-08-16
+
+Build 317 adds a global ProjectM engine safety budget for custom-shape instances. Review of 50 internal low-framerate
+events found that every reported preset used a custom warp shader, 41 requested at least 129 shape instances, and none
+used per-pixel mesh code; the reported set therefore does not indicate an oversized mesh as the common cause. The
+vendored engine now clamps `num_inst` to 128 at preset load, without editing or deleting individual visualization files.
+The global per-pixel mesh remains at the restored 32×24 configuration, and the existing low-framerate auto-banish
+telemetry remains the runtime acceptance guard.
+
+## MeiKyo 1.0/build 346 App Store Connect test upload — 2026-08-16
+
+Build 346 prevents a malformed short LRC timeline from immediately selecting and scrolling to its final line. The
+metadata-matched file opens at the top when its timestamps cover only a small fraction of the audio; normally timed
+LRC files retain synchronized highlighting. Regression checks, full preflight, signed Release archive, and deep strict
+signature verification passed. Xcode uploaded the build to App Store Connect, which reported `Upload succeeded` and
+that the package is processing. It was not installed or launched on the phone.
+
+This is an engine-level experiment, not yet a claim of repaired device performance. The physical phone has not been
+launched for this build. Manual acceptance: rotate through the reported heavy presets with audio playing and downloads
+stopped, compare the native render windows and low-framerate banishments with the prior build, and inspect shape-heavy
+presets for acceptable visual continuity. If the same presets remain below the frame-rate threshold after this change,
+remove those preset IDs from the catalog in the next build rather than continuing to tune them individually.
+
+## MeiKyo development build 316 — Settings, visualizer HUD, and lyrics persistence — 2026-08-16
+
+Build 316 modernizes Settings into a non-scrolling category hub with one dedicated page per category. A single tap on a
+category pushes its full controls page using the existing navigation stack; the native back button and interactive edge
+swipe reveal the parent Settings hub again. Existing settings state, pickers, alerts, and persistence are unchanged.
+
+Now Playing also has an explicit Visualizer button that uses the existing photosensitivity acknowledgment gate, and the
+fullscreen visualizer places Exit inside the same dismissible HUD as the other visualizer actions while retaining
+double-tap dismissal. Lyrics over album art now stay open across seek, pause, and resume, and close through their X
+instead of transient lyrics-document refreshes. Regression checks, strict simulator/generic-device preflight, signed
+arm64 Release compilation, deep signature verification, and in-place install passed. The signed
+`com.briangarcia.meikyo` version 1.0/build 316 was installed over build 314 on `SaiyanDenawa` without uninstalling;
+Codex did not launch the physical app. Manual UI acceptance remains the next step.
+
+## Current public identity — MeiKyo 鳴響, version 1.0 (build 308)
+
+The public iPhone app is now named **MeiKyo 鳴響** with bundle identifier
+`com.briangarcia.meikyo`. The repository, Xcode project, source namespace, compatibility keys, diagnostic filenames,
+server protocols, and historical handoff remain **Project Resonance** by design. This is a product rebrand and bundle
+identity change, not a repository rename. Existing Resonance test installations are a different iOS app identity and
+will not upgrade in place to MeiKyo.
+
+Build 308 is the full-release App Store Connect build using the MeiKyo identity. It retains the public/no-telemetry
+behavior; telemetry remains compiled out of the public release, and the earlier build-305 archive remains an internal
+Resonance test artifact.
+
+Build 305 was the internal telemetry test build previously installed on SaiyanDenawa. It included the opt-in anonymous
+low-framerate visualizer diagnostics control. Build 306 was the previous public-preparation build; telemetry is compiled
+out, the public privacy manifest declares no collected performance data, and the telemetry control is unavailable. The
+phone now contains a separate legacy-bundle compatibility build 2.1/build 311 for testing the lyrics lookup fix and a
+MeiKyo 1.0/build 313 physical-device Now Playing lyrics beta; the public App Store submission remains build 308.
+
+The latest read-only device check on 2026-08-14 supersedes that current-device wording: `SaiyanDenwa` currently
+reports `com.briangarcia.meikyo` version 2.1/build 307. The checkout’s default source remains version 1.0/build 313;
+this source-only metadata-race repair has not been installed on the phone.
+
+## Local metadata scan publication guard — source build 313
+
+`LibraryStore` now generation-gates a full file scan against targeted metadata/download refreshes and explicit local
+removals. If a newer targeted mutation occurs, the older scan is discarded before it can replace the in-memory catalog;
+the database-write boundary is checked as well. The privacy-safe `library.scan.discarded` diagnostic records only the
+reason, count, and timing. Replacement downloads continue to use their documented remote album metadata policy.
+
+Regression checks, project-state checks, `git diff --check`, and strict simulator/generic-device Swift 6 preflight passed.
+The source change has not been installed or runtime-tested on a device.
+
+## MeiKyo local lyrics rescan — version 1.0/build 313
+
+Build 313 re-reads the current local lyrics source whenever playback starts or restarts. This covers pause/resume and
+the local gapless backend restart used by seeking, so replacing an audiobook's sibling `.lrc` file with corrected
+timestamps is picked up without changing tracks. The shared `LyricsStore` coalesces the restart event across Now
+Playing layers, performs the file read off the main actor, preserves imported app-private override precedence, and
+leaves remote tracks on their existing provider/cache path. Regression checks, strict simulator/generic-device
+preflight, signed Release compilation, deep signature verification, and in-place installation on `SaiyanDenawa` passed;
+Codex did not launch the phone. Manual replacement/restart and seek acceptance remains user-run.
+
+## MeiKyo Now Playing lyrics beta — version 1.0/build 312
+
+Build 312 keeps the shared Now Playing/fullscreen lyrics store and opaque artwork bubble from build 310. The synced
+lyrics bubble now follows the active timestamped line automatically and scrolls it to the vertical center of the
+window, with additional top and bottom breathing room so the first and last lines can also be centered. Plain lyrics
+remain manually scrollable. The current follow-up makes the bubble a centered artwork overlay with a 90% opaque
+background, adds a touch-and-hold `.lrc` file importer, and persists imported lyrics in the app-private Application
+Support container. For a locally saved audiobook, MeiKyo first checks the audio file's parent folder for a
+case-insensitive basename match such as `Chapter 01.m4b` + `Chapter 01.lrc`, then falls back to the configured remote
+provider. The signed `com.briangarcia.meikyo` app was rebuilt, signature-verified, and installed in place on
+`SaiyanDenawa` without uninstalling or launching it. Manual acceptance remains pending.
+
+The latest build-312 UI follow-up uses a bounded animated transition for the 90% opaque panel over the album artwork.
+The panel now has a maximize control
+that opens a full-screen lyrics view; the full-screen view can be restored over the artwork or closed. The updated
+build was installed in place on `SaiyanDenawa` without uninstalling or launching it.
+
+The build-312 follow-up repairs the lyrics panel geometry reported on the physical phone. The panel is now an explicit
+centered overlay inside the constrained artwork frame, uses a bounded scale/fade transition without matched geometry,
+the artwork region clips overflow, and the region receives stacking priority over adjacent Now Playing controls. This
+keeps Close, Maximize, and Restore reachable without changing lyrics data, playback, or the visualizer. Regression
+checks, strict preflight, signed Release compilation, deep signature verification, and in-place installation passed;
+the phone was not launched.
+
+After the first geometry repair made the panel invisible on the physical phone, the final build-312 repair removed the
+remaining matched-geometry coupling between the always-present Lyrics button and the destination bubble. The panel now
+appears through a normal bounded center scale/fade transition, so its visibility and final position are independent of
+the button's location. The signed app was rebuilt and replaced in place on `SaiyanDenawa` without uninstalling or
+launching it.
+
+The latest build-312 follow-up fixes synced-lyrics updates after seeking. The Now Playing lyrics bubble now observes the
+shared `PlaybackProgress` publisher used by the seek bar instead of sampling a separate 250 ms timer snapshot. Seeking
+while playing or paused therefore recalculates the active timestamped line and its centered scroll position immediately.
+Regression checks, strict preflight, signed Release compilation, deep signature verification, and in-place installation
+passed; the phone was not launched.
+
+The follow-up device log confirmed that the audiobook was using the local gapless backend. Its elapsed clock previously
+advanced by wall time even when the audiobook time-pitch rate was faster or slower, causing the audio and lyric
+timestamps to drift apart. The gapless clock now advances by the effective audiobook rate and re-anchors whenever that
+rate changes. The signed app was rebuilt and replaced in place on `SaiyanDenawa` without uninstalling or launching it.
+
+## MeiKyo FLAC metadata writer repair — version 1.0/build 312
+
+The FLAC Vorbis-comment writer now derives its vendor-length field from the actual `MeiKyo` vendor bytes. During the
+rebrand, the vendor text changed from `Resonance` (9 bytes) to `MeiKyo` (6 bytes) while the length remained 9; every
+subsequent FLAC comment was therefore parsed three bytes out of alignment after a metadata save, producing the
+numeric and hyphenated album, artist, and title values reported for Tool's `10,000 Days`. The source-contract
+regression check now prevents that stale constant from returning. Regression checks, strict simulator/generic-device
+preflight, signed Release compilation, deep signature verification, and in-place installation on `SaiyanDenawa` passed.
+The phone was not launched. Files already written with the malformed block must be restored from the original library or
+re-downloaded; the app cannot safely infer their original titles from corrupted tags.
+
+## MeiKyo Now Playing lyrics test build — version 1.0/build 310
+
+Build 310 adds a shared lyrics store used by Now Playing and the fullscreen visualizer. The Now Playing controls include
+a grey disabled Lyrics button when the configured provider has no readable lyrics and a gold button when synchronized or
+plain lyrics are available. Tapping it opens the lyrics in an opaque, scrollable bubble over the album artwork; synced
+lyrics highlight the current line at a low update cadence. Lyrics provider requests remain cached and are not duplicated
+between Now Playing and the visualizer. The signed `com.briangarcia.meikyo` app was built, verified, and installed in
+place on `SaiyanDenawa` without uninstalling or launching it; manual UI acceptance remains user-run.
+
+## MeiKyo lyric-layout test build — version 1.0/build 309
+
+Build 309 widens the native MilkDrop lyric mesh from 68% to approximately 80% of the visualization width. It retains the
+1536×256 lyric raster, full vertical sampling, three-row font fitting, lyric timing/provider behavior, entry scaling,
+fade/feedback animation, audio, presets, transitions, and controls. The signed `com.briangarcia.meikyo` app was built,
+verified, and installed in place on `SaiyanDenawa` without uninstalling or launching it; manual long-verse acceptance
+remains user-run.
+
+Settings now ends with an About section describing MeiKyo, projectM/MilkDrop, the relevant licenses, network
+services, and the public privacy policy. The former Prototype Status category is now App Feature List: it retains the
+feature inventory without the prototype stage-completion display. The internal/public privacy manifests are selected by
+`Tools/SelectPrivacyManifest.sh` during the build. The build-305 telemetry archive and build-306 public-preparation
+archive are saved in `/Users/brian/Downloads`; Codex did not launch the phone after installing the compatibility build.
+
+The signed full-release archive is
+`/Users/brian/Downloads/MeiKyo-1.0-build-308-AppStore.xcarchive`; it reports bundle
+`com.briangarcia.meikyo`, `CFBundlePackageType = APPL`, version 1.0/build 308, and passes deep strict code-signature
+verification. App Store Connect accepted the upload and reported that the package is processing. No physical-device
+installation or launch was performed for the new MeiKyo bundle.
+
+The first upload attempt was rejected with Apple error 90183 because `CFBundlePackageType` was absent from the source
+plist. The source now declares `CFBundlePackageType = APPL`, and plist validation, source-contract regression checks,
+strict signed compilation, deep code-signature verification, and the corrected upload passed. For the current export-
+compliance encryption question, select “None of the algorithms mentioned above”: SHA-256 and MD5 are used only as
+hashes, while HTTPS/TLS and Keychain/Security services are provided by Apple system frameworks.
+
+Build 307 was also built, installed, and launched on the available iPhone 17 Pro Max iOS 26.5 simulator using a
+short derived-data path. The initial privacy-policy sheet fit the larger portrait layout without visible clipping.
+This is layout evidence only; physical-device audio, OpenGL performance, and full runtime acceptance remain separate.
+
+Build 302 adds persistent local-library storage. Settings now lets the user choose a folder owned by the Files app,
+copies the existing `Resonance Music` contents into that folder without deleting the original, and uses the selected
+folder for scans, imports, downloads, metadata edits, and file removal. The folder tree is therefore outside the
+Resonance app container and survives deleting the app. The existing Finder File Sharing folder is clearly labeled as
+legacy temporary storage; users must choose the persistent Files folder before deleting Resonance to preserve music.
+The folder bookmark is stored in Keychain and is resolved again after reinstall when iOS preserves the authorization.
+External-folder migration, scanning, imports, downloads, metadata/artwork writes, duplicate checks, and file removal
+use `NSFileCoordinator` arbitration so Files, iCloud Drive, and other File Provider implementations can coordinate
+access with Resonance and other apps. The signed arm64 Release build and deep strict code-signature verification are
+passed for build 303. Build 304 preserves the original security-scoped URL returned by Files before requesting access,
+fixing folder selections that were rejected after URL normalization. Build 304 is installed in place on SaiyanDenwa
+and was not launched by Codex; manual deletion/reinstall and external-provider acceptance remain pending.
+
+Build 301 adds a QR scanner beside the user-configured lyrics-provider toggle. A versioned JSON provider profile can
+populate the provider name, HTTPS endpoint, request method, response format, request parameter names, JSON response
+paths, authorization mode/name/token, enabled state, and User-Agent in one scan. QR profiles are validated as HTTPS
+profiles before being applied; a token is written through the existing Keychain-backed setting and is never logged.
+
+Build 300 fixes the fullscreen visualizer exit crash introduced with the FPS counter. Native teardown now detaches
+SwiftUI callbacks before dismantling the GLKView and resets the FPS window without mutating SwiftUI state during view
+graph destruction. The signed token-provisioned build passed validation and was installed in place on SaiyanDenawa; it
+has not been launched by Codex.
+
+Build 299 is the token-provisioned follow-up to build 298. It adds an opt-in visualizer diagnostics share setting. When enabled, Resonance posts one validated automatic
+low-framerate banishment event at a time over HTTPS to `music.koolkidz.us`; the payload follows the server’s exact
+`eventId`/`presetId`/`visualization`/`banishmentReason`/`fps`/`frameGapMilliseconds`/`appBuild`/`osMajor`/`occurredAt`
+contract. It contains no track, lyric, credential, configured-server, account, or device identifiers. The setting is
+off by default, the queue is bounded and in-memory, retries are idempotent, and failed submissions never block
+rendering, controls, playback, or downloads. The bearer token is supplied through a private build setting and is not
+checked into source. The bearer token is supplied only to this private build and is not checked into source, logs, or
+documentation. Build 299 replaced build 298 in place on SaiyanDenawa and has not been launched by Codex.
+
+Build 299 retains the optional visualizer FPS counter. It displays only the rounded rendered-frames-per-second number
+in the upper-right corner and updates once per second; the counter is disabled by default and does not show frame time,
+response time, or a surrounding frame.
+
+Build 299 retains the first fullscreen visualizer launch gate with a photosensitivity and seizure warning. The user must
+check the acknowledgment box before Continue becomes available; Cancel leaves the visualizer closed, and the
+acknowledgment is persisted for later launches.
+
+Build 294 removes the built-in LRCLIB lyrics endpoint. Lyrics are now opt-in through a user-configured HTTPS provider
+with configurable GET/POST JSON requests, LRC/text responses, request-field names, JSON response paths, token
+authorization, and User-Agent. The Visualizer Settings section sits between Finder File Sharing and Reported Errors;
+it exposes ProjectM lyrics, shuffle, auto-cycle, frame diagnostics, staged catalog behavior, and the current
+visualizer/lyrics-provider status. Signed build 294 is installed in place on SaiyanDenawa; the app has not been
+launched for runtime acceptance.
+
+The current source uses the corresponding `/search` path first for a user-configured GET profile named LRCLIB, then
+retains exact and sequential -1/+1 through -5/+5 duration requests when search does not produce a match. Search
+accepts only a normalized title/artist/optional-album/duration match. This accommodates provider duration rounding,
+encoder differences, release-quality album suffixes, and metadata lookup edge cases such as the known
+Kolm/Yugen/Mycelia record without enabling a built-in lyrics service. The source passed regression checks, Swift
+parsing, and strict simulator/generic-device preflight. A signed temporary legacy-bundle compatibility build 2.1/
+build 311 was installed in place over the old Resonance app on SaiyanDenawa without uninstalling or launching it; the
+separate MeiKyo bundle remains untouched. The already-uploaded public build 308 does not contain this follow-up.
+
+## App Store readiness materials
+
+This source now includes the required-reason privacy manifest and the working documents for App Store privacy
+disclosure, the publication privacy policy, and Apple review-server setup:
+
+- `Resonance/PrivacyInfo.xcprivacy`
+- `Docs/APP-PRIVACY-QUESTIONNAIRE.md`
+- `Docs/PRIVACY-POLICY.md`
+- `Docs/APP-REVIEW-SERVER-SETUP.md`
+
+The privacy documentation pass remains conditional on confirming who operates and retains data on each remote service;
+replace its placeholders before submission. The HTTPS-only transport hardening below does not change Finder file
+sharing, credential storage, playback, lyrics, artwork, or ProjectM behavior.
+
+Remote Navidrome/Subsonic and Resonance Manifest connections now require HTTPS. Bare hostnames are treated as HTTPS,
+explicit `http://` addresses are rejected, and server-provided stream, manifest, artwork, API, playback, and download
+URLs are checked before use. The tested review endpoint is `https://music.koolkidz.us`; the included HTTP-only companion
+server is a development fixture and must be placed behind TLS before the app can use it.
+
+Build 292 adds a prominent Streaming Library notice explaining that remote streaming is intended for private,
+non-commercial use with music the user lawfully acquired and is legally entitled to access, play, and stream. The
+notice places responsibility for licenses, permissions, server content, and compliance with applicable law on the user.
+
+Build 293 adds a first-use, OK-only notice before manual online artwork search begins. It explains that MusicBrainz
+provides community-maintained metadata, Cover Art Archive provides the images, MusicBrainz request identification and
+rate-limit requirements, the core/supplementary data licenses, commercial-use caveats, provider privacy implications,
+and the user’s responsibility to obtain rights to downloaded artwork. Automatic remote artwork fallback is unchanged.
+
+The current online artwork path uses MusicBrainz and Cover Art Archive only. Apple’s iTunes artwork provider has been
+removed pending separate commercial-use and artwork-rights confirmation.
+
+Build 290 widens the synced-lyrics raster canvas from 1024 to 1536 pixels and
+widens the bounded native lyric display band, while capping the entry zoom and
+sampling the complete lyric texture vertically so wrapped final words remain
+visible.
+
+Build 289 uses all 9,795 bundled ProjectM visualizations in automatic rotation.
+The full catalog is owned by a background actor; fullscreen SwiftUI state holds
+only the focused startup list and the one currently active archive preset. Each
+timer or swipe advance loads one preset at a time, with archive changes using
+hard cuts so the full catalog does not create a second live transition renderer.
+Browse uses the same catalog. Native synced lyric text is half the previous mesh
+width, and browser names use compact multi-line text.
+
+The first build-289 catalog implementation was rejected after physical testing
+reported the old interaction lock returning. This repair was rebuilt and installed
+in place over that build; physical acceptance of the repair is pending.
+
+The build-288 focused-only path was user-reported flawless before this catalog
+browser change. Fresh earlier SaiyanDenawa diagnostics showed 84 stalls when
+Cream of the Crop entries were rotated automatically, with a 183 ms median and
+445 ms p95 stall gap.
+
+The build-286 GLKView framebuffer-refresh hypothesis was disproven by physical testing: the fresh post-test diagnostics
+contained no new OpenGL framebuffer errors and the user reported no behavior change. The common cause remains the
+synchronous ProjectM render call on the main run loop. Normal frames measured approximately 23–26 ms at the old 0.75
+drawable scale, while pathological presets blocked the run loop for approximately 183–400 ms, making controls,
+favorites, and transitions appear locked even with music paused and no downloads.
+
+Build 287 applies a bounded renderer budget: the drawable is fixed at 0.5 scale, and low-FPS auto-banish no longer tears
+down and recreates the GLKView/ProjectM bridge during interaction. Audio, PCM, lyrics, downloads, preset data, and
+in-place app storage behavior are otherwise unchanged. It was signed and installed in place on SaiyanDenawa as build
+287; Codex did not launch the physical app.
+
+The current source repair addresses the common ProjectM integration hot path: Resonance now submits at most the same
+bounded 480-frame visualization PCM window used by standalone ProjectMD, discarding stale visualization backlog before
+each render. This prevents pending audio history from expanding main-thread render work and starving controls. The
+repair was rebuilt, signed, and installed in place as build 286; the phone now contains this change and the app has
+not been launched by Codex.
+
+The current source repair for the no-download fullscreen lockup removes the visualizer lyric host's 120 ms
+`PlaybackProgress` SwiftUI observation. Lyric timing now uses 250 ms anchors with interpolation, reducing main-run-loop
+competition with ProjectM controls and preset changes. It was signed and installed in place as build 286; Codex did
+not launch the physical device.
+
+Build 286 repairs the download-driven 2–5 FPS ProjectM regression measured on SaiyanDenawa after build 285. The
+renderer itself remained fast, but its display link was starved by repeated main-actor work: each accepted 400 ms
+background-progress event still changed several manager-wide published values and rewrote the complete download
+dictionary and queue array. The latest reproduction recorded 23 fullscreen frame stalls with a 403.8 ms median gap
+while native rendering and lyric uploads remained only a few milliseconds.
+
+Live byte progress now uses one small active-transfer publisher. The full queue changes only at actual track-state
+boundaries such as start, completion, failure, cancellation, and requeue. Compact byte progress and the expanded active
+queue row still update at the existing 400 ms cadence. Network bytes, one-file concurrency, queue order, persistence,
+resume, replacement behavior, metadata parsing, library refresh, playback, ProjectM quality, audio, and transitions are
+unchanged.
+
+Focused source contracts, Swift parsing, `git diff --check`, equivalent workload manifests, strict Swift 6 simulator
+and generic-device preflight, signed arm64 Release compilation, and deep strict code-signature verification passed.
+Build 286 installed in place on SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `286`. Codex did not launch
+the physical app. The full regression script reaches its unrelated existing Streaming alphabet assertion at line 196.
+Physical frame-rate acceptance while the large download batch runs remains user-tested.
+
+## Build 285 background-progress baseline
+
+Build 285 repairs a measured background-download publication storm. SaiyanDenawa had
+`experimentalBackgroundDownloads=true`; unlike the foreground path, the background URLSession delegate decoded its
+persisted task record and sent progress through NotificationCenter, the main actor, and multiple `@Published` values
+for every network callback. That continuously invalidated download UI and could also compete with fullscreen ProjectM.
+
+Background progress is now coalesced before persistence or main-actor work to the same 400 ms cadence already used by
+foreground downloads. The delegate obtains the track identity from the URLSession task description instead of
+decoding UserDefaults on every chunk, always publishes final progress, and records one privacy-safe per-file
+`download.background_progress.summary` with callback and publication counts. Transfer concurrency, throughput,
+cancellation, queue persistence, completion finalization, metadata parsing, library refresh, and ProjectM quality are
+unchanged.
+
+Focused download contracts, Swift parsing, `git diff --check`, strict Swift 6 simulator and generic-device preflight,
+signed arm64 Release compilation, and deep strict signature verification passed. Build 285 installed in place on
+SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `285`. Codex did not launch the physical app. The full
+regression script still reaches its unrelated stale Streaming alphabet assertion at line 196. Physical thermal
+improvement remains a user-run acceptance test.
+
+## Build 284 PCM baseline
+
+Build 284 removes Resonance's mutex and growable `std::vector` from the real-time PCM handoff between the
+`AVAudioEngine` mixer tap and ProjectM. The bridge now uses fixed, preallocated single-producer/single-consumer storage
+and a renderer-owned scratch buffer, so neither the audio callback nor the 60 Hz render path allocates, erases, swaps,
+or destroys PCM containers. The existing mono sample order, ProjectM PCM API, playback graph, explicit surround
+routing, preset quality, transition behavior, lyrics, drawable scale, and frame target are unchanged.
+
+Renderer teardown disables PCM acceptance before clearing the staging buffer. A privacy-safe summary records submitted,
+consumed, and dropped frame counts when fullscreen closes, allowing device testing to confirm that the bounded handoff
+did not lose audio windows without logging audio or track data.
+
+Build 284 passed the focused PCM source contract, equivalent-workload manifest check, `git diff --check`, strict Swift
+6 simulator and generic-device preflight, signed arm64 Release compilation, and deep strict code-signature verification.
+It installed in place on SaiyanDenawa; `devicectl` verified Resonance `2.1` / build `284`. Codex did not launch the
+physical app. Later physical testing found that the phone still heated, so build 284 did not pass thermal acceptance.
+The full regression script reaches its existing unrelated Streaming alphabet assertion at line 196; all new PCM
+assertions pass.
+
+## Build 280 baseline
+
+Build 280 replaces the rejected SwiftUI lyric dissolve with a native adaptation of MilkDrop 2's song-title renderer.
+The current timestamped lyric is drawn as the original 16 by 8 animated title mesh; when its display interval ends,
+the completed text is injected into ProjectM's feedback surface so later preset warp and composite stages manipulate it.
+Only the current line is shown. Text preparation runs away from the OpenGL frame, while the GL context owns the final
+texture upload and feedback injection.
+
+The ProjectM frame path no longer resets texture search paths for every preset, performs synchronous diagnostic pixel
+readback, or changes drawable scale in response to short transition FPS dips. Build 280 keeps a fixed 60 FPS target and
+75 percent drawable scale and records bounded two-second render and frame-gap summaries for device diagnosis.
+
+Strict Swift 6 simulator and generic-device preflight, signed arm64 Release compilation, deep signature verification,
+and in-place installation on SaiyanDenawa passed. A clean strict simulator build also passed with the generated ProjectM
+framework removed, proving the checked-in vendored source and build script are sufficient. `devicectl` verified
+Resonance `2.1` / build `280`; Codex did not launch the physical app. Physical lyric, transition, thermal, and timing
+acceptance remain user-run. The full regression script still reaches a pre-existing stale Streaming alphabet assertion;
+the focused build-280 ProjectM contracts pass.
+
+The current beta is the verified current source snapshot. It includes the layered navigation and animations,
+themed Library/Streaming interfaces, cached local and remote catalogs, artwork search and persistence, targeted local
+file refreshes, album-detail clearance above the mini-player, unified mini-player docking, standard FLAC front-cover
+artwork parsing, consistent Artist/Album Artist metadata editing, and user-controlled audiobook playback.
+
+## Audiobook playback — 2026-07-31
+
+Local and personal Streaming albums can be marked **Audiobook** from their album context actions. The album’s main Play
+action resumes the newest saved pause/stop position, while each audiobook album retains its own five most recent
+positions as a recovery history; there is no limit on the number of audiobook albums. Audiobook-only playback speeds are available in Now Playing; ordinary music keeps its existing
+controls. Flags and positions are stored locally under the PlayerController playback state, and the local gapless path
+uses `AVAudioUnitTimePitch` ahead of the existing explicit surround matrix.
+
+Validation passed `Tools/RegressionChecks.sh` source contracts and `git diff --check`; the signed Release build and
+in-place phone installation are part of this release flow. Codex does not launch the physical app. Manual runtime
+acceptance remains user-run.
+
+The Streaming toolbar now mirrors the local Library toolbar: local-library navigation, streaming view options, playlists,
+refresh, and Settings. The local file-browser/import control is intentionally omitted.
+
+## Waterfall Meadow custom background crop — 2026-08-01
+
+Waterfall Meadow now supports importing a replacement background image from Settings. Images must be at least
+1206 × 2622 pixels. The crop screen allows pan and pinch selection; the chosen region is normalized for orientation,
+saved as a new 1206 × 2622 JPEG, and used as the Waterfall backdrop without changing the app layout. Restore Waterfall
+Meadow removes the replacement image.
+
+The final crop implementation is committed at `61bbbc6` and was installed in place on SaiyanDenawa as version 2.0,
+build 268. The app was not launched by Codex; manual acceptance remains user-run.
+
+The public release ZIP is available from the public GitHub repository at:
 https://github.com/thnikkaman/Resonance/raw/refs/heads/main/Resonance-Beta-v2.0-build268.zip
 
-The repository is public. The development source branch is `agent/alpha-3.7.4-source`.
+The Brushed Metal theme now uses one continuous brushed-metal surface with no dials, vents, panel seams, or
+decorative hardware.
+
+The Psychedelic theme restores its earlier readability treatment: the artwork is rendered at 42% opacity with a
+12% themed-gradient veil above it. Other themes are unchanged.
+
+Gallery Light now uses the approved minimal pale Aqua glass background, while Nocturne Glass uses its matching dark
+navy/cyan Aqua companion. Their names and existing UI palettes remain unchanged.
+
+The Settings toggle is labeled **Left Handed Mode**. Its persisted default remains off (`false`) for new
+installations; existing users' saved preference is preserved.
+
+Electronic now uses a minimal dark circuit-board background with sparse fluorescent cyan, blue, and magenta traces.
+The prior dials and dense hardware details were removed.
+
+## Verified source and release artifact identity — 2026-08-08
+
+The canonical checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
+`agent/alpha-3.7.4-source`; build 288 contains the focused live ProjectM catalog repair together with the active-
+progress isolation repair, background callback coalescing, PCM repair, and single-render transition work. The project’s
+default Xcode settings are version `2.1`, build `288`. See `Docs/PROJECT-STATE.md`
+and run `Tools/ProjectStateCheck.sh` before making source or runtime claims.
+
+Current source build: `2.1` (build `288`)
+
+Latest SaiyanDenawa installation: `2.1` (build `288`). The signed arm64 Release app passed deep strict signature
+verification, installed in place, and was verified by `devicectl`; Codex did not launch the physical app.
+
+## Resonance Beta v2.0 build 268 — 2026-07-31 UTC
+
+Beta 2.0 introduces user-controlled audiobook playback. Albums in the local or personal Streaming library can be
+marked as audiobooks, audiobook Play resumes the newest saved position, and audiobook-only playback-speed controls are
+available. Each audiobook album retains its five newest pause/stop positions with no limit on the number of audiobook
+albums. Every pause or stop creates a new position, and an active audiobook saves one additional position when the app
+leaves the foreground. Manual track bookmarks remain separate. The bookmark viewer shows only the currently playing
+audiobook’s positions, with album/book title and track title visible, and places that section above manual Saved Positions.
+
+The release also preserves the safe multi-disc editor behavior: a blank disc override leaves existing per-track disc
+numbers unchanged. Validation includes source parsing, `git diff --check`, signed arm64 Release compilation, strict code
+signature verification, and in-place installation. Known non-blocking warnings are the empty supported-platforms/no-scheme
+destination warning and harmless AppIntents metadata extraction skip.
+
+Build 268 adds the optional gold FLAC-only artwork border across local and Streaming album presentations, Siri/App
+Intents for playing a song, album, or artist and resuming an audiobook, and the remote cache migration needed to
+identify FLAC-only Streaming albums. It also repairs left-handed Streaming artist-album spacing and restores the
+alphabet gesture to a non-overlapping 32-point hit column.
+
+Automated validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, signed Release
+compilation, strict deep code-signature verification, and in-place installation. The source and public release are
+available at [Resonance Beta v2.0 build 268](https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v2.0-build268).
+Physical runtime acceptance remains user-run; Codex did not launch the physical devices.
+
+## Resonance Beta v1.0.9 — 2026-07-31 UTC
+
+The album-wide Disc Number for Every Track field now opens blank on every album. It no longer copies the first track’s
+disc number, so saving an unrelated album title or metadata change cannot rewrite a multi-disc album as disc 1. Leaving
+the field blank preserves each track’s existing disc number; entering a value intentionally applies it to every track.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/ProjectStateCheck.sh --source-only`, and strict
+simulator/generic-device preflight. The physical-device build/install remains a separate explicit step.
+
+The source was committed as `3d455a0`, pushed to
+`agent/alpha-3.7.4-source`, and published as the prerelease
+`Resonance-Beta-v1.0.9`: https://github.com/thnikkaman/Resonance/releases/tag/Resonance-Beta-v1.0.9.
+
+## Resonance Beta v1.0.8 — 2026-07-31 UTC
+
+This beta stages artwork chosen from Search Online Artwork while a metadata editor is open. Canceling the metadata
+editor discards the selection; the editor’s Save commits it. Automatic artwork recommendations during library
+ingestion remain unchanged. Metadata editors now expose both Artist and Album Artist fields consistently: track edits
+write one file, album edits write every track in the album, and artist edits write every represented track. Read-only
+track names, counts, and reset/status information appear below the artwork picker. The artwork-search keyboard can be
+dismissed with Done, by tapping outside the field, by submitting, or by scrolling.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, strict simulator compilation, signed arm64 Release
+compilation, deep strict code-signature verification, and in-place installation on `SaiyanDenawa`. The device reports
+`1.0.8`/build `260`; the app was not launched by Codex. Manual acceptance remains: launch the installed beta, test
+metadata Save versus Cancel for artwork, edit both Artist fields in track/album/artist forms, verify read-only content
+is below artwork, and dismiss the artwork-search keyboard.
+
+## GitHub publication — Resonance Beta v1.0.8 — 2026-07-31
+
+The development branch is published at `Resonance-Beta-v1.0.8` as a GitHub prerelease. The repository’s `main` branch
+is historical release-ZIP storage and has no common history with this development branch, so no pull request was
+created. The release source includes the staged artwork-selection behavior, consistent Artist/Album Artist editing,
+read-only metadata ordering, and keyboard dismissal described above.
+
+## Resonance Beta v1.0.7 — 2026-07-30 UTC
+
+Beta v1.0.7 preserves the established Library and Streaming toolbar layout while keeping Browse Files and Download as
+direct button actions. Settings now centers Hero Buttons and Backend choices in custom popovers. The RGB hex color
+sliders continue to update channel values but no longer request text-field editing; the keyboard appears only when a
+user touches an actual red, green, or blue hex value.
+
+Automated validation passed `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, signed arm64
+Release compilation, deep strict code-signature verification, and in-place device installation. The physical app was
+not launched by Codex. Manual acceptance remains: launch the installed beta, verify the hex-field/slider keyboard
+behavior, centered Settings options, toolbar actions, navigation, and preserved app data.
+
+Authoritative continuation source: the `Resonance-Beta-v1.0.6` tag on `agent/alpha-3.7.4-source`,
+checked out at `/Users/brian/Resonance/Resonance-Alpha-3.7.4`. This preserves the current
+layered navigation, animations, Streaming toolbar/options, and synchronized custom accent-color controls. The
+simulator artifact for this source is `.build/color-picker/Build/Products/Debug-iphonesimulator/Resonance.app`.
+
+## Toolbar layout correction — simulator build 249 — 2026-07-30
+
+The Library and Streaming roots are back to the established stacked toolbar
+arrangement: leading options/playlists, centered Streaming/Local hierarchy
+navigation, and refresh/settings above the second-row Browse Files/Download action.
+The existing SwiftUI button actions remain unchanged; no custom hit region or
+navigation redesign was added. The intermediate build 248 separate-toolbar-item
+experiment was rejected because it visibly moved the controls and compressed the
+centered navigation.
+
+Regression checks, `git diff --check`, and the strict simulator/generic-device
+preflight passed. Simulator build `1.0.7/249` succeeded and was installed in place
+on the configured iPhone 17 Pro simulator. The simulator was not launched or
+screenshot-captured by Codex, and the physical phone was not changed.
+
+Manual continuation: launch build 249 manually. Confirm the toolbar matches the
+prior arrangement, then tap Browse Files and Download to verify their existing
+importer/download flows. Also verify the centered Streaming/Local navigation and
+leading options/playlists controls. Do not uninstall first.
+
+## Experimental build 110 — metadata-save regression repair
+
+This experimental build keeps metadata saves from triggering a forced rescan of the entire local library. After a
+successful FLAC or MP3 write, Resonance rereads only the files involved in that save and updates their existing
+library records. This keeps the editor responsive and prevents stale whole-library read-back from making a track
+number or other edited tag appear to revert. The save path also records a privacy-safe track-save diagnostic with
+the writable file extension and result counts.
+
+Manual test checklist: edit an MP3 track number and confirm it remains changed after closing and reopening the editor;
+edit the title and track number of one FLAC file and confirm both the album page and an external tag reader see the
+change; edit an album title and confirm the editor leaves Saving promptly; repeat with an album containing several
+FLAC/MP3 files. Confirm no unrelated library contents disappear and normal playback remains available.
+
+## Experimental build 111 — background album saves and file-artwork warning state
+
+Album metadata editors now dismiss immediately after starting a save. The existing sequential writer and targeted
+per-file reread continue in the background, with completion and failure counts recorded in privacy-safe diagnostics.
+Artwork explicitly saved into FLAC or MP3 files no longer creates a Resonance-only artwork override, so it is treated as
+confirmed embedded artwork and does not receive the red automatic-artwork warning border. Apply to App remains an
+app-only suggested-artwork path and retains the warning border when enabled.
+
+Manual test checklist: save artwork to a multi-track album and confirm the editor closes immediately, the files finish
+updating, and the album art has no red border. Confirm Apply to App still shows the red border when the artwork-warning
+setting is enabled. Verify the album title/artwork after relaunch and confirm unrelated playback and library browsing
+remain responsive.
+
+## Experimental build 112 — cache-first startup
+
+Startup now treats the persisted local SQLite library and cached remote catalog as authoritative. With cached data
+available, app activation no longer scans the local Documents tree or performs a remote server/catalog status check.
+The first launch without a local library still performs the initial discovery scan, and the explicit Library/Settings
+scan and Streaming refresh controls remain available for rare changes.
+
+Manual test checklist: launch with cached local and Streaming data while observing that the Library and Streaming tabs
+open without a scan/status panel; confirm cached tracks, albums, artists, and artwork appear immediately. Add or alter
+a local file, verify it does not appear until the explicit Library scan, then confirm the scan finds it. Change the
+remote catalog or server availability, confirm cached Streaming data remains usable at launch, and use explicit
+Streaming/Settings refresh to retrieve the change or show the connection error. Verify metadata saves, downloads,
+playback, tab switching, and relaunch behavior remain intact.
+
+Version: **0.3.7.4**  
+Build: **106**
+
+Install directly over Resonance Beta v1.0.1 with the same bundle identifier and signing team. Do not delete the installed app first, because uninstalling removes local library state, playlists, metadata overrides, credentials, and the cached remote catalog.
+
+## Observed problems
+
+- Local playback reported: `The explicit surround downmix matrix could not be configured (OSStatus -10867)` and the process could still terminate after startup diagnostics were written.
+- Streaming and Library alphabet touches did not reliably scroll to the selected artist section.
+- The streaming screen's full-screen back-swipe recognizer competed with normal vertical scrolling.
+- Remote artwork decoding could occupy the main actor while the streaming catalog was scrolling.
+- The streaming connection header consumed browse space and could visually compete with the active grouping title during pull-down.
+- The native right-side scroll indicator competed with the custom alphabet index.
+- Streaming artist and album alphabet gestures did not always claim the intended touch strip or complete the section jump.
+- The streaming header could disappear visually, cached catalog loading competed with the first browse render, and inconsistent Subsonic display album-artist values split one artist into multiple entries.
+- The Now Playing action row could be laid out underneath the persistent tab bar, and the mini-player could cover Streaming and Settings content.
+- Remote seeking could be overwritten by the playback timer, and a remote item reaching its end did not always advance the queue.
+- The build-64 recordings show the remote seek labels can exceed the current track duration after fast-forwarding, even though the visual thumb is clamped at the end.
+- Build 61's performance isolation removed the root-wide accent foreground modifier; this improved settings-driven redraw cost but unintentionally stopped the **Apply theme color to text** setting from styling ordinary text throughout the app.
+- The explicit matrix was configured before the Matrix Mixer audio unit had started, producing `kAudioUnitErr_Uninitialized` (`-10867`) on some 5.1 files.
+- The new build-66 recording showed the remote queue advancing correctly but retaining a short audible boundary interruption.
+- Remote seeks to the end were still displayed about 0.75 seconds early, and rapid seek completions could overwrite a newer target.
+- The device recording showed the root tab bar floating above the bottom of the screen, with Streaming search rendered underneath it, and an exact-end seek displayed a malformed remaining-time label.
+- The latest recordings still contained a short measured silence at remote boundaries and showed that manual seek display could be overwritten by AVPlayer's transient pre-seek clock.
+
+## Playback recovery
+
+The explicit 5.1 matrix remains the first-choice path. If Matrix Mixer configuration fails:
+
+1. Resonance records the complete matrix error in the red **Reported Errors** section.
+2. The partially configured `AVAudioEngine` is stopped, disconnected, and quarantined.
+3. Resonance does not reset, reuse, or deallocate that failed graph during playback switching.
+4. Gapless playback is disabled for the remainder of the current app session.
+5. The selected file starts through the stable `AVAudioPlayer` compatibility backend.
+6. Later local tracks use the compatibility backend directly until Resonance is relaunched.
+7. Remote playback continues through the stable single-item `AVPlayer` path and never touches the quarantined local graph.
+
+A relaunch creates a fresh gapless engine and allows the explicit matrix to be attempted again.
+
+## Artist alphabet navigation
+
+- The right-edge index orders numeric names first, then A–Z Roman names, then each available leading Kanji or other Unicode letter; punctuation-only names remain in a final `#` section.
+- Normal vertical drags over artist names belong only to the list or grid.
+- Touching or dragging inside the right-edge strip maps the finger position in the index container's coordinate space.
+- Every available section has a stable container ID used by `ScrollViewReader`.
+- A large letter bubble appears to the left of the index while touching or dragging.
+- Releasing over a letter keeps the bubble briefly visible and leaves the list at that section.
+- A new touch on the same letter dispatches the navigation again.
+- Streaming back navigation is restricted to a 24-point left-edge strip.
+- The native scroll indicator is hidden in streaming collections; normal scrolling belongs to the main artwork/text area,
+  while the right strip belongs to the alphabet index.
+- Albums use the same alphabet index as artists, based on album title.
+
+## Streaming connection panel
+
+The server connection information is now a persisted disclosure panel. Collapse it from the streaming tab to reclaim
+vertical space for artists and albums. The active grouping remains visible in the compact panel label, and the
+streaming navigation title uses the large Library/Settings treatment so the full “Streaming Library” label remains visible
+while the connection panel expands, collapses, and the catalog scrolls.
+
+## Streaming performance
+
+- High-frequency playback progress updates are isolated to the mini-player and Now Playing views instead of invalidating the root tab tree.
+- Remote catalog filtering, album grouping, and artist grouping are cached by track revision, search text, and sort direction.
+- Cached artist, album-artist, and album browse projections are precomputed off the main actor after remote activation, so the first Streaming transition does not synchronously group the full cached catalog.
+- Remote cover art is downloaded and downsampled outside the main actor into a bounded, size-specific thumbnail cache. Playback code does not share this path.
+- A cached Subsonic catalog is activated immediately and automatic server checks are deferred until **Check for Remote Changes** is selected in Settings. This keeps the cached browse surface responsive while the server is unavailable or slow.
+- Album-artist values are canonicalized per artist/album when Subsonic exposes display composites such as `Tool • Unknown Artist`; the most common clean track-artist spelling is retained.
+
+## Experimental background downloads
+
+Build 106 adds an opt-in **Experimental background downloads** setting under Streaming Library. When enabled, requested
+remote tracks use an iOS background `URLSession` download task instead of Resonance's foreground byte stream. The
+system can continue those HTTP(S) transfers while Resonance is suspended, wake the app to deliver completed files, and
+restore the task map after a relaunch. Completed files are moved atomically through a private application-support inbox
+before the existing library index refresh runs. The foreground downloader remains the default fallback. iOS may delay
+background transfers, and force-quitting the app cancels system-managed background work; physical-device lock-screen
+acceptance remains required for this experiment.
+
+## Settings categories
+
+Each top-level Settings category is independently collapsible. Its expanded or collapsed state is stored locally and restored on the next launch, so the page can stay focused on the areas currently being tested.
+
+## Compilation-only artist grouping
+
+Albums containing tracks by more than one distinct artist are now always grouped under one synthetic **Various Artists** entry in local Library and Streaming Artists, Album Artists, and album listings. The album is consolidated once under that entry, while regular single-artist albums remain under their existing artists. The existing **Group compilation-only artists** option continues to additionally group explicit compilation/Various Artists albums that do not contain multiple track artists.
+
+## Validation performed here
+
+- Every Swift source passed Swift 6 syntax parsing.
+- `Info.plist` and the Xcode project passed property-list validation.
+- The regression suite checked the matrix circuit breaker, safe engine shutdown, stable section IDs, index coordinate mapping, left-edge gesture isolation, prior compile fixes, and remote single-item playback.
+- The companion server passed Python compilation.
+- The final ZIP passed archive-integrity validation.
+- A local fixture server exposed the exact Tool stereo pair and available Yes America A–E 5.1 files; manifest metadata, range responses, remote startup, seek completion, endpoint clamping, and queued boundary advancement were exercised on the iOS simulator.
+
+## Agent validation workflow
+
+- `.xcodebuildmcp/config.yaml` supplies the project, scheme, and stable simulator-name defaults for repeatable agent checks.
+- Use `npx -y xcodebuildmcp@latest simulator build` for the fast compile path, `simulator install` and `simulator snapshot-ui` for controlled UI checks, and `--output jsonl` when a long build or test needs machine-readable live progress.
+- Keep the explicit `Tools/PreflightBuild.sh`, signed `xcodebuild`, `codesign`, and `devicectl` sequence as the release evidence path because it verifies this project's warning policy, physical-device code signature, and in-place install without launching the app.
+- XcodeBuildMCP artifacts and daemon logs are workspace-local diagnostics; do not commit them, and never pass credentials, private URLs, or private music through launch arguments or logs.
+
+Alpha 3.7.4 build 71 removes the experimental 350 ms dual-player overlap that cut off the end of Parabol and consumed the opening of the following track. Experimental remote playback still prepares and prerolls the next HTTP(S) item, but now hands off at the natural item boundary using the warmed player; this avoids truncation while leaving true sample-contiguous streaming gapless pending a decoded PCM/AudioUnit/AVAudioEngine or compatible authored-HLS design. Remote seek display now holds the requested position for only a short 150 ms settle interval and accepts AVPlayer's clock when it is within 0.75 seconds of the target; the scrubber falls back to track metadata during transient player replacement. The live Navidrome catalog was authenticated through a temporary local SSH tunnel: 8,071 tracks loaded, Parabol→Parabola advanced at the boundary, and seek actual/target values agreed within approximately 2 ms. Simulator control-flow validation cannot replace physical-device audible acceptance. Stable local playback, the explicit 5.1 graph, and the responsive tab composition were not changed.
+
+Alpha 3.7.4 build 72 begins the offline-library phase. Experimental streaming gapless is no longer exposed or honored; remote playback always uses the stable single-item AVPlayer path until a post-alpha sample-contiguous design is available. Remote tracks, complete albums, and complete artist collections can be downloaded into the local Resonance Music folder, where they are indexed by the existing library scanner. Local FLAC and MP3 metadata editors now write title, artist, album artist, album, track/disc position, release year, and optional artwork directly into the audio file before rescanning it. Other local formats remain read-only for direct tags in this phase and report that limitation instead of silently creating a Resonance-only edit.
+
+Alpha 3.7.4 build 73 completes the first offline-library download workflow. Downloads now use a disk-backed byte stream with per-file byte progress, a visible cancellation control, cancellation cleanup, and a library rescan after every newly completed track so tracks appear incrementally. Existing destination names trigger an explicit Replace Existing or Keep Existing choice; completed downloads remain duplicate-safe. Streaming artists now support a touch-and-hold Select Artists to Download action that opens a multi-select sheet for downloading several collections together. Local track, album, and artist removal now distinguishes Remove from Library—which preserves the file and persists an exclusion from automatic rescans—from Delete from iPhone, which removes the audio file. Settings adds a QR-camera icon beside the server address field; it accepts a plain URL/host and common JSON address payloads, and requires camera permission only while scanning. The direct FLAC/MP3 tag-writing and stable single-item streaming playback paths are unchanged.
+
+Alpha 3.7.4 build 74 refines the Streaming artist detail surface with three full-width, icon-led action tiles for Play, Shuffle, and Download, using consistent hierarchy, contrast, and touch targets. The local album detail screen now offers Remove from Library and Delete from iPhone alongside its metadata and playback actions. The download banner expands into a queue panel showing queued, active, completed, failed, and cancelled tracks; queued or active tracks have a red circular cancel control, while the header retains a red cancel-all control and can collapse back to the compact progress view. Playback, remote transport, QR setup, and the underlying download storage behavior are unchanged.
+
+Alpha 3.7.4 build 75 keeps the download manager’s high-frequency progress observation inside the download overlay so the Streaming catalog remains responsive while files arrive. Each completed file now performs a targeted library refresh, allowing open local artist and album views to update immediately without rescanning the entire Documents folder. The expanded queue has a visible Collapse control and a bounded scroll area, and local artist album cards now expose the same Remove from Library and Delete from iPhone choices as the album collection and detail screens. Playback, remote transport, QR setup, and download storage behavior are unchanged.
+
+Alpha 3.7.4 build 76 makes open local artist and album screens follow stable artist/album identity, so newly downloaded albums and tracks appear without navigating away and back. Cancelled download rows now offer Requeue, returning the track to the active queue while preserving the existing ordered progress list. Artist long-press menus now put immediate Download Artist above Select Artists to Download. Download progress is coalesced, disk writes use larger buffers, and completed-track indexing uses a single SQLite upsert to reduce interface churn, CPU, and battery work. Playback, Streaming responsiveness, QR setup, and download storage behavior are unchanged.
+
+Alpha 3.7.4 build 79 completes the build-78 polish: all inactive in-app Now Playing controls and the selected Settings palette checkmark now use the configured theme color treatment. Build 79 retains the extra album/track bottom space, top-down detail swipe-back navigation, finger-following mini-player docking, faster Streaming first frame, persistent metadata-field labels, and artwork-or-transparent Lock Screen metadata behavior. iOS does not permit third-party apps to recolor the system Lock Screen controls. Downloads, playback, and remote transport are otherwise unchanged.
+
+Alpha 3.7.4 build 80 makes Streaming artist-detail swipe-back navigation claim the fixed artist header, matching the Library hierarchy gesture without stealing the album list's normal vertical scrolling. Remote album, all-albums, playlist, and other track lists now expose leading Play Next and Add to Queue swipe actions. Mini-player drag gestures now have priority over their tap controls; top/bottom overshoots and side-bubble drags follow the finger without opening the Playing tab or activating content underneath. Playback, downloads, and remote transport are otherwise unchanged.
+
+Alpha 3.7.4 build 81 adds three persisted visual styles in Settings—Nocturne Glass, Gallery Light, and Color Bloom—with a Custom Accent compatibility option. The selected style drives the app's accent, surfaces, background, secondary text, and recommended system appearance while preserving the existing explicit Light/Dark override. Local and Streaming artist/album detail screens now share a fixed, large centered-art hero with playback and queue/download controls arranged around it and an independent scrolling content pane below. Top-down hierarchy dismissal is available from the fixed detail surface, and the mini-player's side bubble can now dock at the bottom as well as the top. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 82 removes the global Streaming Library search and shows Navidrome connection details only when a connection or catalog error is present. Bright Gallery Light selection clears a previously forced dark appearance so text remains readable; Brushed Metal, Classic Wood, Electronic, and Psychedelic styles add additional themed gradients. The Library and Streaming top controls now use one compact themed icon-button treatment, artist indexes no longer draw explicit dark separators across Streaming, album overflow actions use a stable confirmation dialog, and local/remote artwork heroes use titled controls with accessibility, help, and long-press hints. Mini-player surfaces and side handles now use the active theme gradient. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 83 gives Library and Streaming album actions the same themed overflow button and confirmation dialog, fixes prominent album Play controls with explicit contrast, removes completed downloads from the live queue while keeping the active track at the top, and adds generated Brushed Metal, Classic Wood, Electronic, and Psychedelic background artwork to the corresponding selectable themes. Shared toolbar, hero-action, surface, and backdrop components keep the two browsing tabs visually congruent. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 84 keeps the download banner stationary while Streaming content scrolls. Long-pressing Streaming artists or albums now enters inline multi-selection with circular selection bubbles; the top menu provides Download Artist, Download Artists, Download Album, and Download Albums actions without opening a separate window. Generated material-theme imagery is clipped and translucent behind the active gradients and surfaces, preventing it from covering the top half of the app or obscuring the theme controls. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 85 fixes the runtime issues shown in the 02:11 recording. Streaming artist and album section letters no longer paint opaque full-width bars beside the alphabet index. Artist and album holds now use a high-priority long-press recognizer, provide tactile feedback, and enter the existing inline circular multi-selection mode without navigating. Now Playing renders the same active full-screen theme as Library, Streaming, and Settings. Theme cards have a complete hit target, no longer compete with the Settings keyboard-dismiss tap, and preview image-backed styles more clearly. Electronic and Psychedelic use newly generated, more colorful high-detail circuit-control and liquid-fractal artwork, with stronger but still layered background visibility. Playback, downloads, remote transport, and the alpha streaming-gapless policy are unchanged.
+
+Alpha 3.7.4 build 92 adds reliable artwork persistence and restores image themes safely. Artwork overrides now store image data in background-written sidecar files instead of blocking or inflating the metadata JSON. Online search providers fail independently and use broader fallback queries, so one unavailable repository no longer produces an empty result. Custom theme images are rendered only by a dedicated page-level backdrop behind the navigation stack; interactive surfaces remain gradient-only, preventing the prior obstruction. Streaming download progress is isolated to the download controls, coalesced to reduce view invalidation, and no longer re-sorts the queue for every byte update. Build 91's online artwork picker remains included.
+
+Alpha 3.7.4 build 93 restores bottom navigation contrast after image-theme backdrop changes. The custom tab bar is now an opaque themed surface above page artwork, uses the theme's secondary text color for unselected tabs, and the decorative backdrop stops at the content boundary instead of extending into the bottom home-area region.
+
+Alpha 3.7.4 build 94 fixes Library and Streaming artist/album selection gestures stealing vertical scrolling. Selection now uses a bounded long-press recognizer that cancels when the finger moves, so touching a tile while scrolling no longer rechecks it or reopens selection controls.
+
+Alpha 3.7.4 build 51 keeps the Streaming connection header visible, gives the navigation-bar principal title enough space by moving playlist navigation into a compact menu, prioritizes Lock Screen previous/next track commands while retaining in-app 15-second seeking, groups compilation tracks in both Artists and Album Artists views using album identity independent of inconsistent album-artist tags, and reports the installed bundle version/build dynamically in Settings. The system-owned Lock Screen audio-output control remains a platform limitation; Resonance does not expose an app-owned route picker.
+
+Alpha 3.7.4 build 52 defers non-critical catalog and UI diagnostics writes so screen transitions, Streaming scrolling, and alphabet gestures do not synchronously block the main actor. It also passes the computed compilation-album set into Album Artists browsing and adds privacy-safe synchronous boundary/preload diagnostics for reproducing the reported local and streaming gapless failures. The remote backend remains the deliberately stable single-item `AVPlayer` path pending a separate gapless streaming design decision.
+
+Alpha 3.7.4 build 53 removes the Now Playing scroll container, compacts the fixed layout and artwork so Browse Library and Stop stay above the tab bar, and adds a keyboard Done action at the root. The mini-player can be swiped to the top, bottom, or either side; side docking leaves a small edge handle that can be swiped inward to restore it. Remote seeking now stays stable until AVPlayer confirms the seek, remote end detection has a guarded fallback for advancing the queue, and the explicit 5.1 matrix is configured after the engine starts. Remote artist and album index sections are also cached to reduce repeated SwiftUI layout work during long sessions. The AirPlay/output control visible in iOS Control Center remains system-owned; Resonance has no app-owned output picker.
+
+Alpha 3.7.4 build 54 changes Streaming Library to the same large navigation-title treatment used by Library and Settings, so the full white title remains visible instead of truncating to “Stream…” between toolbar controls.
+
+Alpha 3.7.4 build 55 applies the mini-player safe-area insets to each navigation stack, keeping top docking above navigation content and bottom docking above the custom tab bar. It enables the Matrix Mixer master, input, and output gains in addition to the explicit cross-point routing so gapless local playback cannot report ready while rendering silence. The playback trace now records gapless engine/render state and begin/completed seek events, including the measured audio meter level.
+
+The first build-55 device recording review found that the title still was not visually present on the Streaming Library surface, bottom docking still covered catalog rows and the tab bar, and top docking/keyboard editing could still be obstructed by the mini-player. The matching diagnostics show the 5.1 engine running with six source channels and a nonzero render meter, and the tested 5.1 boundary advanced; the recording does not independently establish playback speed from its audio track. No new build-55 crash or CPU-resource report was present; the latest resource report remains from build 52.
+
+Alpha 3.7.4 build 56 is a performance-focused pass. The 120 ms playback clock and meter no longer publish through the shared `PlayerController` observed by catalog, library, settings, and queue rows; only the Now Playing scrubber observes the separate high-frequency progress store, and list visualizers use a static current-track indicator. Inactive tab stacks no longer construct mini-player overlays. Regression checks, simulator and generic-device preflight, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. The device reports version 0.3.7.4/build 56; the app was not launched, so runtime performance acceptance remains pending.
+
+Alpha 3.7.4 build 57 is a second performance pass based on the build-56 screen recording and diagnostics. Root-level catalog/scanner error observation is isolated into a coordinator, cached-catalog automatic checks return before scheduling or logging redundant work, foreground local-file inventory runs at utility priority and is throttled across rapid scene activations, playback-stage diagnostics no longer synchronously write diagnostics/UserDefaults on the main actor, and Lock Screen artwork conversion is prepared off-main and cached per track. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 57. Source commit: `28fe77c`. Runtime performance, FLAC startup, and playback acceptance remain pending.
+
+Alpha 3.7.4 build 58 addresses the remaining common UI blocker identified by the build-57 recording: local `ArtworkView` decoded full-resolution artwork synchronously during SwiftUI body evaluation across album detail, Now Playing, Settings, and mini-player surfaces. Local artwork now uses a bounded ImageIO thumbnail cache and utility-priority preparation, matching the existing remote artwork path; slow thumbnail loads emit privacy-safe `artwork.local.thumbnail` timing records. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 58. Runtime acceptance remains pending.
+
+Alpha 3.7.4 build 59 is a focused FLAC/5.1 playback repair. The gapless graph now keeps the source file's native sample rate through the player, explicit surround matrix, and stereo mixer; the main mixer is the first stage that converts to the active hardware route. Gapless preloading now rejects a following file with a different sample rate instead of scheduling it on the current player format, allowing that track to load normally at the boundary. The playback trace records source channels, source sample rate/frame count/duration, graph and output sample rates, and synchronous preparation time. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 59. Runtime FLAC, 5.1 speed/routing, gapless, and interface acceptance remain pending.
+Alpha 3.7.4 build 60 is a focused streaming-interface performance repair based on the 12:55 screen recording and build-59 diagnostics. The remote playback timer now suppresses unchanged status publications and throttles human-readable buffer text to twice per second, preventing the 120 ms timer from invalidating inactive SwiftUI screens. Remote playback preparation now loads only the selected track's artwork, discards stale preparations when a newer selection arrives, and maps large queues without serially fetching 24 album covers. Streaming artist and album section indexes are populated by task only when their input changes instead of rebuilding synchronously during every view-value refresh. No local audio or gapless graph code was changed. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 60. Runtime interface smoothness and streaming playback acceptance remain pending.
+Alpha 3.7.4 build 61 is a focused navigation and editing responsiveness repair based on the 13:16 screen recording and build-60 diagnostics. The root view no longer observes the entire `AppSettings` object or applies theme modifiers to the complete four-tab tree, so settings keystrokes do not invalidate every inactive navigation stack. The system liquid-glass tab bar is hidden and replaced with a stable opaque tab bar that reserves its own safe-area space, preventing tab controls from ghosting over Settings, Now Playing, and Streaming content during navigation. No audio, catalog, or gapless code was changed. Source commit: `4f49061`. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. The initial signed-build command was rejected because Xcode requires a scheme when `-derivedDataPath` is supplied; rerunning with the explicit build output directory succeeded. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 61. Runtime navigation, settings editing, and long-idle acceptance remain pending.
+Alpha 3.7.4 build 62 is a focused repair for the remaining startup and Settings interaction stalls found in the 13:32 screen recording and fresh build-61 diagnostics. Local startup now seeds file modification dates from the cached database and avoids reparsing unchanged files on every launch. Existing Library content remains visible and interactive while a background inventory checks for transferred-file changes, with privacy-safe scan timing events recorded for diagnosis. Settings hex editing now uses a draft value and a short debounce, so each keystroke does not immediately retheme and redraw the whole interface. No audio, catalog, or gapless code was changed. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 62. Runtime interface smoothness and Settings editing acceptance remain pending.
+Alpha 3.7.4 build 63 is a focused tab, Streaming, and Settings composition repair based on the 13:48 screen recording and fresh build-62 diagnostics. The root no longer constructs all four navigation stacks simultaneously; only the selected tab is composed, while the stable custom tab bar and playback coordinators remain available. Settings category content is now built only while its disclosure is expanded. Streaming browse caching now derives only the selected surface—artists, album artists, or albums—instead of building every large collection before the first screen can respond. No audio, PlayerController, or gapless graph code was changed. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. The first preflight wrapper attempt reported a shell status-variable error after both builds had succeeded; the corrected rerun passed. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 63. The user subsequently reported that build 63 is working flawlessly, including tab switching, Library/Streaming/Settings navigation, Now Playing, audio playback, and the confirmed 5.1 gapless path. Build 63 is the current stability reference point for the next phase.
+Alpha 3.7.4 build 64 begins the next phase with an opt-in experimental streaming-gapless queue. When enabled in Settings, remote playback uses `AVQueuePlayer` to queue the next eligible HTTP(S) stream, handles queue boundaries, repeat-one, repeat-all, and queue edits, and falls back to normal single-item loading when a queued target cannot be resolved. The setting is off by default, so the build-63 remote playback path remains the rollback behavior; local playback, the explicit 5.1 graph, and the tab/navigation composition were not changed. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 compilation, strict code-signature verification, and in-place installation succeeded on 2026-07-25. The first signed-build command was rejected because Xcode requires a scheme when `-derivedDataPath` is supplied; rerunning with the explicit build-output directory succeeded. Before installation, the on-device `Documents/Resonance-Diagnostics.log` was overwritten with a verified zero-byte file; after installation it remained zero bytes because the app was not launched. The device reports version 0.3.7.4/build 64. Source commit: `21b037c`.
+
+User runtime review of build 64 on 2026-07-25 confirms remote gapless playback in stereo and 5.1, and confirms that disabling and re-enabling the experimental setting works. The recordings `ScreenRecording_07-25-2026 16-17-05_1.MP4` and `ScreenRecording_07-25-2026 16-18-11_1.MP4`, together with the 487-line log at `/Users/brian/Resonance/diagnostics/build64-review-20260725-1617/Resonance-Diagnostics.log`, show a separate seek-display defect: remote seeks complete, but raw `AVPlayer` time can be published beyond the current track duration after fast-forwarding. The progress thumb clamps at the end while the elapsed/remaining labels can show values such as `3:54` for a `3:46` track or `1:36` for a `1:32` track. The same review confirms the build-61 accent-text regression described above. Runtime streaming gapless is therefore accepted for stereo/5.1, while seek-display clamping and theme-text restoration remain open.
+
+Alpha 3.7.4 build 65 repairs the build-64 seek-display defect by clamping remote elapsed time after AVPlayer clock updates, seek completion, duration discovery, and remote-player initialization to the current track duration. It also restores the **Apply theme color to text** preference through a `ViewModifier` attached only to the active tab surface; RootView still does not observe `AppSettings` directly, so inactive navigation trees remain isolated. Local playback, the explicit 5.1 graph, and the build-63 tab/navigation composition were not changed. Source commits are `0b99444` and `93d67c6`. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 Release compilation, strict deep code-signature verification, and in-place installation succeeded on 2026-07-25. The known no-scheme/empty-supported-platform destination warning and harmless AppIntents metadata-skip warning remain non-blocking. The device reports version 0.3.7.4/build 65. The diagnostics file was cleared before installation, and the app was not launched by Codex; runtime seek and theme-text acceptance remain pending.
+
+Alpha 3.7.4 build 66 repairs the experimental streaming-gapless boundary wait identified in the `ScreenRecording_07-25-2026 16-41-55_1.MP4` review. The recording's captured audio contained approximately two seconds of silence immediately after a remote queue boundary even though the next item was queued and the UI reported it as gapless-ready. Experimental `AVQueuePlayer` playback now disables AVPlayer's stall-minimization wait and explicitly advances at item end; stable single-item remote playback keeps its existing wait behavior. Local playback, the explicit 5.1 graph, seeking clamps, and the tab/Streaming responsiveness work were not changed. Source commit: `4f7001b`. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 Release compilation, strict deep code-signature verification, and in-place installation succeeded on 2026-07-25. The known empty-supported-platforms destination, no-scheme preflight, harmless AppIntents metadata-skip, and stale prior-output-directory warnings were non-blocking. The device reports version 0.3.7.4/build 66. Diagnostics were cleared before installation, and the app was not launched by Codex; physical-device gapless acceptance remains pending.
+
+Alpha 3.7.4 build 67 is a focused repair based on `ScreenRecording_07-25-2026 16-56-30_1.MP4`. Experimental remote queue playback now uses `playImmediately(atRate:)` for initial start, resume, repeat-one, and queue boundaries so AVPlayer does not reintroduce a stall-minimization wait at a stream transition. Remote seeking now permits the exact track endpoint, serializes completion callbacks so stale seeks cannot overwrite the latest target, bases rapid skip gestures on the pending target, and keeps the requested position authoritative when AVPlayer briefly reports its pre-seek clock. The scrubber also clamps its displayed elapsed and remaining labels to the active duration. Local playback, the explicit 5.1 graph, catalog behavior, and tab/Streaming composition were not changed. Regression checks, simulator and generic-device preflight with warnings treated as errors, signed arm64 Release compilation, strict deep code-signature verification, and in-place installation succeeded on 2026-07-25. The known empty-supported-platforms destination, no-scheme preflight, and harmless AppIntents metadata-skip warnings remained non-blocking; there were no build or install errors. The device reports version 0.3.7.4/build 67. Diagnostics were cleared before installation and remained zero bytes afterward because the app was not launched by Codex. Physical-device seek and residual-gap acceptance remain pending.
+
+Alpha 3.7.4 build 68 repairs the device layout regressions without touching the verified streaming queue/audio path. Root content now explicitly fills the device container so the custom tab bar remains anchored to the actual bottom safe area. Streaming connection information and a custom remote search field are fixed above the browse surface; the native search bottom inset is removed so it cannot push the tab bar upward or appear underneath it. The scrubber now renders an exact-end remaining time as `−0:00` instead of `−—:—`. Local playback, the explicit 5.1 graph, remote gapless playback, and remote seek ordering were not changed. The signed build is installed on SaiyanDenwa; physical-device audible playback and UI acceptance remain pending because Codex did not launch the app.
+
+Controlled build-68 simulator validation used the exact Tool `Parabol`/`Parabola` FLACs and the available Yes `America: A–E` 5.1 FLACs through a local Resonance Manifest server. The Tool pair started remotely, accepted ordinary and exact-end seeks with millisecond-level diagnostic agreement, and advanced from Parabol to Parabola at the boundary. The Yes files were indexed as six-channel, 96 kHz 5.1 media; America: A started with America: B preloaded, and a near-end resume advanced to America: B with `preloadedTarget=true`. The simulator verified control flow and queue handoff, but cannot replace physical-device listening for audible gap and channel-routing acceptance. The simulator also confirmed the tab bar remains at the bottom, the custom Streaming search field stays above the browse surface, and the exact-end label is `−0:00`.
+
+Alpha 3.7.4 build 69 replaces the experimental remote `AVQueuePlayer` handoff with a readiness-aware dual-player preloader. The next HTTP(S) track is independently prepared and prerolled at zero volume; a boundary reuses that warmed player only after it is ready, while stable single-item remote playback remains unchanged. Remote seeking now explicitly resumes a stream that was playing after seek completion, including the failed-seek recovery path, and records a privacy-safe resume diagnostic. Local playback, the explicit 5.1 graph, and the responsive tab composition were not changed. The simulator endpoint test exercised Tool Parabol→Parabola and all available Yes America A–E boundaries by jumping to approximately 15 seconds before each endpoint; every tested transition reported `preloadReady=true`, and seek actual/target values agreed within milliseconds. Physical-device listening remains required for audible gap and surround-routing acceptance.
+
+## Next major phase
+
+- Preserve build 63 (0.3.7.4, source commit c3c1ebc) as the stability and rollback reference while testing build 73. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed local 5.1 gapless behavior.
+- Build-73 download acceptance: start a multi-track artist or multi-artist download, confirm the current file shows byte progress and the Cancel button, cancel mid-file, and verify no partial .part file is indexed. Start again and confirm the local library refreshes after each completed track rather than waiting for the whole batch.
+- Build-73 replacement acceptance: download a track twice, verify the second attempt asks whether to replace the same-named file, choose Keep Existing and then Replace Existing, and confirm the library contains one track rather than duplicates.
+- Build-73 removal acceptance: for a track, album, and artist use Remove from Library and confirm the files remain in Files/Finder but stay absent after a manual or relaunch scan; repeat with Delete from iPhone and confirm the files are removed.
+- Build-73 multi-artist acceptance: touch and hold an artist in Streaming, select several artists, start the combined download, and confirm deduplication, progress, incremental local indexing, and cancellation.
+- Build-73 QR acceptance: open Settings → Streaming Library, tap the QR icon, scan a plain HTTPS server URL and a host with a port, confirm the host/port/HTTPS fields populate, and verify a denied camera permission produces an actionable message. Do not put credentials in the QR payload or diagnostics.
+- Preserve build 63 (`0.3.7.4`, source commit `c3c1ebc`) as the stability and rollback reference while testing build 72. Any new playback or Streaming work must retain responsive tab switching, Library/Streaming/Settings navigation, Now Playing behavior, audio playback, and confirmed local 5.1 gapless behavior.
+- Build-72 manual acceptance: verify the Streaming settings no longer expose a gapless toggle; download one track, one album, and one artist collection; confirm progress, duplicate-safe behavior, local-library indexing, offline playback, and correct artist/album/track ordering.
+- Build-72 metadata acceptance: edit a local FLAC track, album, and artist; verify the changed tags and artwork survive app relaunch and are visible to another tag reader. Repeat with MP3, and verify an unsupported format presents the direct-write limitation without claiming the file was changed.
+- Perform the remaining physical-device acceptance on build 71: audible stereo Parabol→Parabola boundary behavior, exact-end seeking, rapid seeks, and responsive tab switching/Streaming scrolling while audio is playing. Do not uninstall first. America A–F 5.1 was intentionally deferred for this pass.
+- Retrieve a fresh `Documents/Resonance-Diagnostics.log` after the physical runtime test and correlate `remote.player.queueConfigured`, `remote.player.finished`, `remote.player.boundary.end`, `remote.player.endFallback`, and seek `target`/`actual` details with the recording. Do not launch Resonance automatically or commit the copied diagnostics file.
+- If physical evidence exposes a new defect, make the next build narrowly targeted; the controlled fixture run did not justify changing `PlayerController.swift` or `GaplessAudioEngine.swift`.
+- Perform focused FLAC acceptance on build 59: play a normal stereo FLAC, a high-rate stereo FLAC if available, and the known 5.1 FLAC; confirm audible playback starts at normal speed, front/rear/center/LFE routing remains correct, seeking is accurate, and the next track starts. Retrieve the log and compare `sourceSampleRate`, `graphSampleRate`, `outputSampleRate`, `sourceFrames`, `duration`, `preparationMs`, and render-meter entries. If audio is still wrong, make the next build an explicit FLAC-only compatibility-player experiment to separate AVAudioEngine graph behavior from the system decoder.
+- Complete physical-device Lock Screen acceptance: previous/next must be the primary transport controls, in-app 15-second seek must remain available, and the system-owned output control must be documented and investigated only through supported Now Playing/MediaPlayer APIs.
+- Complete Streaming navigation-chrome acceptance: the white **Streaming Library** title must remain visible like the **Library** and **Settings** titles while the connection panel expands, collapses, and the catalog scrolls.
+- Complete compilation grouping acceptance in the **Artists** and **Album Artists** views with mixed album-artist metadata, including albums such as *Trigun: The First Donuts*; verify that regular artist catalogs remain separate and that each compilation appears once under **Various Artists**.
+- Complete build 55 physical-device acceptance: fixed Now Playing layout, mini-player top/bottom/side docking and restore without covering navigation or the tab bar, keyboard dismissal, audible local stereo/5.1 gapless, remote queue advance, accurate remote seeking, and the full Streaming Library title.
+- After playback and seek tests, retrieve `Resonance-Diagnostics.log` and verify `playback.gapless.prepared`, `playback.timer.gapless.end` meter/render-state details, and `playback.seek.begin`/completion events correlate with the user-visible behavior.
+- Re-run the cached-catalog, manual-change-check, artwork, settings-category, Streaming title, grouping, and long-idle performance checks after these runtime fixes.
+- Profile the deferred-diagnostics build on the physical device while switching tabs, scrolling Streaming, dragging the alphabet, and leaving playback stopped; inspect the diagnostics and system crash logs after any sluggishness or lockup. Complete local gapless acceptance and decide whether remote gapless can be implemented without regressing the single-item playback crash shield.
+
+## Device diagnostics
+
+Build 46 writes a bounded, privacy-safe playback and streaming interaction trace to:
+
+`Documents/Resonance-Diagnostics.log`
+
+The trace records lifecycle, playback-stage, timer, Now Playing, remote-catalog cancellation boundaries, connection-panel
+state, selected browse grouping/layout, and alphabet gesture/section-jump events. It does not record track names, local
+paths, server URLs, credentials, private music, or audio data. After manually reproducing a problem on the iPhone, the
+file can be copied from the app container with:
+
+```sh
+xcrun devicectl device copy from \
+  --device 9629DEED-EBF9-5835-B98A-9FAEC81CBDC6 \
+  --domain-type appDataContainer \
+  --domain-identifier com.example.ResonancePrototype \
+  --source Documents/Resonance-Diagnostics.log \
+  --destination /Users/brian/Resonance/diagnostics/Resonance-Diagnostics.log
+```
+
+## Handoff update — 2026-07-27
+
+The current checkout is `/Users/brian/Resonance/Resonance-Alpha-3.7.4` on
+`agent/alpha-3.7.4-source`. The source release commit is `5796010`, followed
+by handoff metadata commit `f50dd84`; it is prepared as the
+`Resonance-Beta-v1.0.2` Release Candidate 1 with version `0.3.7.4` and project
+build `102`. The release candidate source and documentation are pushed to
+GitHub; generated build logs remain local and are not release files.
+
+The pending changes move `RemoteDownloadOverlay` into the Streaming content
+flow with the existing 84-point title clearance, so the download banner sits
+below the “Streaming Library” navigation title instead of behind navigation
+buttons. A temporary DEBUG-only position preview was used in the simulator and
+removed before the final check; the non-downloading state uses `EmptyView` so
+it does not create a blank spacer.
+
+Online artwork saves now retain an app artwork override when an artist or album
+has no writable local audio file, refresh SwiftUI immediately, persist sidecar
+artwork, and keep the override after the metadata editor closes. Atmosphere was
+verified in the signed-in iPhone 17 Pro simulator: the override JSON and 600×600
+JPEG sidecar were present, and the artist page displayed the saved artwork.
+Artist sidecar persistence remains utility-priority and detached from the main
+actor to preserve the build-92 performance protection.
+
+The mixed-artist grouping requirement is implemented in both `LibraryStore` and
+`RemoteLibraryStore`. Album identity is normalized by album title and release
+year; an album with more than one distinct track artist is assigned to
+**Various Artists**, with all of its tracks kept together and regular albums
+left unchanged. Regression checks, including the deterministic split-album
+contract, and the clean Swift 6 simulator/generic-device preflight passed on
+this tree. The configured simulator also opened an existing Various Artists
+album and showed two differently credited tracks together; that verifies the
+runtime display path but is not a substitute for a fresh non-explicit fixture.
+The preflight retained the known non-blocking no-scheme/empty-destination and
+AppIntents metadata-skip warnings. The physical device was not launched or
+updated; a fresh representative mixed-artist runtime fixture remains the next
+manual check.
+
+The artwork workflow is now shared across artist, album, and individual-track
+editing. `ArtworkSearchService` queries Apple iTunes and MusicBrainz/
+Cover Art Archive candidates, scores them by normalized artist/album/title
+matches, and presents multiple choices in `OnlineArtworkSearchView`. The best
+available candidate starts selected with a red outline; selecting another card
+moves the outline, and failed image loads advance to the next candidate.
+Album and track app overrides now publish immediately, persist when local files
+are unavailable, and remain active after the metadata editor closes.
+
+Album detail views automatically offer the picker when no usable local or
+remote artwork is available. Streaming album selections are shown with the red
+override outline and are remembered by the download manager so the selected
+cover can be applied when downloaded. This uses the same candidate picker and
+apply/save callbacks as artist, album, and track artwork editing.
+
+Validation for this artwork update passed `Tools/RegressionChecks.sh`, the
+strict simulator build, and the warnings-as-errors iPhoneOS preflight. In the
+configured simulator, the album editor displayed multiple online candidates,
+marked the recommended candidate with a red outline, and applying a different
+candidate produced the expected Resonance metadata override. The physical
+device was not launched or updated.
+
+The app icon is concept 10 from the icon exploration sheet in
+`Assets.xcassets/AppIcon.appiconset/ToneVault-AppIcon-1024.png`: a simple yellow
+canary profile with yellow, cyan, and orange sound-wave ribbons on a charcoal
+background. The asset catalog references the 1024×1024 source as the universal
+iOS AppIcon. Asset-catalog compilation and visual inspection passed. The
+physical device was not updated.
+
+Artwork search refinement now sends artist, album artist, album name, and—when
+needed—individual song title metadata to the providers. Candidates are filtered
+unless the returned artist/album-artist identity and album title are credible
+matches, while multiple strong versions from the providers remain available for
+selection. If album-level results fail but a song-level query produces usable
+art, the first valid image is cached under the album identity and promoted to
+the artist identity, so every song row, the album, and the artist display the
+same artwork. The existing red-outline preference applies to these automatic
+fallbacks.
+
+The refined search passed `Tools/RegressionChecks.sh`, the strict simulator
+build, and simulator build/install/launch. The physical device was not updated.
+
+The Streaming artwork display is now driven by one `RemoteArtworkContext` in
+`StreamingLibraryView.swift`. Track, album, artist, and playlist models create
+the context once; grid tiles, list rows, detail heroes, and track rows all pass
+that same context to the shared `RemoteArtwork` resolver. The context carries
+all available direct artwork sources from related tracks, deduplicated and
+bounded to twelve candidates, before falling back to the shared online search
+cache. This removes repeated metadata wiring and prevents one layout from
+silently omitting album/artist fallback metadata.
+
+The context refactor was validated with `Tools/RegressionChecks.sh`, the strict
+warnings-as-errors simulator build, simulator installation/launch, and manual
+navigation through the signed-in Streaming tab's Atmosphere artist and Se7en
+album. The known non-blocking no-scheme destination and AppIntents metadata-skip
+warnings remain. The physical device was not updated or launched.
+
+Album artwork editor persistence was verified for the local Bob Marley / Catch A
+Fire album in the configured simulator. The Search Online Artwork callback and
+the editor's final Save now both retain the selected sidecar-backed artwork
+override for every album track, even when the MP3 tag writer succeeds but the
+immediate AVFoundation rescan does not expose its APIC frame. Track artwork
+override persistence is synchronous before the editor dismisses, and the
+privacy-safe `library.metadata.albumSave` diagnostic records the preservation
+decision and write counts. The final Save, app relaunch, override JSON, sidecar
+files, and visible album/track artwork all passed. The physical device was not
+updated or launched.
+
+Streaming album artwork now uses the same authoritative fallback principle. The
+shared `RemoteArtwork` resolver searches credible artist/album candidates before
+accepting a server-provided cover image for album and track contexts. This is
+important for Navidrome catalogs where a `coverArtID` can resolve to a generic
+blue-disc placeholder even though the album has no usable artwork. Direct server
+art remains the fallback when online search cannot produce a valid image, and
+server placeholders are no longer seeded into the automatic-art cache. The
+configured simulator showed Catch A Fire's album grid tile, album hero, and
+track rows using the selected online cover with the red warning outline. The
+physical device was not updated or launched.
+
+The streaming artist fallback now searches the distinct albums represented by
+the artist's tracks when an artist-only query has no credible result. This fixes
+catalogs such as Atmosphere, where the Se7en album search succeeds but the
+artist-only search does not: Se7en's artwork is now promoted through the shared
+resolver to the Atmosphere artist tile, hero, and All Albums tile. The automatic
+art remains marked with the red outline when that preference is enabled. The
+fix passed `Tools/RegressionChecks.sh`, the strict warnings-as-errors simulator
+build, and manual simulator verification of Atmosphere > Se7en. The physical
+device was not updated or launched.
+
+The current source was then built and signed for the physical device with
+development team `98CWMFS26R`, verified with strict code-signature checks, and
+installed in place on `SaiyanDenwa` using `devicectl`. The device reports bundle
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `101`. The app was
+not launched; no playback or physical-device runtime acceptance was performed.
+
+The local Albums library now uses the shared vertical alphabet index for both
+grid and list layouts. Album titles are grouped into the same numeric, Roman,
+Unicode, and punctuation sections used by artist browsing, and the index jumps
+to `album-section-*` anchors while preserving ascending or descending order.
+Streaming artwork warnings now distinguish searched fallback art from a stream
+that already provides artwork: existing server/file artwork is not outlined in
+red or overwritten by an automatic cache entry. `Tools/RegressionChecks.sh`
+passed, the strict warnings-as-errors simulator build passed, and the configured
+simulator showed the local Albums index and the Streaming index without red
+outlines around existing artwork. The physical device was not updated or
+launched.
+
+Feature-complete turning point — Resonance Beta v1.0.2
+--------------------------------------------------------------------------
+
+The repaired library, streaming artwork inheritance/search, artwork editing,
+download workflow, artwork provenance warnings, alphabet navigation, tab
+transitions, hierarchy swipes, and interface polish are now considered complete
+for the Beta v1.0.2 build. The user reports that all installed features are
+fully functional. Preserve the current module boundaries and working behavior;
+the next phase is limited to a small set of interface-polish improvements.
+
+## Streaming gapless experiment — 2026-07-27
+
+The signed-in simulator reproduced the current remote boundary on Tool / 10,000 Days. The stable path logs a completed
+`AVPlayer` item followed by a new remote playback request, which explains the audible interruption. The existing
+dual-`AVPlayer` preloader was enabled only in a temporary simulator build; it reported a ready preloaded item and an
+`advanced` boundary, but it was not accepted as a gapless fix. A DEBUG-only test then sought directly to five seconds
+before the end (`421.684` of `426.684` seconds, and `443.627` of `448.627` seconds on the next track); the remote
+session did not produce a reliable boundary completion after that seek. The DEBUG-only seek hook was removed. The
+old dual-player flag was later disabled after the sample-contiguous experiment replaced it.
+
+Apple's documented behavior indicates that true sample-contiguous remote playback requires one continuous timeline:
+an appropriately authored HLS/fMP4 stream, or a client-side streamed decode into one PCM scheduling/rendering path.
+Separate raw Subsonic file URLs and separate `AVPlayer` instances cannot guarantee that property. Do not treat the
+phone experiment as a verified release fix. The exact next implementation point remains a new playback-only remote
+sample pipeline, with local `GaplessAudioEngine`, artwork, navigation, and interface modules left unchanged.
+
+## Remote sample-contiguous playback experiment — 2026-07-27
+
+The current playback-only experiment now downloads the current and next
+same-album remote tracks into `Library/Caches/RemoteGapless`, validates that
+their decoded sample rate and channel count match, and schedules both through
+the existing single-node `GaplessAudioEngine`. The older dual-`AVPlayer`
+experiment is disabled. The sample-contiguous path is enabled in simulator and
+device builds; different albums, incompatible decoded formats, failed
+preparation, and missing next tracks retain the existing remote fallback.
+
+The signed-in simulator cached two Tool tracks, prepared 44.1 kHz stereo audio,
+and recorded `remote.gapless.prepared` followed by
+`playback.gapless.boundary.end result=advanced`. The simulator then showed the
+next track playing. This verifies the shared decoded timeline and boundary
+control flow, but it still requires both tracks to download before playback
+starts and is not yet a low-latency streaming architecture.
+
+Validation passed `Tools/PreflightBuild.sh`, `Tools/RegressionChecks.sh`,
+`git diff --check`, strict Debug simulator compilation, signed arm64 Release
+compilation, and strict deep code-signature verification. The known no-scheme
+destination, harmless AppIntents metadata-skip, and stale prior `/tmp` build
+artifact warnings remained non-blocking. The signed build was installed in
+place on `SaiyanDenwa` as bundle `com.example.ResonancePrototype`, version
+`0.3.7.4`, build `101`; the phone was not launched.
+
+Manual phone test: start a same-album remote pair, seek to approximately five
+seconds before the first track ends, and listen for truncation or a residual
+gap. Also test a different-album transition, preparation cancellation/restart,
+and a failed remote download. Do not treat the experiment as fully accepted
+until audible phone behavior is confirmed.
+
+## Device runtime log review — 2026-07-27 UTC
+
+The installed build's credential-free device diagnostics were copied after a
+manual runtime session. The log recorded three successful sample-contiguous
+preparations: one stereo pair decoded at 44.1 kHz and two six-channel pairs
+decoded at 96 kHz. Each preparation published a nonzero gapless render meter;
+the stereo pair and both six-channel pairs reached
+`playback.gapless.boundary.end result=advanced`. A different-album transition
+reported `preloadedTarget=false`, used the normal remote fallback, and did not
+change the local engine path.
+
+This confirms device-side preparation, rendering, and boundary control flow,
+but not audible zero-gap behavior or channel-routing correctness. The log has
+no user listening result or recording correlation, and it does not yet prove
+preparation cancellation/restart or failed-download recovery. The physical
+app was not relaunched or reinstalled by this review; build 101 remains the
+installed package, and the current working tree still contains the intentional
+uncommitted experiment plus the local Albums/artwork-provenance changes.
+
+Next continuation: obtain the user's audible result or a time-correlated
+recording for the stereo and six-channel boundaries, then test cancellation
+and restart during the two-file preparation and an unreachable/failed remote
+download. Keep the sample path experimental until those results are known.
+
+## Remote album preload continuation — 2026-07-27 UTC
+
+The sample-contiguous remote path previously prepared only the initial two
+same-album tracks. At the second-track boundary, its continuation scheduler
+used the local-file preload check, so the third remote album track was not
+scheduled and the UI reported end of queue. `PlayerController` now downloads
+the next same-album remote track into the existing gapless cache while the
+current track plays, appends it to the same `GaplessAudioEngine` timeline, and
+repeats that process after every album boundary. A late or failed continuation
+preload falls back to normal next-track loading rather than stopping playback.
+
+`Tools/RegressionChecks.sh`, strict simulator preflight, and strict generic
+device preflight passed. A fresh Debug simulator build was installed in place
+on the booted iPhone 17 Pro simulator; it was not launched automatically. The
+physical phone was not changed or launched. Known no-scheme destination and
+AppIntents metadata-skip warnings remain non-blocking.
+
+Manual simulator test: launch the installed app, play an album with at least
+four remote tracks, and verify playback continues from track two through the
+remaining album tracks without an end-of-queue state. Also test a slow or
+interrupted next-track download and confirm it loads normally, then verify the
+final album boundary and a different-album transition.
+
+## Previous-track preload restart — 2026-07-27 UTC
+
+Pressing Previous could reopen a cached earlier album track through the local
+gapless path while its remote successor was not cached. That path then showed
+`End of queue` because it only considered local preload candidates. It now
+detects the remote same-album successor immediately, starts the continuation
+download again, and reports ordinary next-track loading for real non-gapless
+queue successors instead of mislabeling them as the end.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. The updated Debug build was installed in the booted iPhone
+17 Pro simulator and was not launched automatically. The physical phone was
+not changed or launched.
+
+## Artist album alphabet indexes — 2026-07-27 UTC
+
+Local `ArtistDetailView` and Streaming `RemoteArtistDetailView` now group
+albums into title-letter sections and expose the same right-side
+`VerticalArtistIndex` used by the main Library and Streaming album browsers.
+The index works in both grid and list layouts, scrolls the artist's album
+content to the selected letter, leaves the All Albums entry at the top, and
+keeps the existing album sort order within each letter section.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on the
+booted iPhone 17 Pro simulator; it was not launched automatically. The
+physical phone was not changed or launched.
+
+Manual simulator test: open an artist with albums spanning several letters in
+Library and Streaming, verify the right-side index appears in grid and list
+layouts, tap and drag across letters, and confirm normal album taps and
+scrolling still work.
+
+## Alphabet index direct-tap commit — 2026-07-27 UTC
+
+The shared `VerticalArtistIndex` now commits the final touch location in
+the drag gesture's `onEnded` callback as well as during `onChanged`. This
+makes a direct tap on an earlier alphabet letter reliably scroll back to
+that section after the content has been scrolled down. Dragging through
+letters remains supported across Library, Streaming, local artist album
+views, and Streaming artist album views.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: scroll deep into Library, Streaming, a local artist
+album view, and a Streaming artist album view; tap an earlier letter
+directly and then drag across letters, confirming both jump directions.
+
+## Alphabet index release retry — 2026-07-27 UTC
+
+Simulator diagnostics showed that the first touch emitted the selection and
+`scrollTo` request during `DragGesture.onChanged`, but the release path did
+not reissue the callback because the selected key was already recorded. The
+shared index now repeats the final scroll after yielding to the main actor
+when the gesture ends. This lets the scroll view finish its touch handling
+before the direct-tap jump is applied, while preserving continuous dragging.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: from a deep section, tap an earlier letter once in
+Library, Streaming, a local artist album view, and a Streaming artist album
+view. Repeat with forward jumps and drag gestures.
+
+## Hex channel sliders — 2026-07-27 UTC
+
+The RGB hex editor keeps its intentional 80% visual width but no longer
+relies on the native Slider's hidden thumb insets while drawing separate
+hex-nibble tick marks. Each channel now uses an explicit track and thumb
+geometry, maps the complete visible track directly to 0...255, and exposes
+matching accessibility values and increment/decrement actions. This removes
+visual tick/indicator drift and prevents the value mapping from depending on
+platform Slider geometry.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: in Settings → Appearance, select Red, Green, and
+Blue fields; tap and drag each custom slider from both endpoints through
+the nibble marks, confirm exact 00/FF endpoints and intermediate values,
+edit the two-character fields, switch palettes, and relaunch to confirm
+the combined six-character accent persists.
+
+## Tappable volume slider — 2026-07-27 UTC
+
+The Now Playing volume control now uses the same explicit track geometry as
+the RGB channel controls. Tapping anywhere along the visible volume bar sets
+the value immediately, and dragging continues to update it across the full
+0...1 range. Accessibility exposes the percentage and five-percent
+increment/decrement adjustments.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on
+the booted iPhone 17 Pro simulator; it was not launched automatically.
+The physical phone was not changed or launched.
+
+Manual simulator test: open Now Playing, tap at several positions on the
+volume bar without grabbing the thumb, drag from both endpoints, confirm the
+speaker icons and volume response, and verify accessibility adjustments.
+
+## Tab persistence, bottom mini-player, and play navigation — 2026-07-27 UTC
+
+The mini-player now defaults to bottom docking. The root retains a separate
+NavigationStack for Playing, Library, Streaming, and Settings inside a hidden
+native TabView while the existing themed tab bar remains visible. Switching
+from Library or Streaming to Settings or Playing therefore preserves the
+selected detail page and its scroll position when returning. Explicit local
+and remote play requests emit a low-frequency presentation event that selects
+the Playing tab immediately; automatic track changes do not switch tabs.
+
+Regression checks, strict simulator preflight, and strict generic-device
+preflight passed. A fresh Debug simulator build was installed in place on the
+iPhone 17 Pro simulator. Runtime testing was stopped at the user's request
+after confirming a local detail page survived a Settings → Library switch; the
+play-navigation and bottom-docking checks remain for manual testing. The
+physical phone was not changed or launched.
+
+Manual test: confirm the mini-player opens at the bottom; scroll or open a
+local and Streaming detail page, visit Settings or Playing, and return to
+verify the same page and position. Tap Play on local and remote track, album,
+artist, and playlist controls and confirm the Playing tab opens immediately.
+Confirm automatic next/previous playback does not unexpectedly change tabs.
+
+## Disable top-of-list bounce — 2026-07-27 UTC
+
+Resonance now disables UIKit scroll-view bouncing app-wide, including vertical
+page and list surfaces. Swiping downward from the top no longer translates the
+content and springs it back; horizontal scrolling remains available for
+horizontal controls and names.
+
+Regression checks, `git diff --check`, and an XcodeBuildMCP simulator build and
+install passed. The simulator was not launched after installation, and the
+physical phone was not changed.
+
+Manual test: on Library, Streaming, artist/album detail, Settings, and Now
+Playing lists, drag downward from the top edge and confirm the content stays
+stationary instead of bouncing. Confirm ordinary vertical scrolling and
+horizontal name/control scrolling still work.
+
+## Streaming All Albums themed background — 2026-07-27 UTC
+
+The Streaming All Albums collection now owns the shared themed backdrop, so
+its album grid/list no longer exposes the default black scroll surface.
+
+Regression checks, `git diff --check`, XcodeBuildMCP simulator build, and
+in-place simulator installation passed. The simulator was not launched and
+the physical phone was not changed.
+
+Manual test: open Streaming → Albums → All Albums in each visual theme and
+confirm the grid and list backgrounds match the rest of the themed interface.
+
+## Isolate inactive tab content — 2026-07-27 UTC
+
+The retained Playing, Library, Streaming, and Settings navigation stacks now
+live in a layered ZStack. Only the selected page is opaque, hit-testable, and
+accessible; inactive pages are fully transparent and non-interactive. This
+prevents the Playing scrubber/time bubble from appearing over other tabs or
+blocking their controls while preserving each tab's navigation position.
+
+Regression checks, `git diff --check`, XcodeBuildMCP simulator build, and
+in-place simulator installation passed. The simulator was not launched and
+the physical phone was not changed.
+
+Manual test: start playback, switch among Library, Streaming, and Settings,
+and confirm the Playing scrubber is absent and all controls remain tappable;
+return to Playing and confirm its scrubber remains usable.
+
+## Transparent Streaming All Albums track list — 2026-07-27 UTC
+
+The Streaming All Albums track list now applies clear backgrounds to both the
+Play All Albums row and every track row, allowing the active theme backdrop to
+show through instead of the default black list surface.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Streaming → Albums → All Albums and confirm the Play All
+Albums row and track list are transparent in each visual theme.
+
+## Library All Albums theme parity — 2026-07-27 UTC
+
+The local Library All Albums track list now uses the same transparent row and
+themed-surface treatment as Streaming All Albums. The Play All Albums row,
+track rows, and artist header no longer use opaque black or system-bar grey
+backgrounds.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Library → an artist → All Albums in each visual theme and
+confirm the header, Play All Albums row, and track list match Streaming.
+
+## Interactive horizontal tab transitions — 2026-07-27 UTC
+
+The retained tab pages now support an app-switcher-style horizontal swipe.
+Dragging left or right reveals the adjacent page and moves the complete page
+surface with the finger; releasing past the threshold completes the tab change
+with a short eased transition. Vertical drags and nested vertical scrolling do
+not switch tabs, and each tab's navigation state remains retained.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: swipe left and right across Library, Streaming, Settings, and
+Playing; confirm the whole page moves together, edge tabs resist the swipe,
+vertical scrolling remains normal, and returning to a tab preserves its page.
+
+## Hex slider keyboard focus — 2026-07-27 UTC
+
+Touching or dragging an RGB hex slider now focuses the selected two-character
+hex field and presents its ASCII keyboard. Slider changes continue updating
+the selected channel, while the field's Done accessory remains available for
+dismissing the keyboard.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Settings → Appearance, tap and drag each RGB slider, confirm
+the keyboard appears, edit the selected two-character value, and use Done to
+dismiss it.
+
+## Playing gesture ownership — 2026-07-27 UTC
+
+Now Playing keeps horizontal album-art swipes dedicated to previous/next track
+paging. The seek and volume sliders take priority for scrubbing, while a
+horizontal swipe on the remaining page surface drives the adjacent-tab
+transition. This prevents the tab animation from stealing album-art or slider
+gestures.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: on Playing, swipe the artwork left/right to change tracks, drag
+the seek and volume bars, and swipe elsewhere on the page to move between tabs.
+
+## Preserve track-list horizontal actions — 2026-07-27 UTC
+
+The horizontal tab transition is now a lower-priority page gesture rather than
+a simultaneous gesture. Track-list rows and list scrolling therefore retain
+ownership of horizontal touches for Edit Metadata, Play Next, Add to Queue,
+and playlist actions; page swiping remains available above the track list.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: in local and Streaming track lists, swipe a row and use metadata,
+queue, and playlist actions; then swipe above the list to change tabs.
+
+## Keep hex keyboard visible — 2026-07-27 UTC
+
+Hex field and slider focus now clears Settings’ page-level keyboard-dismiss
+state before presenting the custom field keyboard. The Done accessory no longer
+leaves the editor with no keyboard, and the keyboard remains interactively
+dismissable by swiping down.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: open Settings → Appearance, tap a hex field and each RGB slider,
+confirm the keyboard remains visible, swipe it down to dismiss, and repeat.
+
+## Restore track-list artwork tab swipes — 2026-07-27 UTC
+
+Track-list album artwork in local Album/All Albums views and Streaming album,
+All Albums, and playlist views now has a scoped horizontal tab-swipe gesture.
+The page transition can begin from the artwork thumbnail again, while the rest
+of each row remains available for metadata, Play Next, Add to Queue, and
+playlist swipe actions.
+
+Regression checks, `git diff --check`, simulator build, and in-place simulator
+installation passed. The simulator was not launched and the physical phone
+was not changed.
+
+Manual test: in local and Streaming Album and All Albums track lists, swipe on
+the album artwork to change tabs; swipe on the text/action area to confirm the
+row actions still work.
+
+## Directional hierarchy navigation — 2026-07-27 UTC
+
+Horizontal swipes continue to move to the corresponding adjacent tab. A
+predominantly downward swipe now dismisses the active detail level throughout
+the local and Streaming artist, album, and all-albums surfaces: tracks return
+to the album/artist collection, and album collections return to the artist
+view. The vertical gesture is simultaneous with list scrolling and does not
+claim horizontal row actions.
+
+Regression checks, `git diff --check`, and the signed phone build/install
+passed. The phone app was not launched.
+
+Manual test: swipe left and right on Library, Streaming, and Settings to reach
+the corresponding tabs; in an album, All Albums, or artist detail surface,
+swipe downward from the content area and confirm it returns exactly one level.
+
+## Library hierarchy presentation direction — 2026-07-27 UTC
+
+Library and Streaming artist and album detail destinations now use full-screen
+hierarchy presentations. Selecting an artist or album brings the detail module
+up from the bottom; dismissing tracks back to albums or albums back to artists
+moves the module downward. The retained horizontal animation between Playing,
+Library, Streaming, and Settings is unchanged.
+
+Regression checks, `git diff --check`, strict simulator and generic-device
+preflight passed. The next Debug simulator build is for manual animation
+acceptance; the physical phone is not launched automatically.
+
+Manual test: select an artist and album in Library and Streaming, confirm each
+detail page enters from the bottom, then swipe downward or use Back and confirm
+the prior list moves down into place. Verify tab swipes still move the complete
+Playing, Library, Streaming, and Settings pages horizontally.
+
+## Interactive horizontal tab gesture repair — 2026-07-27 UTC
+
+The horizontal tab transition now begins after a short five-point movement and
+uses a simultaneous root recognizer so nested scrolling and detail surfaces do
+not frequently cancel it. Directional locking requires a clearly horizontal
+drag, and the selected page follows the finger continuously; releasing below
+the transition threshold commits the adjacent tab, while dragging back and
+releasing cancels to the original position.
+
+Regression checks, `git diff --check`, strict simulator and generic-device
+preflight, signed phone build, and in-place phone installation passed. The
+physical app was not launched automatically.
+
+Manual test: from each of Playing, Library, Streaming, and Settings, begin a
+horizontal drag and confirm the whole page follows the finger. Return the
+finger near its starting point and release to cancel; repeat with a longer
+drag to commit the adjacent tab. Confirm vertical scrolling and track-row
+actions remain unaffected.
+
+## Prototype status completion — 2026-07-27 UTC
+
+The Settings → Prototype Status list now marks Online artwork search complete,
+identifies its Apple and MusicBrainz / Cover Art Archive sources, and reports 100% stage
+completion.
+
+## Detail-module bottom navigation — 2026-07-27 UTC
+
+Local and Streaming artist, album, and All Albums detail modules now use the
+same environment-backed bottom navigation bar as the four retained root tabs:
+Playing, Library, Streaming, and Settings. Selecting a tab from a detail module
+dismisses any open detail layer and switches to the requested retained tab.
+
+Regression checks, diff validation, and an XcodeBuildMCP simulator build and
+install passed. The simulator detail surfaces exposed all four tab buttons;
+the physical phone was not changed or launched.
+
+## Restore detail hierarchy swipe with bottom navigation — 2026-07-27 UTC
+
+The shared detail navigation shell now attaches the downward hierarchy gesture
+to the detail content before adding the bottom tab bar as a safe-area inset.
+Artist, album, and All Albums content follows the finger and dismisses back to
+the previous level, while the Playing/Library/Streaming/Settings bar remains
+docked at the bottom.
+
+Regression checks and the simulator build passed. Simulator interaction
+confirmed an artist detail downward drag dismisses back to Library; the
+physical phone was not changed or launched.
+
+## Restore detail navigation bars — 2026-07-27 UTC
+
+Full-screen local and Streaming artist, album, and All Albums presentations
+now wrap their detail content in a `NavigationStack`, allowing the existing
+SwiftUI toolbar items to render again. Artist details include Back, view
+options, and playlist controls; album details include Back and album actions;
+Streaming artist details expose matching view options and playlist access.
+
+Regression checks and the simulator build passed. The simulator showed the
+restored artist Back/options controls; the physical phone was not changed or
+launched.
+
+## Play actions open Playing — 2026-07-27 UTC
+
+Every explicit play request now selects the Playing tab immediately. Detail
+modules also select Playing and dismiss their full-screen presentation when a
+play request arrives, so playback started from an artist, album, All Albums, or
+track list cannot remain hidden behind the detail layer.
+
+The Debug simulator build and in-place simulator install passed. The simulator
+was not launched or interacted with; the physical phone was not changed.
+
+Manual test: start playback from each local and Streaming entry point and
+confirm the app immediately shows Playing.
+
+## Mini-player on detail modules — 2026-07-27 UTC
+
+The shared detail navigation shell now includes the same mini-player used by
+the root tabs. Artist, album, and All Albums modules inherit the current
+top/bottom or side-docked position, controls, Playing-tab action, and bottom
+navigation without changing their hierarchy swipe behavior.
+
+The Debug simulator build/install and signed Release phone build/in-place
+install passed. Neither device was launched or interacted with.
+
+## Complementary theme text colors — 2026-07-27 UTC
+
+Each visual theme now uses a complementary text accent hue, chosen from the
+opposite side of the color wheel from its background artwork. Secondary labels,
+inactive tab text, status text, alphabet indexes, and section labels use matching
+complementary variants. Existing theme control tints and custom hex behavior are
+unchanged; when Apply theme color to text is enabled, themed text uses the new
+complementary palette.
+
+`git diff --check`, the Debug simulator build, and in-place simulator
+installation passed. The simulator was not launched or interacted with, and the
+physical phone was not changed.
+
+Manual test: in Settings → Appearance, enable Apply theme color to text and
+switch through every visual theme. Confirm text, alphabet indexes, inactive tab
+labels, and status labels contrast with the background image while controls keep
+their existing themed tint.
+
+## Psychedelic neon-yellow text — 2026-07-27 UTC
+
+The Psychedelic theme's complementary primary and secondary text colors are now
+`F4FF00`, producing a vivid neon yellow against its ultraviolet background.
+
+The strict simulator/device preflight, signed arm64 Release build, deep
+code-signature verification, and in-place installation on SaiyanDenawa passed.
+The phone reports version 0.3.7.4/build 102. The requested launch was attempted,
+but iOS denied it because the phone was locked; no runtime interaction occurred.
+
+Manual test after unlocking the phone: open Settings → Appearance, select
+Psychedelic, enable Apply theme color to text, and confirm the text, alphabet
+indexes, inactive tab labels, and status labels use the neon-yellow treatment.
+
+## Beta v1.0.2 Release Candidate 1 — 2026-07-27 UTC
+
+Build 102 is the Beta v1.0.2 Release Candidate 1. It includes the selectable
+hero-button skins and live current-track artwork in the Appearance previews,
+the borderless and more spacious artwork/button hero modules, corrected hex
+slider marker alignment, and the complete interface-polish work documented
+above.
+
+Validation passed: `Tools/RegressionChecks.sh`, Swift parsing, plist/project
+validation, strict simulator and generic-device preflight, signed arm64
+Release compilation, deep code-signature verification, and in-place install on
+SaiyanDenawa. `devicectl` verified version `0.3.7.4`, build `102`. The phone
+was not launched. The source and documentation are pushed to commit `5796010`
+on `agent/alpha-3.7.4-source` on GitHub.
+
+Manual release-candidate checklist: on the phone, open Settings → Appearance
+and verify all four hero-button styles and both current-track artwork previews;
+check the hex markers against `00`, `10`, `A0`, and `F0`; inspect local and
+Streaming artist/album heroes; and verify existing playback, navigation, and
+scrolling behavior remains intact.
+
+## Appearance hero-button styles — 2026-07-27 UTC
+
+Appearance now includes a persisted Hero buttons picker with four transparent
+styles: Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent. The
+shared hero action component applies the selection to the fixed-size controls
+around local and Streaming album artwork without changing their layout,
+positions, or touch actions. A live preview using the same arrangement appears
+immediately below the picker. Existing users default to Soft Glass.
+
+The Swift parser, diff checks, and repository regression checks passed. The
+Debug simulator build and in-place install passed on the configured iPhone 17
+Pro simulator. The simulator was not launched or interacted with, and the
+physical phone was not changed.
+
+Manual test: open Settings → Appearance, select each Hero buttons style, then
+open local and Streaming artist/album detail pages. Confirm the four action
+buttons keep their current positions and sizes, remain readable over every
+theme, and retain their normal tap, long-press, and accessibility behavior.
+
+## Remove hero-surface outline — 2026-07-27 UTC
+
+Removed the 1px accent outline around the shared artwork-and-hero-button module
+on local and Streaming artist and album detail pages. The transparent themed
+surface, button skins, layout, and controls remain unchanged.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Correct hex slider track alignment — 2026-07-27 UTC
+
+The hex slider track layer now shares the marker row’s explicit full-width,
+leading-aligned coordinate frame. This removes the extra thumb-radius shift
+that placed the visible track to the right of its `0`–`F` markers.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator Settings UI
+was opened and visually inspected: the `50` thumb aligned with the `5` marker,
+and the `0` and `F` markers aligned with the `00` and `F0` track positions.
+The physical phone was not changed.
+
+## Current-track artwork in Appearance previews — 2026-07-27 UTC
+
+The Live Theme Preview and Hero button preview in Settings → Appearance now
+show artwork from the currently playing track when available. They retain the
+existing placeholder artwork when playback is idle or the track has no artwork,
+and both previews use the shared artwork loading and override path.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Align hex slider nibble markers — 2026-07-27 UTC
+
+RGB hex slider markers now use explicit byte positions: 0 aligns with `00`, 1
+with `10`, through F aligning with `F0`. The marker row uses the same explicit
+80%-width coordinate space as the slider track, including the thumb insets.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Increase hero-button spacing — 2026-07-27 UTC
+
+The horizontal gap between the artwork and adjacent hero-button columns is now
+16 points in local and Streaming artist and album detail heroes, up from 12
+points. Artwork size, button size, positioning, and actions are unchanged.
+
+Tools/RegressionChecks.sh, Swift parsing, git diff --check, the Debug simulator
+build, and in-place simulator installation passed. The simulator was not
+launched or interacted with, and the physical phone was not changed.
+
+## Settings swipe-safe theme selection and tighter category spacing — 2026-07-27 UTC
+
+Settings visual-theme cards and accent palette buttons now use the shared
+swipe-aware button style and horizontal-swipe suppression guard. A horizontal
+navigation swipe therefore cannot accidentally select a theme or accent; a
+stationary tap still performs the selection. Settings category rows also use
+smaller vertical insets and row spacing so the disclosure controls sit closer
+together.
+
+The Debug simulator build and in-place simulator install passed. The
+simulator was not launched or interacted with, and the physical phone was not
+changed.
+
+The live Connection status now appears immediately below Test Connection. The
+Debug simulator was rebuilt and the updated app was installed in place
+successfully; it was not launched or interacted with.
+
+Connection failures now render the status value in bold red using the shared
+remote-store failure detection. Healthy, cached, and in-progress states retain
+the themed text styling. The Debug simulator was rebuilt and the updated app
+was installed in place successfully; it was not launched or interacted with.
+
+## Settings playback organization — 2026-07-27 UTC
+
+The empty Library disclosure was removed. Playback is now organized under
+titled Library, Shared Playback, and Streaming Library subsections. Local
+preload settings and details are under Library; common engine, lock-screen,
+and audio-routing information is under Shared Playback; streaming buffer
+settings and network-buffer information are under Streaming Library.
+Connection configuration remains in the separate Streaming Library disclosure.
+
+The preflight, signed Release device build, deep code-signature verification,
+and in-place installation on SaiyanDenawa passed. The installed app reports
+version 0.3.7.4, build 101. The physical phone was not launched or
+interacted with.
+
+## Remove outdated streaming gapless notice — 2026-07-27 UTC
+
+Removed the Settings message that said streaming gapless playback was
+disabled during alpha testing. No build or device validation was performed for
+this source-only text change.
+
+## Label Streaming API path — 2026-07-27 UTC
+
+The Streaming Library path field now has a persistent “API path” label when
+using Subsonic, so a filled `/rest` value remains clearly identified. Manifest
+backends use the corresponding “Manifest path” label.
+
+No build or device validation was performed for this source-only layout change.
+
+Manual test: swipe across Settings, including over theme cards and accent
+colors, and confirm no appearance setting changes; then tap a card or color
+normally and confirm it still applies.
+
+The Settings disclosure spacing was subsequently reduced by half: list-row
+spacing is 2 points, category vertical padding is 1.5 points, and category
+row insets are 1 point vertically. The Debug simulator build and in-place
+simulator install passed; the simulator was not launched or interacted with.
+
+The Form section spacing was then reduced to 4 points as well, which controls
+the visible gap between Appearance, Playback, Streaming Library, and the other
+disclosure sections. The Debug simulator was rebuilt and the updated app was
+installed in place successfully; it was not launched or interacted with.
+
+## Streaming connection controls moved to the top — 2026-07-27 UTC
+
+Within the Streaming Library disclosure, the server address, port, transport
+and API fields, Subsonic credentials, and connection actions now appear before
+buffer, catalog status, and other secondary streaming details. The action
+behavior and validation rules are unchanged.
+
+The Debug simulator build and in-place simulator install passed. The
+simulator was not launched or interacted with, and the physical phone was not
+changed.
+
+## Playing gesture arbitration and alphabet accent colors — 2026-07-27 UTC
+
+Playing no longer receives the root tab recognizer while its dedicated upper
+content gesture is active. The album-art pager keeps ownership of artwork
+drags, preventing the page transition from stuttering or bouncing against an
+invisible ancestor gesture. The right-side alphabet index and alphabetical
+section labels now use the active theme text accent, including a committed
+custom hex accent.
+
+The signed Release phone build and in-place install passed. The physical phone
+was not launched or interacted with.
+
+Manual test: on Playing, drag the upper metadata area and confirm the page
+follows the finger smoothly; swipe album art to change tracks; verify the seek,
+volume, and lower controls do not navigate tabs. In Library and Streaming,
+confirm the index letters and section labels use the selected theme or hex
+accent color.
+
+## Non-overlapping Playing swipe regions — 2026-07-27 UTC
+
+Playing now has an explicit tab-swipe zone between the album-art pager and the
+track seek bar. Clear insets keep that zone separate from both the album-art
+track pager and the seek bar, so horizontal navigation cannot steal either
+gesture.
+
+No build or device validation was performed for this change. Manual
+continuation: swipe in the metadata gap to change tabs, swipe album art to
+change tracks, and confirm swipes on the seek bar do not change tabs.
+
+## Restore detail list scrolling — 2026-07-27 UTC
+
+The shared top-down hierarchy gesture now recognizes simultaneously with the
+detail content instead of taking high-priority ownership of the entire module.
+Its top-origin and vertical-direction guards keep navigation confined to the
+upper detail surface, so album and song Lists/ScrollViews retain their normal
+vertical scrolling.
+
+Regression source validation, the Debug simulator build/install, signed
+Release phone build, code-signature verification, and in-place phone install
+passed. Neither device was launched or interacted with.
+
+Manual test: scroll album grids, album track lists, All Albums track lists,
+and Streaming detail lists normally; swipe downward from the upper detail
+surface and confirm it still dismisses one hierarchy level.
+
+Manual test: with a track playing, open local and Streaming artist, album, and
+All Albums modules. Confirm the mini-player remains visible and its controls,
+docking, Playing action, and hierarchy swipes remain usable.
+
+## Continuous alphabet grids — 2026-07-27 UTC
+
+Library and Streaming alphabetized grid surfaces now use the shared
+`ResonanceAlphabetGrid` layout. Section boundaries no longer reset a nested
+grid, so a new artist or album can occupy the remaining cell on the current
+row. Letter labels remain attached to section starts and the alphabet index
+continues to scroll to those tiles. Non-grid list layouts and non-alphabetized
+track grids are unchanged.
+
+The Debug simulator build and in-place simulator install passed. The simulator
+was not launched or interacted with, and the physical phone was not changed.
+
+Manual test: switch Library and Streaming Artists, Albums, and artist-detail
+album views to Grid, then confirm tiles continue across letter boundaries and
+the right-side alphabet still lands on each letter.
+
+## Streaming alphabet touch probe — Beta 2.0 build 268 — 2026-08-01
+
+The Streaming root now records credential-free `streaming.alphabetProbe.begin` and `.end` events for left-edge touches
+through a simultaneous, non-owning gesture observer. The probe records only start/end coordinates and sample counts,
+so it can distinguish a touch that reaches the Streaming container but never reaches `VerticalArtistIndex` from one
+that reaches the alphabet and produces a section jump. It does not claim the gesture or change scrolling behavior.
+
+The signed 2.0/268 build was installed in place on `SaiyanDenwa`; Codex did not launch it. With Reported Errors →
+Debugging Mode enabled, reproduce the failure in Streaming Artists and Albums, including touches on the visible letters,
+the far-left edge, and just to the right of the strip. Copy `Documents/Resonance-Diagnostics.log` afterward.
+
+## Match local alphabet scroll dispatch — Beta 2.0 build 268 — 2026-08-01
+
+The Streaming Artists, Albums, and artist-album alphabet handlers now call `ScrollViewProxy.scrollTo` directly, matching
+the local Library implementation. Streaming previously wrapped every drag update in a new animation, allowing rapid
+alphabet updates to compete and making a valid first jump appear intermittent. The non-owning touch probe remains in
+place for the next user capture. The signed 2.0/268 build was installed in place on `SaiyanDenwa` and was not launched
+by Codex.
+
+## Anchor Streaming alphabet geometry to the screen edge — Beta 2.0 build 268 — 2026-08-01
+
+Device diagnostics measured the left-handed Streaming alphabet frame at global x `-7...41` instead of beginning at
+the screen edge. The three Streaming alphabet containers now explicitly expand to the available width and align their
+index to `.leading` in left-handed mode (or `.trailing` in right-handed mode). This preserves the 48-point hit strip
+while removing the parent-width centering that shifted the effective tap area. The signed 2.0/268 build was installed
+in place on `SaiyanDenwa` and was not launched by Codex.
+
+## Playing swipe ownership — 2026-07-27 UTC
+
+Playing-page tab navigation now owns only the upper content region ending above
+the track seek bar. The seek bar, transport controls, volume slider, and lower
+controls no longer initiate horizontal tab navigation. The album-art pager
+retains its dedicated left/right gesture for changing tracks.
+
+The Debug simulator build/install and signed Release phone build/in-place
+install passed. Neither device was launched or interacted with.
+
+## Resonance Beta v1.0.3 — 2026-07-27 UTC (superseded)
+
+Build 103 was published as the first Beta v1.0.3 attempt, but it retained the
+previous `F4FF00` value in the Psychedelic text-color fields. It is superseded
+by the corrected build below.
+
+The v1.0.3 source and beta tag remain available in GitHub for history.
+
+## Resonance Beta v1.0.4 — 2026-07-27 UTC
+
+The Psychedelic theme now uses exact `FFFF00` neon yellow for its primary and
+secondary themed text when **Apply theme color to text** is enabled. This
+keeps the theme's alphabet indexes, section labels, inactive tab labels, and
+status text on the requested pure-neon-yellow value.
+
+Build 104 retains version `0.3.7.4` and is published as the corrected
+`Resonance-Beta-v1.0.4` beta release. `Tools/RegressionChecks.sh`, the signed
+arm64 Release build, deep code-signature verification, and in-place install on
+SaiyanDenawa passed. The phone reports version `0.3.7.4`, build `104`; it was
+not launched or interacted with.
+
+Manual test: open Settings → Appearance, select Psychedelic, enable **Apply
+theme color to text**, and confirm the text, alphabet indexes, section labels,
+inactive tab labels, and status text use `FFFF00`.
+
+## Playing tab transition performance — 2026-07-27 UTC
+
+The Playing tab transition no longer changes the root safe-area geometry when
+the selected tab changes. The mini-player’s space remains reserved and its
+content is hidden and noninteractive while Playing is selected, so entering or
+leaving Playing does not insert or remove a layout subtree. The Now Playing
+artwork pager now uses the shared asynchronous, downsampled artwork loader
+instead of decoding three images synchronously on the main actor.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, signed arm64 Release
+compilation, and deep code-signature verification passed. This source patch
+was compiled but not installed or launched; the installed phone remains on
+build 104 until the next explicit phone push.
+
+Manual test: with a track playing, tap Playing repeatedly from Library,
+Streaming, and Settings, then leave Playing for each tab. Confirm both
+directions respond without a visible pause and that the mini-player remains
+hidden on Playing and interactive on the other tabs.
+
+## Playing swipe stability — 2026-07-27 UTC
+
+The Playing-page tab swipe now measures movement in the fixed screen coordinate
+space while the page follows the finger. This removes the moving-local-frame
+feedback loop that caused the entire screen to vibrate during a held drag. The
+gesture has priority within the metadata region, preserves the album-art and
+slider gesture boundaries, and always resolves the release so slight vertical
+drift cancels cleanly instead of leaving an incomplete transition.
+
+Commit `1c69b32` records the fix. `Tools/RegressionChecks.sh`, `git diff
+--check`, the Debug simulator build, and in-place simulator installation
+passed. The simulator was not launched or interacted with, and the physical
+phone was not changed.
+
+Manual test: with a track playing, start a left-to-right or right-to-left drag
+in the Playing metadata region and hold it at roughly 80% of the screen width.
+The page should follow smoothly without vibration; releasing past halfway
+should complete the tab transition, while releasing before halfway should
+spring back. Album-art and seek/volume gestures should retain their existing
+ownership.
+
+## Resonance Beta v1.0.6 — 2026-07-27 UTC
+
+Build 106 adds the opt-in **Experimental background downloads** setting under
+Streaming Library. Enabled downloads use a dedicated iOS background
+`URLSession` task, persist a credential-free track/task map, and move completed
+files through an atomic application-support inbox before the normal targeted
+library refresh. The existing foreground downloader remains the default when
+the setting is off. iOS may defer transfers, and force-quitting Resonance
+cancels system-managed background work, so the physical-device lock-screen
+test remains part of this experiment.
+
+The signed arm64 build, strict code-signature verification, and in-place device
+installation are the release checks for this build. Codex does not launch the
+physical app. Manual acceptance: enable the setting, start a multi-track
+download, lock the phone, wait, unlock Resonance, and verify that the transfer
+continued or is shown as resumable without partial-file indexing. Repeat after
+relaunch, test cancellation and replacement choices, and confirm the setting
+off path still uses the existing foreground downloader.
+
+## Resonance Beta v1.0.5 — 2026-07-27 UTC
+
+This beta includes the Playing transition performance repair and the follow-up
+gesture-geometry fix. The Playing page now measures its live tab drag in fixed
+screen coordinates, preventing the moving page from feeding its own offset back
+into the gesture and causing rapid vibration during a held swipe. The metadata
+region keeps priority for tab navigation, while album art remains dedicated to
+track changes and the seek/volume controls retain their slider gestures. Release
+handling also receives the full horizontal and vertical translation so slight
+vertical drift cancels cleanly instead of leaving a partial transition.
+
+Build 105 retains version `0.3.7.4` and is published as
+`Resonance-Beta-v1.0.5`. The source fix is commit `1c69b32`; release metadata
+is commit `898f52a`, and the release tag is `Resonance-Beta-v1.0.5`.
+
+Manual test: with a track playing, swipe from the Playing metadata region and
+hold at roughly 80% of the screen width. Confirm the page follows smoothly
+without shaking, then release to complete the adjacent-tab transition. Repeat
+with a short drag to confirm it springs back, and confirm album-art, seek, and
+volume gestures remain independent.
+
+## Artwork search provider and relevance repair — 2026-07-28
+
+Deezer artwork search was removed after its public album endpoint returned an
+HTTP 403 permission response. Online artwork search now uses Apple iTunes and
+MusicBrainz/Cover Art Archive only. iTunes performs an album-only query before
+the full artist/album/track query and combines both result sets, so a noisy
+nonempty contextual response no longer suppresses the useful album search.
+MusicBrainz searches up to 25 releases using both available artist identities,
+uses the returned artist credits for relevance scoring, and automatic artwork
+fallback now checks up to 24 candidates for a usable image. Failed image cards
+are removed from the picker, and unavailable providers are named in the picker
+instead of appearing as an unexplained empty result.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, strict Swift 6 simulator and
+generic-device preflight with warnings treated as errors, signed arm64 Release
+compilation, and strict deep code-signature verification passed. The signed
+app was installed in place on `SaiyanDenawa`; `devicectl` verified bundle
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `107`. The phone
+app was not launched. Xcode emitted the known empty supported-platforms
+destination warning and harmless AppIntents metadata-skip warning; neither
+blocked the build or install.
+
+Manual test checklist: open a local album editor for a well-known album such
+as *Thriller*, *Abbey Road*, or *OK Computer*; confirm multiple Apple and
+MusicBrainz/Cover Art Archive candidates appear; verify a failed image card
+disappears and the red recommended outline advances; retry with an album whose
+artist metadata contains an alternate album-artist value; confirm Streaming
+automatic artwork still finds a usable candidate. Do not uninstall first.
+
+## Poweramp-style MusicBrainz artwork queries — 2026-07-28
+
+The previous release-group repair still used an exact MusicBrainz release query
+and synthesized one Cover Art Archive URL per release. The artwork search now
+uses the album title as the primary MusicBrainz release-group query, adds an
+artist-qualified release-group query when artist metadata is available, and
+uses the Cover Art Archive release-group JSON endpoint to obtain only actual
+front-image URLs. This matches the observable current Poweramp behavior more
+closely: album-art lookup is title-driven and uses MusicBrainz/Cover Art Archive
+rather than a generic image search. Apple iTunes remains an additional
+album-first source; Deezer remains removed.
+
+Live endpoint checks returned usable release groups and front images for
+*Thriller*, *The Dark Side of the Moon*, *Abbey Road*, and *OK Computer*.
+`Tools/RegressionChecks.sh`, `git diff --check`, strict Swift 6 simulator and
+generic-device preflight with warnings treated as errors, signed arm64 Release
+compilation, strict deep code-signature verification, and in-place install
+passed. `devicectl` verified `com.example.ResonancePrototype`, version
+`0.3.7.4`, build `108` on `SaiyanDenawa`. The phone app was not launched.
+
+Manual test checklist: launch build 108, open Search Online Artwork for a
+popular album, confirm the result cards show MusicBrainz/Cover Art Archive
+source labels and front artwork, then repeat with an album whose artist or
+album-artist tag is incomplete or composite. Confirm the title-only fallback
+still finds the album and that Streaming automatic artwork resolves the same
+cover. Do not uninstall first.
+
+## Global album-title fallback queries — 2026-07-28
+
+The artwork search no longer assumes an album title must match exactly. Every
+album query now retains the original metadata and also generates generic
+fallback titles by removing recognized trailing release metadata, including
+quality tags such as `24 bit` and parenthesized release tags such as
+`(2011 Japan Remaster)`. These variants are used for both Apple iTunes and
+MusicBrainz/Cover Art Archive queries; no artist- or album-specific exceptions
+or search restrictions are present. Meaningful parenthetical titles remain
+untouched unless they contain release-metadata markers.
+
+Build 109 passed `Tools/RegressionChecks.sh`, `git diff --check`, strict Swift
+6 simulator and generic-device preflight with warnings treated as errors,
+signed arm64 Release compilation, strict deep code-signature verification,
+and in-place installation. `devicectl` verified
+`com.example.ResonancePrototype`, version `0.3.7.4`, build `109` on
+`SaiyanDenawa`. The phone app was not launched. The known empty
+supported-platforms destination warning and harmless AppIntents metadata-skip
+warning remained non-blocking.
+
+Manual test checklist: launch build 109, search for both an exact album title
+and a title with a suffix such as `24 bit` or `(2011 Japan Remaster)`, then
+repeat with Deluxe, Anniversary, FLAC, and other release-metadata suffixes.
+Confirm the results show the canonical album artwork while preserving the
+original local title. Also verify that meaningful parenthetical titles are not
+incorrectly shortened. Do not uninstall first.
+
+## Experimental low-risk refactor — 2026-07-28
+
+This experimental source build unifies two behavior-preserving seams without
+splitting `RemoteLibraryStore.swift`. `LibraryBrowseGrouping.swift` owns only
+the pure mixed-artist/compilation-candidate identity algorithm; local and
+remote stores retain their own normalization policies, filtering, caching,
+display-name rules, model construction, and explicit compilation behavior.
+`MetadataWriteBatch.swift` owns only sequential per-file tag-write
+orchestration and ordered failure collection. Track, album, and artist editors
+retain their existing validation, artwork sidecar, override, persistence, and
+rescan behavior.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, a Debug
+simulator build, and `Tools/PreflightBuild.sh` with Swift 6 strict concurrency
+and warnings treated as errors for simulator and generic device. A signed
+Release build passed deep strict code-signature verification and was installed
+in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`, build `109`.
+The physical app was not launched. The preflight reported only the existing
+no-scheme destination and harmless AppIntents metadata-skip warnings.
+
+Manual checklist: edit a local FLAC and MP3 track, album, and artist; verify
+successful writes, partial failures, unsupported-format errors, artwork
+replacement, and artwork-only fallback behavior. Browse local and Streaming
+mixed-artist albums, including case/whitespace variants, differing release
+years, and explicit compilation grouping. Confirm normal single-artist albums
+remain unchanged. Do not uninstall the existing app.
+
+## Experimental build 113 — unified background save actions
+
+Track, album, and artist metadata editor saves now dismiss immediately and continue through background tasks. Online
+artwork search Apply to App and Save to Files actions also dismiss first; file metadata saves use the same background
+entry points, while app-only artwork application is deferred until after the search sheet closes. Completion and
+failure counts remain privacy-safe diagnostics rather than modal save errors.
+
+Manual test checklist: trigger Save from track, album, and artist editors; use Apply to App and Save to Files from
+online artwork search for track, album, and artist contexts; confirm each sheet dismisses immediately. While each save
+runs, switch tabs, scroll, play audio, and open another detail page. Confirm metadata/artwork persistence, red-border
+semantics, external tag-reader results, and diagnostics after relaunch.
+
+## Experimental build 114 — isolate artist artwork and validate downloaded images
+
+Artist metadata saves now write artist and album-artist text tags without writing artwork to any track file. Artist
+artwork remains an artist-only Resonance override, survives artist renames, and is removed only by an explicit remove
+action. Online artwork responses are decoded and normalized to JPEG before they can be applied or written to files,
+so an HTTP-success response that is not renderable is rejected instead of producing a blank cover.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `114`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: edit artist artwork and confirm every album/song keeps its own artwork; edit artist text without
+artwork and confirm the artist override remains; rename an artist and confirm its artwork follows the rename; explicitly
+remove artist artwork and confirm only the artist artwork clears. Search online artwork for an artist, album, and track,
+apply each result to the app, save each to FLAC/MP3 files, and confirm the image remains visible after relaunch and an
+external tag reader. Do not uninstall the existing app.
+
+## Experimental build 115 — repair MP3 APIC artwork readback
+
+The metadata reader now detects when AVFoundation returns an MP3 ID3 APIC frame wrapper instead of only the embedded
+image bytes. It unwraps the MIME, picture-type, and description fields, validates the remaining image with ImageIO, and
+stores only renderable artwork in the library database. Existing valid image data remains unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `115`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: relaunch the app, open Acoustica by A Perfect Circle, and confirm album artwork is visible. Edit
+album metadata without changing artwork and confirm it remains visible. Replace album artwork, save it to files, and
+confirm all tracks display it after relaunch. Edit one MP3 and one FLAC individually, both with and without artwork,
+and confirm the image remains visible in Resonance and in an external tag reader. Repeat with an artwork search result.
+
+## Experimental build 116 — unwrap dimension-prefixed MP3 artwork and repair album fallback
+
+The metadata reader now also handles MP3 artwork returned with a five-byte little-endian thumbnail-dimension prefix
+before the image payload. Cached artwork is validated when loaded from the library database, so malformed non-empty data
+is discarded and album artwork can fall back to the first renderable track instead of being blocked by an invalid first
+track.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `116`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: reopen Mer de Noms and confirm album artwork appears even when the first track has no artwork;
+edit album metadata without changing artwork; replace album artwork and confirm every file and the album view update;
+repeat for Acoustica, then edit individual MP3 and FLAC tracks and verify artwork in Resonance and an external tag reader.
+
+## Experimental build 117 — repair missing JPEG start markers
+
+Some MP3 artwork payloads contained a valid Exif/JPEG APP segment but were missing the JPEG start marker (`FF D8`).
+Artwork normalization now restores that marker when the repaired payload validates with ImageIO. This repaired data is
+used both when loading cached artwork and before it is written back into FLAC/MP3 metadata.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `117`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open Acoustica, save artwork to the album and to two individual MP3 files, and confirm the album
+hero, track rows, relaunch, and an external tag reader all show the image. Confirm Mer de Noms still uses valid fallback
+artwork when one track is artless. Test one FLAC artwork save as a regression check.
+
+## Experimental build 118 — unify remote URL resolution
+
+Manifest base URLs, Subsonic endpoint URLs, and manifest-relative stream/artwork URLs now share one small URL-support
+utility for path joining and relative resolution. Backend-specific request headers, authentication query construction,
+response validation, and download behavior remain separate. The change preserves existing host/path normalization while
+removing duplicate URL path logic.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `118`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: verify a Resonance Manifest server with a host path, relative track/artwork paths, and absolute
+URLs; verify Navidrome/Subsonic login, catalog refresh, album artwork, playback, playlist actions, and downloads. Test
+host-only, host-plus-port, HTTPS, and a server URL that already includes the manifest/API path. Do not uninstall first.
+
+## Experimental build 119 — extract shared remote URL support
+
+The URL path-joining and relative-resolution helpers introduced in build 118 now live in `RemoteURLSupport.swift`,
+separate from `RemoteLibraryStore.swift`. This is a structural extraction only: Manifest and Subsonic behavior,
+authentication, request headers, response validation, and downloads remain unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `119`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: use Navidrome/Subsonic only—sign in or reconnect, refresh the catalog, open artists, albums, and
+tracks, load artwork, play a remote track, test playlists and favorites, and start, cancel, and resume a download.
+Also test host-only, host-plus-port, HTTPS, and any server URL that includes a path. Confirm streaming behavior is
+unchanged. Do not uninstall first.
+
+## Experimental build 120 — repair duplicate downloads and deletion reporting
+
+Download requests now separate existing destination files from new tracks. The replacement alert is hosted by a stable
+visible container; choosing Replace Existing downloads the duplicate and new tracks, while choosing Keep Existing skips
+duplicates and downloads the remaining tracks. Local file deletion now records credential-free requested, deleted,
+missing, and failed counts so deletion problems can be distinguished from filename collisions.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `120`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: delete one downloaded track with Delete from iPhone and confirm it disappears after a library
+refresh; download a track that is not present; select a mix of an existing and a new track and verify the prompt appears.
+Choose Keep Existing and confirm only the new track downloads, then repeat and choose Replace Existing to confirm both
+download. Also test deleting an album and artist, and inspect diagnostics afterward for the deletion counts.
+
+## Experimental build 121 — share download overlay across Streaming detail views
+
+The existing `RemoteDownloadOverlay` is now shared by the Streaming Library root and the Streaming artist and album
+detail surfaces. A download started from an artist or album remains observable through the same
+`RemoteDownloadManager` queue while navigating between detail and root views. Duplicate detection now searches all
+supported local audio extensions instead of relying only on the remote stream URL extension, so an existing saved file
+is recognized even when the server URL has no matching extension.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `121`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: from a Streaming artist detail page, start an artist download and verify the shared overlay is
+visible there; from an album detail page, start an album download and verify the overlay and replacement prompt are
+visible without returning to the Streaming root. Delete one track from an album, request the album again, and confirm
+only the missing track downloads. Test a mixed existing/new batch with Keep Existing and Replace Existing, navigate
+between artist, album, and Streaming root while active, and cancel from each visible overlay.
+
+## Experimental build 122 — stabilize detail download controls and replacement UI
+
+Streaming artist detail now has a toolbar download control plus context-menu actions for the artist collection, All
+Albums, and individual albums. The shared `RemoteDownloadOverlay` now renders replacement choices in-app instead of
+using competing system alerts from multiple presentation levels; this keeps the prompt visible on the active detail
+surface and prevents it from flashing away when the full-screen detail presentation changes. The single shared queue
+and manager remain unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `122`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: on a Streaming artist detail page, use the toolbar download control, long-press All Albums and
+an album, and confirm each offers a download action. On an album detail page, start a duplicate-containing download
+and verify the in-app Files Already Exist prompt stays visible with Keep Existing, Replace Existing, and Cancel. Confirm
+the detail page remains open, the shared overlay shows progress, and navigation to the Streaming root preserves the
+same queue.
+
+## Experimental build 123 — make hero download controls explicit menus
+
+The artist and album hero Download controls now open the same explicit download-action menu as their context-menu
+counterparts. Choosing Download Artist or Download Album then uses the shared `RemoteDownloadManager`, so the user can
+see the action before it begins and receives the same duplicate/replacement behavior.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `123`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: tap the artist hero Download control and confirm its menu offers Download Artist; tap the album
+hero Download control and confirm its menu offers Download Album. Choose each action and verify the shared overlay and
+replacement prompt behave exactly like the context-menu path. Confirm Play, Play Next, Add to Queue, and navigation
+remain unchanged.
+
+## Experimental build 124 — correct hero menu scope labels
+
+The shared hero download menu now interpolates its scope correctly. The artist hero menu displays Download Artist and
+the album hero menu displays Download Album; both actions invoke the same shared download manager and queue as the
+context-menu actions.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `124`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open a Yes artist detail page and verify the hero menu says Download Artist and downloads the
+artist collection. Open Close to the Edge and verify the hero menu says Download Album and starts that album download.
+Confirm the shared progress overlay, duplicate prompt, cancellation, and navigation behavior remain functional.
+
+## Experimental build 125 — extract the remote download service
+
+The remote download subsystem now lives in `Resonance/Services/RemoteDownloadService.swift`. The extraction includes
+`RemoteDownloadManager`, the background URL session delegate, queue/progress models, duplicate/replacement handling,
+resume/cancellation, file finalization, and local-library refresh calls. `RemoteLibraryStore.swift` retains the remote
+catalog and backend responsibilities; views continue using the same shared `RemoteDownloadManager` interface.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `125`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: download from the Streaming root, artist hero/menu/context menu, album hero/menu/context menu,
+and an individual track. Test a missing track in an otherwise downloaded album; mixed existing/new downloads with Keep
+Existing, Replace Existing, and Cancel; progress and per-track cancellation; resume after interruption; navigation
+between root, artist, and album while active; offline playback of completed files; and deletion followed by redownload.
+
+## Experimental build 126 — expose root streaming download actions
+
+The Streaming Library root toolbar now uses the shared `StreamingDownloadActionsMenu` for download selections.
+Selecting artists or albums exposes explicit Download Artist(s) and Download Album(s) actions instead of starting
+immediately from a bare download button. These actions still call the shared `RemoteDownloadManager`, so duplicate
+detection, Keep Existing/Replace Existing/Cancel, the persistent queue, and root/artist/album overlay behavior remain
+unchanged. The old root-only download helper was removed.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `126`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in Streaming root, long-press one or more artists and one or more albums, open the root
+toolbar menu, and choose Download Artist(s) or Download Album(s). Verify the duplicate prompt appears when appropriate
+and that Keep Existing, Replace Existing, and Cancel work. Confirm the download window persists while navigating
+root → artist → album, and verify the existing artist/album hero and context-menu actions remain unchanged.
+
+## Experimental build 127 — confine tab swipes to album heroes
+
+Horizontal tab navigation in local and Streaming album detail is now owned by the fixed album hero/artwork area
+above the track list. Individual track rows no longer attach the tab-swipe recognizer, so horizontal interaction on
+a track remains available for its Play Next, Add to Queue, playlist, download, and related row actions. The track-only
+All Albums screens also no longer claim horizontal tab navigation.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `127`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in a local album and a Streaming album, swipe horizontally across the artwork/header area and
+verify tab navigation. Swipe horizontally across several individual tracks and verify tab navigation does not occur;
+the track action menu remains available. Test Play Next, Add to Queue, playlist, and Download Track actions, then verify
+vertical scrolling, Back, downward hierarchy dismissal, and the root/artist/album download overlay remain unchanged.
+
+## Experimental build 128 — add Streaming track download swipe action
+
+Streaming track rows now keep Play Next and Add to Queue on the leading swipe and expose Download on the trailing
+right-to-left swipe. The Download action uses the shared `RemoteDownloadManager`, so existing-file prompts, queue
+progress, cancellation, and replacement behavior match the context-menu and hero download paths. The action is present
+in album, artist/all-albums, playlist, and other Streaming track collections.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `128`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: in Streaming album, artist/all-albums, playlist, and track-collection views, swipe left-to-right
+on a track and verify Play Next/Add to Queue remain available. Swipe right-to-left and verify Download appears and
+starts the shared download flow. Test an existing file and confirm Keep Existing, Replace Existing, and Cancel, then
+verify the persistent overlay and navigation behavior remain unchanged.
+
+## Beta stabilization build 130 — navigation-rework baseline
+
+Build 130 freezes the currently validated download and gesture behavior before the planned navigation rework. It
+contains no navigation implementation changes: Streaming track rows retain leading Play Next/Add to Queue and
+trailing Download actions, album-art heroes own horizontal tab navigation, and All Albums renders the shared download
+overlay for replacement prompts.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `130`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+This build is the rollback and comparison baseline for the navigation rework. Do not uninstall it before testing the
+next navigation build.
+
+## Experimental build 132 — layered vertical navigation
+
+The bottom tab-navigation pane is no longer rendered. RootView now owns a layered vertical navigation coordinator:
+Player, current-track Album, Artist, and Library/Streaming root surfaces remain stacked, and moving upward lowers the
+front surface to reveal the surface beneath it. The Player’s top-center Album control, Album’s Artist control, and
+Artist’s Library/Streaming root control use the same animated surface transitions; downward swipes perform the matching
+reverse transition. The root surface has a single Library/Streaming switch control and a gear control that presents
+Settings from the bottom. The mini-player is now a compact bottom Player surface rather than part of a bottom tab pane.
+
+The current track resolves its local or remote album and artist context. Library and Streaming artist/album selections
+now route into the same layered coordinator, while existing screen-specific menus and actions remain in place. Detail
+surfaces hide their legacy Back buttons and bottom tab/mini-player insets when participating in the layered flow.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `132`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: launch build 132 and confirm the bottom tab bar is absent. Start a local track and a Streaming
+track, open the Player, press Album ↑, and verify the Player lowers to reveal the correct album. Press Artist ↑, then
+Library/Streaming ↑, and verify the vertical transitions. Test downward swipes at each layer. From each root, use the
+Library/Streaming switch and gear Settings control; close Settings downward. Confirm existing menus, playback controls,
+track actions, downloads, artwork, and metadata actions remain usable. Keep build 130 installed as the rollback baseline.
+
+## Experimental build 134 — transparent layered surfaces and All Albums navigation
+
+The inactive Settings layer now sits completely below the viewport rather than beginning on the bottom pixel. New layered
+NavigationStacks and the custom layer header hide their system navigation backgrounds and use clear surfaces so the shared
+theme backdrop remains visible through Library, Streaming, Artist, Album, All Albums, Player, and Settings. Local and
+Streaming All Albums destinations now participate in the layered coordinator and expose the same `Artist ↑` navigation as
+the other artist-level children instead of bypassing the new navigation through a legacy full-screen cover.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed strict
+deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`,
+build `134`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip warnings
+remained non-blocking.
+
+Manual test checklist: open local and Streaming Artist views, enter All Albums from both grid and list layouts, and verify
+the `Artist ↑` header appears and returns to the artist. Repeat for normal albums, Player, and Settings. Enable frame
+diagnostics and verify Settings has no border or label at the bottom while hidden. Switch through transparent-theme and
+image-theme palettes and confirm the theme background remains visible behind every layered module and header.
+
+## Experimental build 135 — restore root theme backgrounds
+
+Library and Streaming now render their own `ResonanceThemeBackdrop()` behind the browse content. This prevents the
+`NavigationStack`/system container from presenting an opaque black root surface over the active theme, while the existing
+hidden list and scroll backgrounds allow the gradient or theme artwork to remain visible through the collections.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed strict
+deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version `0.3.7.4`,
+build `135`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip warnings
+remained non-blocking.
+
+Manual test checklist: switch among Gallery Light, Nocturne Glass, Color Bloom, Electronic, Psychedelic, and other themes;
+confirm the Library and Streaming roots show their active gradient/image background, then verify Artist, All Albums, Album,
+Player, and Settings retain the same background continuity. Keep frame diagnostics available for any remaining opaque or
+clipped surface investigation.
+
+## Experimental build 138 — centered frame diagnostics
+
+The frame-diagnostics labels are now centered within their red outlined frames. Build 138 also includes the layered-stack
+viewport clipping that prevents translated Player, Settings, and other inactive navigation surfaces from leaking their
+toolbars or diagnostic labels into the bottom of the visible page. Settings is omitted from the hierarchy while inactive,
+and Player and Settings own the active theme backdrop just like Library, Streaming, Artist, Album, and All Albums.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, `Tools/PreflightBuild.sh`, simulator build/install,
+and a signed arm64 Release build with strict deep code-signature verification. Build 138 was installed in place on
+`SaiyanDenawa`; `devicectl` verified version `0.3.7.4`, build `138`. The physical app was not launched. Existing
+no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual test checklist: enable frame diagnostics and confirm labels are centered in the Library, Artist, Album, All Albums,
+Player, Settings, header, and mini-player frames. Confirm no inactive layer or black strip appears at the bottom. Start
+playback and verify Now Playing uses the active theme background and controls. Switch themes and repeat the check.
+
+## Experimental build 133 — frame diagnostics for layered navigation
+
+Build 133 keeps the layered vertical navigation and adds a persisted Settings → Appearance → **Show frame diagnostics**
+toggle. When enabled, major root, artist, album, Player, Settings, header, and mini-player surfaces receive a 1-device-pixel
+red outline with a small frame label. This makes safe-area sizing, clipping, off-screen layers, and background coverage
+visible during the experimental navigation work. The legacy side-docked mini-player handle is suppressed while layered
+navigation is active, removing the clipped lower-left chevron seen in the simulator.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `133`. The simulator was shut down after inspection. The physical app was not launched. Existing
+no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual test checklist: launch build 133, open Settings, enable **Show frame diagnostics**, and inspect the labeled red
+frames on Library, Streaming, Artist, Album, Player, and Settings. Check that no frame or label is unexpectedly clipped,
+that the background occupies the intended layer, and that the lower-left chevron is gone. Disable the toggle and verify
+the normal surfaces remain unchanged. Do not uninstall first.
+
+## Experimental build 129 — restore All Albums replacement prompt
+
+The Streaming All Albums track-list screen now renders the shared `RemoteDownloadOverlay`. Download requests from
+that screen—including its track menus and swipe actions—can therefore display the existing-file prompt with Keep
+Existing, Replace Existing, and Cancel, just like the artist and album detail screens. The underlying shared download
+manager and queue behavior are unchanged.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build passed
+strict deep code-signature verification and was installed in place on `SaiyanDenawa`; `devicectl` verified version
+`0.3.7.4`, build `129`. The physical app was not launched. Existing no-scheme destination and AppIntents metadata-skip
+warnings remained non-blocking.
+
+Manual test checklist: open Streaming → artist → All Albums, invoke Download from a track menu or right-to-left
+track swipe, and confirm the download window and existing-file prompt appear on the All Albums screen. Test Keep
+Existing, Replace Existing, and Cancel, then verify progress persists while returning to the artist and Streaming root.
+
+## Experimental build 139 — extend themed surfaces through the status area
+
+The active themed page backdrop now extends through the iPhone status-bar safe area, so the region behind the time,
+network, and battery indicators no longer appears black. Layer headers and navigation controls remain inside the safe
+area and therefore stay below those system indicators.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and a Debug simulator build for iPhone 17 Pro.
+Build 139 was installed and launched in place on the configured simulator, and a screenshot confirmed the active theme
+fills the status-bar region while the header controls remain below it. The physical device was not changed or launched.
+
+Manual test checklist: switch among Gallery Light, Nocturne Glass, Color Bloom, Electronic, Psychedelic, and other
+themes; inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings; confirm the theme reaches behind
+the system status indicators and every navigation control remains below them. With frame diagnostics enabled, confirm
+the header frame still begins below the status area.
+
+## Experimental build 147 — extend themed surfaces through the home-indicator area
+
+The root app surface now fills the bottom system inset with a bounded active-theme gradient/image strip. This removes
+the black footer visible below Library, Streaming, detail modules, Player, and Settings while leaving navigation and
+content controls above the home-indicator region. The fill is deliberately bounded so it cannot expand a module or
+alter its scroll layout.
+
+Validation passed: `Tools/RegressionChecks.sh`, `git diff --check`, and a Debug simulator build for iPhone 17 Pro.
+Build 147 was installed and launched in place on the configured simulator; the captured screenshot showed themed
+coverage through the bottom edge with no black footer and normal module rendering. The physical device was not changed
+or launched.
+
+Manual test checklist: inspect Library, Streaming, Artist, All Albums, Album, Player, and Settings with several themes.
+Confirm the active theme reaches the bottom edge, the home indicator remains unobstructed, navigation controls stay in
+their normal safe-area positions, and scrolling/content layout is unchanged.
+
+## Experimental build 211 — complete local browse-cache audit — 2026-07-30
+
+The cache-audit source preserves embedded artwork during cache-only database refreshes, restores per-track display-cache
+sidecars on launch, performs the one-time embedded-artwork recovery scan, serializes background downloads one file at a
+time, and caches local filtered tracks, artists, album artists, and albums by search/sort/surface. Track, track-metadata-
+override, and artist-override changes invalidate the browse caches. The audit confirmed that explicit inventory scans,
+metadata rereads, database replacement/upsert, recent/favorite derivation, and local navigation consume the intended
+authoritative state without adding another automatic full Documents scan.
+
+`Tools/RegressionChecks.sh` was corrected to track the current Beta 1.0.6 metadata and the display-snapshot-aware remote
+catalog-check guard. Regression checks, `git diff --check`, Swift 6 syntax parsing, and `Tools/PreflightBuild.sh` simulator
+and generic-device builds passed. The known AppIntents metadata-skip warning remained non-blocking.
+
+The signed Release app was built from source commit `dad0390` with `CURRENT_PROJECT_VERSION=211`, passed strict deep
+code-signature verification, and installed in place on SaiyanDenawa as version 1.0.6/build 211. The previous app data was
+preserved, and the physical app was not launched by Codex. The signed build emitted only the known harmless AppIntents
+metadata-skip warning.
+
+Manual continuation: launch build 211 on SaiyanDenawa. Verify cached local Library presentation and explicit scan behavior;
+confirm artwork survives relaunch and cache refresh; exercise local artist/album/song/favorites/recent views; test FLAC
+and MP3 metadata/artwork saves and unsupported-format handling; inspect mixed-artist browse grouping; and confirm local
+and remote playback, Streaming responsiveness, downloads, navigation, and themes remain unchanged. Do not uninstall first.
+
+## Streaming browse projection prewarm — working tree, 2026-07-30
+
+Research of the remaining Streaming transition delay found that build 214 prepared artists, album artists, and albums
+before showing the selected browse mode. The page also had a race where its snapshot task could synchronously rebuild a
+projection on the main actor before the background prewarm completed. The current patch prepares only the selected
+projection, coalesces already-cached requests, and makes the Streaming snapshot task await that same utility-priority
+preparation. A credential-free `remote.browse.prewarm` diagnostic records duration, track count, and projection name.
+
+Validation passed the 10-test performance-skill suite, `Tools/RegressionChecks.sh`, `git diff --check`, and
+`Tools/PreflightBuild.sh` for simulator and generic-device Swift 6 strict builds. XcodeBuildMCP built, installed, and
+launched the configured iPhone 17 Pro simulator; Streaming Artists rendered with alphabet sections, the browse-options
+sheet opened, and Albums rendered with Various Artists grouping. The simulator app was stopped afterward. The physical
+device was not installed or launched, so the warm 8,071-track device latency improvement remains pending manual Release
+profiling.
+
+## Physical installation — Streaming projection patch, build 215 — 2026-07-30
+
+The current working tree was signed as arm64 Release version 1.0.6/build 215 with development team `98CWMFS26R`.
+Deep strict code-signature verification passed, and `xcrun devicectl device install app` installed it in place on
+`SaiyanDenwa` without uninstalling the existing app. `devicectl device info apps` verified
+`com.example.ResonancePrototype` version 1.0.6/build 215. The physical app was not launched. The only build warning
+was the known harmless AppIntents metadata-skip warning because the target has no AppIntents framework dependency.
+
+Manual continuation: launch build 215 on `SaiyanDenwa` and compare warm Streaming first-frame latency with the cached
+8,071-track catalog during playback and multi-track downloads. Verify artist/album ordering, alphabet navigation,
+download progress, playback, tab switching, and relaunch persistence. Do not uninstall first.
+
+## Streaming activation regression repair — build 216 — 2026-07-30
+
+Device diagnostics from build 215 showed no local library scan during Streaming activation, but the remote browse
+projection was rebuilt twice on each Streaming presentation for the cached 8,071-track catalog, taking approximately
+1.1–1.8 seconds per build. The regression came from the startup optimization that conditionally constructed only the
+active root NavigationStack; switching away from and back to Streaming destroyed and recreated the Streaming view,
+restarting its activation tasks. The browse-prewarm path also lacked in-flight task coalescing.
+
+The repair keeps Library-only startup construction, creates Streaming lazily on first use, then retains it across root
+tab switches. Remote browse prewarm requests for the same catalog revision/projection now share one utility-priority
+task. Audio, local-library scanning, catalog refresh behavior, and download behavior were not changed.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build with
+development team `98CWMFS26R` passed strict deep code-signature verification and installed in place on `SaiyanDenwa`;
+`devicectl` verified `com.example.ResonancePrototype` version 1.0.6/build 216. The physical app was not launched.
+The known no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual continuation: launch build 216 on `SaiyanDenwa`, open Streaming, wait for the first catalog display, switch to
+Library and back to Streaming repeatedly, and confirm it does not show local-library indexing or rebuild the catalog
+on each return. Confirm Streaming remains responsive during playback and downloads, then test artist/album grouping,
+alphabet navigation, selection/download actions, and relaunch persistence. Do not uninstall first.
+
+## Cache-first launch repair — build 217 — 2026-07-30
+
+The local startup path now publishes the lightweight persisted display snapshot first, before waiting on SQLite or
+artwork hydration. Cached tracks therefore become visible immediately; SQLite metadata and artwork are reconciled
+afterward in the background. A full Documents scan is reserved for a genuinely empty persisted library. Remote
+catalog activation and browse projection prewarm run concurrently with local bootstrap instead of waiting for local
+startup to finish.
+
+Validation passed `Tools/RegressionChecks.sh`, `git diff --check`, and `Tools/PreflightBuild.sh` with Swift 6 strict
+concurrency and warnings treated as errors for simulator and generic device. A signed arm64 Release build with
+development team `98CWMFS26R` passed strict deep code-signature verification and installed in place on `SaiyanDenwa`;
+`devicectl` verified `com.example.ResonancePrototype` version 1.0.6/build 217. The physical app was not launched.
+The known no-scheme destination and AppIntents metadata-skip warnings remained non-blocking.
+
+Manual continuation: launch build 217 on `SaiyanDenwa` and verify a cached Library appears without a prolonged
+“Indexing music…” state. Open Streaming for the first time after launch and verify cached remote content appears
+without a prolonged “Preparing Streaming…” state. Repeat after relaunch, then verify artwork hydration, playback,
+alphabet navigation, downloads, and tab switching. Do not uninstall first.
+
+## Local cache presentation repair — build 218 — 2026-07-30
+
+Device relaunch diagnostics showed a valid persisted local display snapshot and zero `library.scan.begin` or
+`library.scan.end` events across repeated launches. The recurring “Indexing music…” text was therefore a misleading
+empty-state placeholder while cached bootstrap waited on SQLite, not evidence of a repeated full Documents scan.
+
+Build 218 presents the display snapshot immediately, reconciles the SQLite index and artwork in the background, and
+labels the remaining cache wait as “Loading cached library…”. “Indexing music…” is now reserved for an actual local
+Documents scan. Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release build,
+and strict deep code-signature verification passed. The update installed in place on `SaiyanDenwa`; `devicectl`
+verified `com.example.ResonancePrototype` version 1.0.6/build 218. The physical app was not launched.
+
+Manual continuation: launch build 218 on `SaiyanDenwa`, close and reopen Resonance several times, and confirm the
+cached Library appears without a prolonged “Indexing music…” state. Verify Streaming, playback, artwork hydration,
+alphabet navigation, downloads, and tab switching remain responsive. Do not uninstall first.
+
+## Background Streaming preparation — build 219 — 2026-07-30
+
+The first Streaming presentation no longer waits on a view-owned activation and browse-prewarm cycle. Launch-time
+remote activation and detached browse projection remain the background preparation path; Streaming now consumes only
+completed browse snapshots and renders immediately while a missing projection is being prepared. This removes the
+duplicate first-tab wait and avoids synchronous fallback grouping of the full remote catalog on the main actor.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict
+deep code-signature verification passed. Build 219 installed in place on `SaiyanDenwa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 219. The physical app was not launched.
+
+Manual continuation: launch build 219, switch to Streaming immediately after launch, and confirm the tab changes
+without locking up while the catalog warms. Repeat after relaunch, switch between Artists, Albums, and Library, and
+verify scrolling, playback, downloads, and normal tab gestures remain responsive. Do not uninstall first.
+
+## Theme-linked navigation and Settings icons — build 220 — 2026-07-30
+
+Shared toolbar icon buttons and icon labels now use the same four persisted visual treatments as hero actions:
+Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent. They use the active theme accent for their surface,
+edge, glow, or underline while retaining contrast-aware navigation text. Changing Hero buttons in Settings therefore
+updates the Library, Streaming, detail-screen, playlist, and Settings toolbar icons through the shared component.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict
+deep code-signature verification passed. Build 220 installed in place on `SaiyanDenwa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 220. The physical app was not launched.
+
+Manual continuation: launch build 220 and switch Hero buttons among all four styles in Settings. Confirm the Library,
+Streaming, artist, album, playlist, and Settings navigation icons update immediately and remain readable in Gallery
+Light, Nocturne Glass, and material themes. Verify each icon still activates the correct action. Do not uninstall first.
+
+## Unified library navigation — build 221 — 2026-07-30
+
+Hierarchy navigation buttons now use the same persisted Hero Button treatments as the rest of the app: Soft Glass,
+Matte Crystal, Inner Glow, and Minimal Transparent. The top-level Library/Streaming switch now occupies the centered
+navigation slot used by the other module navigation controls: Library presents **Streaming →**, while Streaming presents
+**← Local**. The existing options, playlist, refresh, download, scan, add, and Settings controls remain in their toolbar
+groups.
+
+Regression checks, Swift 6 strict simulator/generic-device preflight, signed arm64 Release compilation, and strict deep
+code-signature verification passed. Build 221 installed in place on `SaiyanDenawa`; `devicectl` verified
+`com.example.ResonancePrototype` version 1.0.6/build 221. The physical app was not launched.
+
+Manual continuation: launch build 221 on `SaiyanDenawa`, switch Hero buttons among all four styles and several themes,
+and verify the upward Album/Artist/Library hierarchy controls update consistently. Confirm Library shows **Streaming →**
+and Streaming shows **← Local**, each opens the correct destination, and the remaining toolbar controls stay in their
+expected locations. Do not uninstall first.
+
+## Streaming download toolbar and centered navigation — simulator build 222 — 2026-07-30
+
+The top-level Library navigation uses compact inline toolbar placement so the Local Library’s **Streaming →** control is
+centered beneath the camera area. Streaming now puts its browse, grouping, sort, and view options behind a themed left
+toolbar settings button. Its right toolbar keeps refresh and Settings in the first row, with a labeled **Download** button
+below. With no selection, Download asks whether to download the entire remote library or switch to individual artist
+selection; selected artists or albums download directly.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator through XcodeBuildMCP. The simulator and physical phone were not launched or changed beyond installation.
+
+Manual continuation: launch the installed simulator app, verify the centered **Streaming →** control, open Streaming
+options from the left settings icon, and confirm the right-side Download button is below the refresh/Settings row. Test
+the no-selection prompt’s whole-library and individual-artist paths, then select artists and confirm Download queues the
+selected content. Do not uninstall first.
+
+## Standalone navigation buttons — simulator build 223 — 2026-07-30
+
+Hierarchy navigation controls no longer render inside rounded Hero Button containers; the title and directional arrow now
+stand alone while retaining themed contrast. The Streaming download control is explicitly widened to 112 points and
+keeps its label on one line so **Download** remains fully visible.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; neither simulator nor physical phone was launched.
+
+Manual continuation: launch the simulator app, inspect Library/Streaming and detail-level upward navigation in each Hero
+Button style, and confirm the buttons have no surrounding containers. Verify the full Download label is visible and the
+button still opens the whole-library or individual-artist choice when nothing is selected.
+
+## Independent toolbar controls — simulator build 224 — 2026-07-30
+
+The previous screenshot showed that the system’s shared liquid-glass toolbar background was grouping the left options
+and right refresh/Settings/Download controls. Build 224 hides that shared background on the top-level Library and
+Streaming toolbar groups, leaving each themed control visually independent. The hierarchy navigation labels retain their
+standalone rounded treatment.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; the physical phone was not changed or launched.
+
+Manual continuation: launch the simulator and confirm the left options controls, right refresh/Settings controls, and
+Download button no longer sit inside a shared outer glass container. Confirm the navigation buttons retain their intended
+rounded treatment and Download remains fully visible.
+
+## Navigation border and toolbar spacing polish — simulator build 225 — 2026-07-30
+
+Hierarchy navigation buttons now restore the Hero Button theme surface and border, including the matching Inner Glow and
+Minimal Transparent treatments. The right Streaming toolbar is offset slightly downward, keeps visible spacing between
+Settings and Download, and renders the full **Download** word beside its arrow icon.
+
+Regression checks and the configured iPhone 17 Pro simulator build passed. The updated app was installed in place on the
+simulator only; the physical phone was not changed.
+
+Manual continuation: launch the simulator and verify the themed navigation borders, right-side vertical alignment, spacing
+between Settings and Download, and the complete Download label in each supported theme.
+
+## Themed Download control and final toolbar alignment — simulator build 226 — 2026-07-30
+
+The Streaming Download button now uses the same Soft Glass, Matte Crystal, Inner Glow, and Minimal Transparent treatments
+as the themed toolbar and navigation controls. The right-side toolbar stack is lowered slightly further while retaining
+clear spacing between its Settings row and Download.
+
+Regression checks, the configured iPhone 17 Pro simulator build, simulator installation, and a final simulator screenshot
+passed. The physical phone was not changed.
+
+Manual continuation: switch through the available themes and Hero Button styles, confirm Download follows each treatment,
+and verify the right-side controls remain vertically aligned with comfortable Settings-to-Download spacing.
+
+## Toolbar height matched to hierarchy navigation — simulator build 227 — 2026-07-30
+
+The shared themed toolbar icon buttons now use the same 34-point control height as the hierarchy navigation buttons.
+This aligns the right-side Settings/refresh controls with the centered Local/Streaming navigation control without changing
+the Download spacing or themed text-button treatment.
+
+Regression checks, simulator build/install, and a final simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: inspect both Library and Streaming in the simulator and verify the right-side icon row has the same
+vertical height and centerline as the hierarchy navigation button, with Download still separated below it.
+
+## Streaming toolbar baseline alignment — simulator build 228 — 2026-07-30
+
+The Streaming right-side toolbar stack now applies the same alignment baseline as the Library toolbar: its Settings and
+refresh row is lowered to match the centered hierarchy navigation control, while the themed Download button remains in a
+separate row below with its existing spacing.
+
+Regression checks, simulator build/install, and a final screenshot in the Electronic theme passed. The physical phone was
+not changed.
+
+Manual continuation: compare Library and Streaming directly in several themes and confirm the right-side Settings/refresh
+row shares the navigation button’s height and centerline, with Download below rather than in the first row.
+
+## Centered Local-to-Streaming navigation — simulator build 230 — 2026-07-30
+
+The Library toolbar now balances its leading slot to the trailing control width, eliminating the principal-toolbar offset
+that placed **Streaming →** left of center. The hierarchy label is non-compressing, so the complete title remains visible
+while centered under the camera area. Streaming’s **Local ←** layout remains centered as well.
+
+Regression checks, simulator build/install, and a final screenshot confirmed the centered, fully visible control. The
+physical phone was not changed.
+
+Manual continuation: compare **Streaming →** in Library with **Local ←** in Streaming across the available themes and
+confirm both are centered and fully readable.
+
+## Local file browser moved to second toolbar row — simulator build 231 — 2026-07-30
+
+The Local Library’s file-import control now appears in the second right-side toolbar row as a themed **Browse Files**
+button with its folder icon. Scan and Settings remain in the first row, matching Streaming’s first-row controls and
+second-row Download placement. The centered **Streaming →** navigation remains intact.
+
+Regression checks, simulator build/install, and a final Local Library screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: tap Browse Files to confirm the file importer opens, verify Scan and Settings remain in the first
+row, and compare the Local and Streaming second-row controls across themes.
+
+## Detail toolbar cleanup and All Tracks options — simulator build 232 — 2026-07-30
+
+Local and Streaming artist/album detail toolbars now hide the system shared outer toolbar background, leaving their themed
+controls independent like the root Library and Streaming toolbars. The local and remote All Tracks/All Albums track
+modules now expose a left view-options button and a right Settings button, with the matching options sheet available from
+each module.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+## Direct Streaming playlist navigation and unified leading toolbar spacing — simulator build 234 — 2026-07-30
+
+Streaming’s root playlist control now uses a direct `NavigationLink`, matching Local Library instead of opening an
+intermediate context menu. Artist, album, and All Tracks modules now use the same leading options-to-playlists HStack
+with 4-point spacing; Back remains separate, and All Tracks modules expose matching right-side Settings controls.
+
+Regression checks, simulator build/install, and `git diff --check` passed. The physical phone was not changed.
+
+Manual continuation: tap Playlists from Streaming and verify it opens the playlist page directly. Compare options and
+playlist spacing across Library, Streaming, local/remote artist and album details, and both All Tracks modules.
+
+Manual continuation: open local and Streaming artist and album details and confirm no outer glass container surrounds the
+toolbar controls. Open each All Tracks module, verify the left options and right Settings controls, and confirm the
+options sheets open normally.
+
+## Artist and album toolbar icon theme completion — simulator build 235 — 2026-07-30
+
+The remaining interactive pencil and add-to-playlist controls on local artist and album detail pages now use the shared
+themed toolbar icon component. Their sizing, surface, border, tint, and contrast therefore follow the configured Hero
+Button style alongside Settings and the other detail-page controls. The Playing toolbar changes from the preceding work
+remain included, with a text-labeled Back control and themed Queue/playlist actions.
+
+Regression checks, simulator build/install/launch, and a simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: open local and Streaming artist and album details in each available Hero Button style. Confirm the
+artist pencil, add-to-playlist, download, and Settings controls share the same themed treatment, then verify Now Playing
+Back, playlist, and Queue controls remain readable and actionable.
+
+## Remove redundant detail hierarchy bubbles — simulator build 236 — 2026-07-30
+
+The centered hierarchy pills above the navigation controls were removed from the Playing and local/remote album detail
+modules. Those screens retain their explicit left Back controls, so the redundant Artist/Album bubble no longer occupies
+the top navigation area. Library, Streaming, artist detail, and other hierarchy navigation remain unchanged.
+
+Regression checks, simulator build/install/launch, and a follow-up simulator screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: open Playing and both local and Streaming album detail screens. Confirm there is no centered bubble
+above the navigation controls, while Back, Settings, playlist, album options, playback, and track-list interactions still
+work.
+
+## Restore detail navigation and remove the camera-area header bubble — simulator build 237 — 2026-07-30
+
+The previous cleanup removed the actual centered Artist/Album navigation controls along with the duplicate bubble. The
+controls are restored in the Playing and local/remote album toolbars. The separate global layered-navigation header is
+now suppressed only for the album and Playing layers, removing the bubble above and slightly behind the camera area while
+preserving the in-toolbar navigation.
+
+Regression checks, simulator build/install/launch, and a follow-up simulator screenshot passed. The physical phone was not
+changed.
+
+Manual continuation: open Playing and local/Streaming album detail. Confirm the centered Album/Artist navigation control
+is present in the navigation bar, the extra bubble above the camera area is gone, and Back navigation still works.
+
+## Remove remaining All Albums camera-area bubble — simulator build 238 — 2026-07-30
+
+The global layered-navigation header is now also suppressed for the All Albums module. Its own in-module Artist
+navigation remains available, while the duplicate bubble above and behind the camera area is removed consistently with
+Playing and album detail.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: open All Albums from a local and Streaming artist, confirm the in-module Artist navigation remains,
+and verify the extra camera-area bubble is absent.
+
+## Match playlist toolbar icon height universally — simulator build 239 — 2026-07-30
+
+The shared `ResonanceToolbarIconLabel` used by playlist NavigationLinks and menus now uses the same 34-point height as
+`ResonanceToolbarIconButton`. Playlist icons therefore match Settings and other themed toolbar controls across the
+Library, Streaming, artist, album, All Tracks, and related modules without screen-specific sizing overrides.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: compare playlist and Settings controls in each module and across all Hero Button styles; verify
+playlist navigation and menus remain tappable and visually aligned.
+
+## Match Streaming leading toolbar spacing — simulator build 240 — 2026-07-30
+
+The Streaming root playlist NavigationLink now uses the same plain button style as the corresponding Library, artist,
+album, and All Tracks links. This removes the platform NavigationLink padding that made the Streaming playlist icon sit
+farther from the library-options icon.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+Manual continuation: compare the options-to-playlist spacing on Library, Streaming, artist, album, and All Tracks modules
+and verify the playlist link still opens normally.
+
+## Settings module theme overhaul — simulator build 241 — 2026-07-30
+
+Settings now follows the shared module chrome: its leading control is the themed text-labeled **Back** button, its
+centered title uses the themed Settings hierarchy treatment, and the legacy extra top padding was removed. Settings
+category cards now use Hero Button style-aware surfaces and borders with compact typography rather than the oversized
+legacy headers. Settings action buttons inherit a shared themed card treatment, including QR setup and Test Connection,
+while explicit destructive actions retain their destructive styling.
+
+All settings behavior and persisted category expansion remain unchanged. Regression checks, simulator build/install/launch,
+and a simulator screenshot passed. The physical phone was not changed.
+
+Manual continuation: open Settings and compare it with Library and Streaming in every Hero Button style. Verify the themed
+Back/title chrome, compact category cards, Appearance controls, QR scanner, Test Connection, diagnostics actions, keyboard
+dismissal, persisted expansion, and scrolling above the tab bar.
+
+## Album and All Albums action standardization — simulator build 242 — 2026-07-30
+
+Album and All Albums toolbars now use the shared themed Back control and consistent playlist-link geometry. Their Play All
+actions use the shared Hero action treatment instead of system-bordered buttons. Local track swipe actions now expose
+theme-colored Play Next, Add to Queue, Edit Metadata, and Add to Playlist controls. Streaming album and All Albums track
+swipes expose theme-colored Play Next, Add to Queue, Download, and server-playlist actions where supported.
+
+Fixed indigo, teal, blue, and green swipe tints were removed in favor of the active Resonance accent, so the action
+surfaces follow the selected theme consistently. Regression checks, simulator build/install/launch, and a simulator
+screenshot passed. The physical phone was not changed.
+
+Manual continuation: open local and Streaming albums and All Albums. Swipe tracks from both sides and verify the action
+labels, icons, spacing, and active-theme color; test Play Next, Add to Queue, Download, Edit Metadata, and Add to Playlist.
+
+## Revert experimental themed swipe actions — 2026-07-30
+
+The experimental custom swipe surface was reverted after simulator review showed the action cards could appear behind or
+over the track text. Album and All Albums rows are back on the stable native `.swipeActions` implementation. The shared
+toolbar, Hero Button, navigation, Settings, and Play All theme standardization remains in place.
+
+`Tools/RegressionChecks.sh`, `git diff --check`, Swift 6 strict preflight, signed arm64 Release compilation, and strict
+code-signature verification passed. The simulator build was installed and launched. The physical phone install is
+pending completion of its iOS update; Codex did not launch the phone app.
+
+Manual continuation: after the phone reconnects, install this build in place and verify album/all-albums native swipe
+actions, toolbar consistency, navigation, Settings, playback, and library preservation.
+
+## Restore centered hierarchy navigation and direct Browse/Download actions — simulator build 247 — 2026-07-30
+
+Source commit `1c52501` restores the established Library and Streaming toolbar arrangement: leading options and
+playlist controls, centered direct Library ↔ Streaming hierarchy navigation, and stacked trailing refresh/settings
+controls with Browse Files or Download. Browse Files and Download use the existing direct `ResonanceToolbarTextButton`
+actions. Regression checks and `git diff --check` passed. A strict Debug simulator build version `1.0.7/build 247`
+passed and was installed in place on the configured iPhone 17 Pro simulator. The simulator was not launched or
+screenshot-captured by Codex; the physical phone was not changed or launched.
+
+Manual continuation: launch build 247 manually and capture a screenshot. Verify the centered hierarchy buttons,
+leading options/playlist controls, Browse Files importer, Download flow, and unchanged navigation behavior.
+
+## Restore Streaming root toolbar isolation — simulator build 233 — 2026-07-30
+
+The Streaming root toolbar’s shared-background suppression was restored after the detail-toolbar update accidentally
+dropped that modifier. The existing root icon, Download, spacing, and alignment layout was otherwise left unchanged.
+
+Regression checks, simulator build, and in-place simulator installation passed. The physical phone was not changed.
+
+## Alphabet first-touch reliability — Beta 2.0 build 268 — 2026-08-01
+
+The shared Library and Streaming alphabet index now resets its gesture state at release instead of waiting for a
+yielded main-actor task. The final release position is applied immediately, then repeated only when no newer touch has
+started. A generation guard prevents a delayed callback from an older touch from interfering with the first callback of
+the next touch. This addresses intermittent alphabet jumps and the case where the first attempt appears to do nothing.
+
+The latest device diagnostics showed Streaming receiving the widened left-handed hit strip and producing selections;
+the remaining failure mode was the deferred state handoff. The signed 2.0/268 build was installed in place on
+`SaiyanDenwa` and was not launched by Codex.
+
+Automated validation: `git diff --check` and Swift 6 strict simulator/generic-device preflight passed. The existing
+`Tools/RegressionChecks.sh` currently stops on its unrelated stale `confirmed file artwork` assertion. The signed
+arm64 Release build, strict deep code-signature verification, and `devicectl` install/version check passed.
+
+Manual test: with Debugging Mode enabled, repeatedly tap and drag the left-handed Streaming Artists alphabet from the
+far-left edge, including two quick successive attempts, then repeat in Albums and local Library. Confirm the first
+touch jumps immediately, subsequent touches do not inherit the previous letter, and normal content scrolling still works
+outside the hit strip. Codex must not launch the physical app automatically.
+
+## Resolve Streaming alphabet edge overlay — Beta 2.0 build 268 — 2026-08-01
+
+A layout comparison showed that the shared Library and Streaming alphabet containers use the same alignment and padding.
+Streaming alone also placed a full-height 24-point leading overlay above its content for the root back-swipe gesture.
+That overlay covered the left side of the alphabet, matching the observed requirement to touch near the album-art edge.
+The back gesture now uses simultaneous recognition so the alphabet keeps vertical gesture ownership while a qualifying
+horizontal swipe still navigates back.
+
+Automated validation: signed arm64 Release compilation, strict deep code-signature verification, and in-place
+`devicectl` installation of version `2.0`/build `268` passed on `SaiyanDenawa`. The physical app was not launched.
+
+Manual test: in left-handed Streaming Artists, Albums, and artist-album views, touch the visible letters at the actual
+far-left screen edge and drag vertically; confirm the alphabet responds without reaching the album artwork. Then verify
+the root horizontal back swipe, normal browse scrolling, and right-handed alphabet behavior.
+
+## Copy Local alphabet layout into Streaming — Beta 2.0 build 268 — 2026-08-01
+
+The prior Streaming-only geometry changes were removed after physical testing showed the edge problem remained. The
+three Streaming browse containers now follow the working Local containers directly: the shared default 32-point
+`VerticalArtistIndex`, matching ZStack sizing and modifier order, and the same edge padding. Streaming-specific
+remote rows, section IDs, diagnostics, labels, and navigation remain unchanged. The custom Streaming leading overlay
+was removed from the alphabet hit-test chain.
+
+Automated validation: `git diff --check`, signed arm64 Release compilation, strict deep code-signature verification,
+and in-place `devicectl` installation of version `2.0`/build `268` passed on `SaiyanDenawa`. The physical app was not
+launched.
+
+Manual test: test far-left alphabet taps and vertical drags in Streaming Artists, Albums, and artist-album views;
+compare each directly with the corresponding Local view, then verify normal scrolling, navigation, and right-handed
+behavior.
+
+## Remove Minimal Transparent toolbar icon underline — Beta 2.0 build 268 — 2026-08-01
+
+Minimal Transparent toolbar icons no longer draw the small accent capsule beneath each icon. The shared
+`ResonanceToolbarIconButton` and `ResonanceToolbarIconLabel` components remain transparent without that underline;
+Minimal Transparent text and hero buttons retain their existing accent treatment.
+
+Automated validation: `git diff --check`, signed arm64 Release compilation, and simulator Debug compilation/install
+passed. Version `2.0`/build `268` is installed on the configured iPhone 17 Pro simulator. The physical phone was not
+updated or launched.
+
+Manual test: select Minimal Transparent in Settings and inspect Library, Streaming, Settings, Now Playing, and detail
+toolbars. Confirm icon buttons have no line beneath them, while text/hero buttons and the other visual styles remain
+unchanged.
+
+## Remove remaining Minimal Transparent button lines — simulator build 268 — 2026-08-01
+
+Screenshot review found that underline capsules also remained on hierarchy labels, hero action buttons, hero menu labels,
+and text buttons. Those shared renderers now omit the Minimal Transparent underline as well. The setting description now
+describes the style as having no button chrome.
+
+The updated Debug simulator build 2.0/268 was installed on the configured iPhone 17 Pro simulator. The physical phone
+was not updated or launched.
+
+## ProjectMD fullscreen visualizations — physical build 268 — 2026-08-07 — unresolved black output
+
+The broken Settings proof-of-concept has been replaced by the ProjectMD fullscreen module. The regular ProjectMD
+options and diagnostics shell are not imported. Tapping album artwork on the Playing page presents the fullscreen
+visualizer; a single tap reveals or hides the Lyrics, Favorite, and Banish controls, a double tap returns to Playing,
+and horizontal swipes move through the bundled CreamOfTheCrop preset catalog. Favorites and banished presets persist
+through `AppStorage`.
+
+The native bridge now renders into the active GLKView framebuffer using projectM’s FBO entry point. It caps the
+projectM uses the actual drawable size while the framebuffer path is stabilized and leaves mesh sizing at the
+projectM library default. The
+full CreamOfTheCrop and MilkDrop3Test resources are bundled under the app-private `ProjectMD/` resource directory;
+the visualizer explicitly searches `ProjectMD/CreamOfTheCrop` and `ProjectMD/MilkDrop3Test`. Audio PCM continues to
+come from the existing playback tap without changing playback ownership.
+
+Automated validation: `Tools/PreflightBuild.sh`, signed arm64 Release compilation, deep strict code-signature
+verification, and repeated in-place `devicectl` installation passed. The installed app is
+`com.briangarcia.Resonance.saiyandenwa`, version `2.0`, build `268`; the previous app container was not uninstalled.
+Manual physical testing confirms the catalog loads, but the rendered output remains black.
+
+Next continuation: retrieve the physical device diagnostics after reproducing the black output, compare the active
+GL framebuffer/viewport with ProjectMDNativeVisualizerView.swift, and repair the remaining projectM OpenGL ES render
+target mismatch. Do not change playback or navigation code while isolating the renderer.
+
+### Build 281 follow-up — fullscreen defaults, lyric cadence, and diagnostic correlation — 2026-08-08
+
+The fullscreen ProjectM module now starts with Lyrics enabled, keeps the display awake while lyrics are active, and
+requests landscape-only orientation with both landscape directions available for a 180-degree rotation. Lyric timing
+is interpolated at display cadence between playback progress publications, so the synced line and native MilkDrop
+feedback progress no longer advance in visible 120 ms steps.
+
+The renderer now records privacy-safe transition begin/validation boundaries, frame stalls of at least 100 ms with
+their distance from the last preset change, orientation and idle-timer state, and the existing controls/favorite/lyrics
+events. This is enough to correlate the remaining hitch with a transition, a UI action, or a render stall, but a fresh
+physical-device reproduction is still required; the pre-change log copy was stale and the newly installed app has not
+yet been launched.
+
+Validation: focused source contracts, Swift 6 simulator and generic-device preflight, signed arm64 Release build,
+deep strict code-signature verification, and in-place installation on SaiyanDenawa passed. The installed app remains
+version `2.1`, build `281`; Codex did not launch the physical device. The full regression script still stops at the
+unrelated pre-existing `preservingArtworkOverride` assertion.
+
+### Build 282 — persisted visualizer state and synchronous diagnostic-stall removal — 2026-08-08
+
+Fullscreen ProjectM now persists the Lyrics toggle and the last selected non-banished preset. Reopening the module
+restores those choices; a removed or banished preset safely falls back to the first available entry. Existing favorite,
+banished, shuffle, and auto-cycle persistence is unchanged.
+
+Fresh build-281 device evidence showed that native preset loads, lyric texture uploads, framebuffer-size events, and
+first-transition checks all called the diagnostics writer synchronously from the main/render path. The standalone
+ProjectMD logger already performs this work asynchronously. Build 282 routes these low-volume ProjectM events through
+Resonance's serial background diagnostics queue, keeps controls/frame-stall/render-window events available without
+verbose debugging, and preserves their privacy-safe ordering. Transition validation was also reading stale GLES
+errors left by the incoming preset before the compositor ran; actual checked composites were clean. The stale-error
+poll and its forced GPU synchronization are removed, while an asynchronous first-composite boundary remains.
+
+Validation passed: focused persistence/render-path contracts, `git diff --check`, Swift 6 simulator and generic-device
+preflight, signed arm64 Release compilation, deep strict code-signature verification, and in-place installation on
+SaiyanDenawa. Device verification reports Resonance `2.1`, build `282`. Codex did not launch the physical app. The
+full regression script still stops at the unrelated pre-existing `preservingArtworkOverride` assertion; the repository
+does not contain the optional Python `scripts/` test directory expected by the generic performance workflow.
+
+### Build 283 — measured ProjectM dual-render transition repair — 2026-08-08
+
+Fresh build-282 device diagnostics separated the remaining costs. Showing and hiding controls on the light Escargot
+preset stayed near 17–23 ms maximum frame gaps, but soft preset changes synchronously loaded/compiled their destination
+for 88.2, 97.0, and 105.0 ms. During the transition, projectM then rendered both complete presets before blending them;
+render windows rose from roughly 8.8 ms on Escargot to 20–24 ms, exceeded the 16.67 ms 60 Hz budget, and reached a
+50.01 ms frame gap. Native lyric uploads measured only 0.1–0.3 ms and were not the blocking operation.
+
+Build 283 removes one confirmed redundant workload: the outgoing preset now keeps its last complete output texture
+while only the incoming preset evolves. The original projectM transition shader, ratio, duration, preset identities,
+viewport, 0.75 drawable scale, lyrics, shuffle, and controls are unchanged. This does not hide the separate 88–105 ms
+synchronous destination-preset load; physical re-profiling will determine whether that becomes the next dominant hitch.
+
+Equivalent workload manifests and the behavior proof are stored in
+`/Users/brian/Resonance/evidence/projectm-282-round-04`. `git diff --check`, the focused native transition contract,
+Swift 6 strict simulator and generic-device preflight, signed arm64 Release compilation, deep strict signature
+verification, and in-place installation passed. SaiyanDenawa reports Resonance `2.1`, build `283`; Codex did not launch
+the app. The full regression script still stops at its unrelated stale `preservingArtworkOverride` assertion. The
+signed build also emitted the known non-blocking AppIntents SSU artifact archive message and existing vendored
+hlslparser warnings.

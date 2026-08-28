@@ -1,0 +1,44 @@
+{
+  "commit": "348a5d67bfb2d90a644d9fe6fce4c4bedf60e362",
+  "environment": {
+    "cache_state": "warm",
+    "configuration": "Release",
+    "device": "SaiyanDenawa iPhone 17 Pro",
+    "diagnostics_enabled": true,
+    "local_track_count": 0,
+    "network": "local playback; network not in workload",
+    "os": "iOS 26.6 (23G71)",
+    "remote_track_count": 0
+  },
+  "expected_behavior": [
+    "Only the current synced lyric is centered over ProjectM",
+    "The completed lyric enters ProjectM feedback and is warped by later frames",
+    "Controls and lyric toggles do not pause the visualizer",
+    "Preset transitions preserve output and target 60 FPS"
+  ],
+  "notes": "Build 280 is signed and installed in place. Codex did not launch it; equivalent physical after measurements remain pending the user-run workload.",
+  "primary_metrics": [
+    "projectm.performance.window maxFrameGapMs and over33/over50 counts",
+    "projectm.native.preset_load durationMs"
+  ],
+  "protocol": {
+    "repetitions": 5,
+    "steps": [
+      "Start local audio and open fullscreen ProjectM in landscape",
+      "Warm up one preset transition",
+      "Show controls, enable lyrics, hide controls, and advance one preset",
+      "Repeat the interaction sequence five times with the same preset sequence",
+      "Exit fullscreen and retrieve the privacy-safe diagnostics log"
+    ],
+    "warmups": 1
+  },
+  "ref": "agent/alpha-3.7.4-source",
+  "repository": "thnikkaman/Resonance",
+  "scenario": "projectm-controls-lyrics-transitions",
+  "schema_version": 1,
+  "secondary_metrics": [
+    "projectm.native.window_size count and dimensions",
+    "projectm.display.stall count",
+    "device warmth and visible transition/controls behavior"
+  ]
+}
